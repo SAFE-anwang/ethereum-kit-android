@@ -18,6 +18,8 @@ import okhttp3.Credentials
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import java.net.InetSocketAddress
+import java.net.Proxy
 import java.net.URL
 import java.util.logging.Logger
 
@@ -63,6 +65,7 @@ class NodeWebSocket(
         }
 
         val okHttpClient = OkHttpClient.Builder()
+            .proxy(Proxy( Proxy.Type.HTTP , InetSocketAddress("47.89.208.160", 58972) ))
                 .addInterceptor(headersInterceptor)
                 .addInterceptor(loggingInterceptor)
                 .build()

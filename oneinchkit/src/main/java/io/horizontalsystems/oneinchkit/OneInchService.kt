@@ -13,6 +13,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
 import java.math.BigInteger
+import java.net.InetSocketAddress
+import java.net.Proxy
 import java.util.logging.Logger
 
 class OneInchService(
@@ -28,6 +30,7 @@ class OneInchService(
         }.setLevel(HttpLoggingInterceptor.Level.BODY)
 
         val httpClient = OkHttpClient.Builder()
+            .proxy(Proxy( Proxy.Type.HTTP , InetSocketAddress("47.89.208.160", 58972) ))
                 .addInterceptor(loggingInterceptor)
 
         val gson = GsonBuilder()

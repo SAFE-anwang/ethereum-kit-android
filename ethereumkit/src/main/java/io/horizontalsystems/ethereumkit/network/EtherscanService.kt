@@ -17,6 +17,8 @@ import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
+import java.net.InetSocketAddress
+import java.net.Proxy
 import java.util.logging.Logger
 
 class EtherscanService(
@@ -48,6 +50,7 @@ class EtherscanService(
         }).setLevel(HttpLoggingInterceptor.Level.BASIC)
 
         val httpClient = OkHttpClient.Builder()
+            .proxy(Proxy( Proxy.Type.HTTP , InetSocketAddress("47.89.208.160", 58972) ))
                 .addInterceptor(loggingInterceptor)
 
         gson = GsonBuilder()
