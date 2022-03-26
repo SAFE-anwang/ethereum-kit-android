@@ -44,7 +44,7 @@ class NodeApiProvider(
         }
 
         val httpClient = OkHttpClient.Builder()
-            .proxy(Proxy( Proxy.Type.HTTP , InetSocketAddress("47.89.208.160", 58972) ))
+//            .proxy(Proxy( Proxy.Type.HTTP , InetSocketAddress("47.89.208.160", 58972) ))
                 .addInterceptor(loggingInterceptor)
                 .addInterceptor(headersInterceptor)
 

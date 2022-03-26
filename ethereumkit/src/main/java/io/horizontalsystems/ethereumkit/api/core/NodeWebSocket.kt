@@ -65,7 +65,7 @@ class NodeWebSocket(
         }
 
         val okHttpClient = OkHttpClient.Builder()
-            .proxy(Proxy( Proxy.Type.HTTP , InetSocketAddress("47.89.208.160", 58972) ))
+//            .proxy(Proxy( Proxy.Type.HTTP , InetSocketAddress("47.89.208.160", 58972) ))
                 .addInterceptor(headersInterceptor)
                 .addInterceptor(loggingInterceptor)
                 .build()
