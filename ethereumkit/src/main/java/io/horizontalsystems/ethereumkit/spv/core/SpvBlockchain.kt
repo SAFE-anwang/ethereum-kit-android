@@ -1,6 +1,7 @@
 package io.horizontalsystems.ethereumkit.spv.core
 
 import io.horizontalsystems.ethereumkit.api.core.IRpcApiProvider
+import io.horizontalsystems.ethereumkit.api.jsonrpc.JsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcBlock
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransaction
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransactionReceipt
@@ -9,15 +10,11 @@ import io.horizontalsystems.ethereumkit.core.*
 import io.horizontalsystems.ethereumkit.core.EthereumKit.SyncError
 import io.horizontalsystems.ethereumkit.core.EthereumKit.SyncState
 import io.horizontalsystems.ethereumkit.crypto.ECKey
-import io.horizontalsystems.ethereumkit.models.Address
-import io.horizontalsystems.ethereumkit.models.DefaultBlockParameter
-import io.horizontalsystems.ethereumkit.models.Transaction
-import io.horizontalsystems.ethereumkit.models.TransactionLog
+import io.horizontalsystems.ethereumkit.models.*
 import io.horizontalsystems.ethereumkit.network.INetwork
 import io.horizontalsystems.ethereumkit.spv.helpers.RandomHelper
 import io.horizontalsystems.ethereumkit.spv.models.AccountStateSpv
 import io.horizontalsystems.ethereumkit.spv.models.BlockHeader
-import io.horizontalsystems.ethereumkit.spv.models.RawTransaction
 import io.horizontalsystems.ethereumkit.spv.net.BlockHelper
 import io.horizontalsystems.ethereumkit.spv.net.BlockValidator
 import io.horizontalsystems.ethereumkit.spv.net.PeerGroup
@@ -79,10 +76,10 @@ class SpvBlockchain(
     override val accountState: AccountState?
         get() = storage.getAccountState()?.let { AccountState(it.balance, it.nonce) }
 
-    override fun send(rawTransaction: RawTransaction): Single<Transaction> {
+    override fun send(rawTransaction: RawTransaction, signature: Signature): Single<Transaction> {
         return try {
             val sendId = RandomHelper.randomInt()
-            transactionSender.send(sendId, peer, rawTransaction)
+            transactionSender.send(sendId, peer, rawTransaction, signature)
             val subject = PublishSubject.create<Transaction>()
             sendingTransactions[sendId] = subject
             Single.fromFuture(subject.toFuture())
@@ -96,7 +93,7 @@ class SpvBlockchain(
         TODO("not implemented")
     }
 
-    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: Long?, data: ByteArray?): Single<Long> {
+    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice, data: ByteArray?): Single<Long> {
         TODO("not implemented")
     }
 
@@ -121,6 +118,10 @@ class SpvBlockchain(
     }
 
     override fun call(contractAddress: Address, data: ByteArray, defaultBlockParameter: DefaultBlockParameter): Single<ByteArray> {
+        TODO("not implemented")
+    }
+
+    override fun <T> rpcSingle(rpc: JsonRpc<T>): Single<T> {
         TODO("not implemented")
     }
 
@@ -173,7 +174,7 @@ class SpvBlockchain(
     }
 
     companion object {
-        fun getInstance(storage: ISpvStorage, transactionSigner: TransactionSigner, transactionBuilder: TransactionBuilder, rpcApiProvider: IRpcApiProvider, network: INetwork, address: Address, nodeKey: ECKey): SpvBlockchain {
+        fun getInstance(storage: ISpvStorage, transactionBuilder: TransactionBuilder, rpcApiProvider: IRpcApiProvider, network: INetwork, address: Address, nodeKey: ECKey): SpvBlockchain {
             val peerProvider = PeerProvider(nodeKey, storage, network)
             val blockValidator = BlockValidator()
             val blockHelper = BlockHelper(storage, network)
@@ -181,7 +182,7 @@ class SpvBlockchain(
 
             val blockSyncer = BlockSyncer(storage, blockHelper, blockValidator)
             val accountStateSyncer = AccountStateSyncer(storage, address)
-            val transactionSender = TransactionSender(transactionBuilder, transactionSigner)
+            val transactionSender = TransactionSender(transactionBuilder)
 
             val spvBlockchain = SpvBlockchain(peer, blockSyncer, accountStateSyncer, transactionSender, storage, network, rpcApiProvider)
 

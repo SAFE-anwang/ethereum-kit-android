@@ -7,11 +7,7 @@ import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransactionReceipt
 import io.horizontalsystems.ethereumkit.api.models.AccountState
 import io.horizontalsystems.ethereumkit.core.*
 import io.horizontalsystems.ethereumkit.core.EthereumKit.SyncState
-import io.horizontalsystems.ethereumkit.models.Address
-import io.horizontalsystems.ethereumkit.models.DefaultBlockParameter
-import io.horizontalsystems.ethereumkit.models.Transaction
-import io.horizontalsystems.ethereumkit.models.TransactionLog
-import io.horizontalsystems.ethereumkit.spv.models.RawTransaction
+import io.horizontalsystems.ethereumkit.models.*
 import io.reactivex.Single
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
@@ -22,7 +18,6 @@ class RpcBlockchain(
         private val address: Address,
         private val storage: IApiStorage,
         private val syncer: IRpcSyncer,
-        private val transactionSigner: TransactionSigner,
         private val transactionBuilder: TransactionBuilder
 ) : IBlockchain, IRpcSyncerListener {
 
@@ -54,8 +49,8 @@ class RpcBlockchain(
     override fun syncAccountState() {
         Single.zip(
                 syncer.single(GetBalanceJsonRpc(address, DefaultBlockParameter.Latest)),
-                syncer.single(GetTransactionCountJsonRpc(address, DefaultBlockParameter.Latest)),
-                { t1, t2 -> Pair(t1, t2) })
+                syncer.single(GetTransactionCountJsonRpc(address, DefaultBlockParameter.Latest))
+        ) { t1, t2 -> Pair(t1, t2) }
                 .subscribeOn(Schedulers.io())
                 .subscribe({ (balance, nonce) ->
                     onUpdateAccountState(AccountState(balance, nonce))
@@ -112,8 +107,7 @@ class RpcBlockchain(
         syncer.stop()
     }
 
-    override fun send(rawTransaction: RawTransaction): Single<Transaction> {
-        val signature = transactionSigner.signature(rawTransaction)
+    override fun send(rawTransaction: RawTransaction, signature: Signature): Single<Transaction> {
         val transaction = transactionBuilder.transaction(rawTransaction, signature)
         val encoded = transactionBuilder.encode(rawTransaction, signature)
 
@@ -125,7 +119,7 @@ class RpcBlockchain(
         return syncer.single(GetTransactionCountJsonRpc(address, DefaultBlockParameter.Pending))
     }
 
-    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: Long?, data: ByteArray?): Single<Long> {
+    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice, data: ByteArray?): Single<Long> {
         return syncer.single(EstimateGasJsonRpc(address, to, amount, gasLimit, gasPrice, data))
     }
 
@@ -191,6 +185,11 @@ class RpcBlockchain(
     override fun call(contractAddress: Address, data: ByteArray, defaultBlockParameter: DefaultBlockParameter): Single<ByteArray> {
         return syncer.single(CallJsonRpc(contractAddress, data, defaultBlockParameter))
     }
+
+    override fun <T> rpcSingle(rpc: JsonRpc<T>): Single<T> {
+        return syncer.single(rpc)
+    }
+
     //endregion
 
     //region IRpcSyncerListener
@@ -221,10 +220,9 @@ class RpcBlockchain(
         fun instance(address: Address,
                      storage: IApiStorage,
                      syncer: IRpcSyncer,
-                     transactionSigner: TransactionSigner,
                      transactionBuilder: TransactionBuilder): RpcBlockchain {
 
-            val rpcBlockchain = RpcBlockchain(address, storage, syncer, transactionSigner, transactionBuilder)
+            val rpcBlockchain = RpcBlockchain(address, storage, syncer, transactionBuilder)
             syncer.listener = rpcBlockchain
 
             return rpcBlockchain

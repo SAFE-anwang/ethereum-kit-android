@@ -2,9 +2,10 @@ package io.horizontalsystems.oneinchkit
 
 import com.google.gson.annotations.SerializedName
 import io.horizontalsystems.ethereumkit.core.EthereumKit
-import io.horizontalsystems.ethereumkit.core.EthereumKit.NetworkType
 import io.horizontalsystems.ethereumkit.core.toHexString
 import io.horizontalsystems.ethereumkit.models.Address
+import io.horizontalsystems.ethereumkit.models.Chain
+import io.horizontalsystems.ethereumkit.models.GasPrice
 import io.horizontalsystems.oneinchkit.contracts.OneInchContractMethodFactories
 import io.horizontalsystems.oneinchkit.decorations.OneInchTransactionDecorator
 import io.reactivex.Single
@@ -16,10 +17,11 @@ class OneInchKit(
         private val service: OneInchService
 ) {
 
-    val smartContractAddress: Address = when (evmKit.networkType) {
-        NetworkType.EthMainNet -> Address("0x1111111254fb6c44bac0bed2854e76f90643097d")
-        NetworkType.BscMainNet -> Address("0x1111111254fb6c44bac0bed2854e76f90643097d")
-        else -> throw IllegalArgumentException("Invalid NetworkType: $evmKit.networkType")
+    val getRouterAddress: Address = when (evmKit.chain) {
+        Chain.Ethereum, Chain.BinanceSmartChain, Chain.Polygon, Chain.ArbitrumOne -> Address("0x1111111254fb6c44bac0bed2854e76f90643097d")
+        Chain.Optimism -> Address("0x1111111254760f7ab3f16433eea9304126dcd199")
+        Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli -> Address("0x11111112542d85b3ef69ae05771c2dccff4faa26")
+        else -> throw IllegalArgumentException("Invalid Chain: ${evmKit.chain.id}")
     }
 
     fun getApproveCallDataAsync(tokenAddress: Address, amount: BigInteger): Single<ApproveCallData> {
@@ -31,7 +33,7 @@ class OneInchKit(
             toToken: Address,
             amount: BigInteger,
             protocols: List<String>? = null,
-            gasPrice: Long? = null,
+            gasPrice: GasPrice? = null,
             complexityLevel: Int? = null,
             connectorTokens: List<String>? = null,
             gasLimit: Long? = null,
@@ -48,7 +50,7 @@ class OneInchKit(
             slippagePercentage: Float,
             protocols: List<String>? = null,
             recipient: Address? = null,
-            gasPrice: Long? = null,
+            gasPrice: GasPrice? = null,
             burnChi: Boolean = false,
             complexityLevel: Int? = null,
             connectorTokens: List<String>? = null,
@@ -63,7 +65,7 @@ class OneInchKit(
     companion object {
 
         fun getInstance(evmKit: EthereumKit): OneInchKit {
-            val service = OneInchService(evmKit.networkType)
+            val service = OneInchService(evmKit.chain)
             return OneInchKit(evmKit, service)
         }
 
@@ -107,7 +109,9 @@ data class SwapTransaction(
         val to: Address,
         val data: ByteArray,
         val value: BigInteger,
-        val gasPrice: Long,
+        val gasPrice: Long?,
+        val maxFeePerGas: Long?,
+        val maxPriorityFeePerGas: Long?,
         @SerializedName("gas") val gasLimit: Long
 ) {
     override fun toString(): String {

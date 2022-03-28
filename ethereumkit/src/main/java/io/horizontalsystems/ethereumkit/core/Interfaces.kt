@@ -1,5 +1,6 @@
 package io.horizontalsystems.ethereumkit.core
 
+import io.horizontalsystems.ethereumkit.api.jsonrpc.JsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcBlock
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransaction
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransactionReceipt
@@ -9,7 +10,6 @@ import io.horizontalsystems.ethereumkit.decorations.ContractMethodDecoration
 import io.horizontalsystems.ethereumkit.models.*
 import io.horizontalsystems.ethereumkit.spv.models.AccountStateSpv
 import io.horizontalsystems.ethereumkit.spv.models.BlockHeader
-import io.horizontalsystems.ethereumkit.spv.models.RawTransaction
 import io.reactivex.Flowable
 import io.reactivex.Single
 import java.math.BigInteger
@@ -46,9 +46,9 @@ interface IBlockchain {
     val lastBlockHeight: Long?
     val accountState: AccountState?
 
-    fun send(rawTransaction: RawTransaction): Single<Transaction>
+    fun send(rawTransaction: RawTransaction, signature: Signature): Single<Transaction>
     fun getNonce(): Single<Long>
-    fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: Long?, data: ByteArray?): Single<Long>
+    fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice, data: ByteArray?): Single<Long>
     fun getTransactionReceipt(transactionHash: ByteArray): Single<Optional<RpcTransactionReceipt>>
     fun getTransaction(transactionHash: ByteArray): Single<Optional<RpcTransaction>>
     fun getBlock(blockNumber: Long): Single<Optional<RpcBlock>>
@@ -56,6 +56,8 @@ interface IBlockchain {
     fun getLogs(address: Address?, topics: List<ByteArray?>, fromBlock: Long, toBlock: Long, pullTimestamps: Boolean): Single<List<TransactionLog>>
     fun getStorageAt(contractAddress: Address, position: ByteArray, defaultBlockParameter: DefaultBlockParameter): Single<ByteArray>
     fun call(contractAddress: Address, data: ByteArray, defaultBlockParameter: DefaultBlockParameter): Single<ByteArray>
+
+    fun <T> rpcSingle(rpc: JsonRpc<T>): Single<T>
 }
 
 interface IBlockchainListener {
@@ -147,4 +149,11 @@ interface IDecorator {
 
 interface ITransactionWatcher {
     fun needInternalTransactions(fullTransaction: FullTransaction): Boolean
+}
+
+interface ITransactionProvider {
+    fun getTransactions(startBlock: Long): Single<List<ProviderTransaction>>
+    fun getInternalTransactions(startBlock: Long): Single<List<InternalTransaction>>
+    fun getInternalTransactionsAsync(hash: ByteArray): Single<List<InternalTransaction>>
+    fun getTokenTransactions(startBlock: Long): Single<List<ProviderTokenTransaction>>
 }
