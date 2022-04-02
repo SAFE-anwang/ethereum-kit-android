@@ -1,14 +1,16 @@
 package io.horizontalsystems.ethereumkit.sample.modules.main
 
+import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import io.horizontalsystems.erc20kit.core.Erc20Kit
 import io.horizontalsystems.ethereumkit.core.EthereumKit
-import io.horizontalsystems.ethereumkit.core.EthereumKit.NetworkType
 import io.horizontalsystems.ethereumkit.core.EthereumKit.SyncState
+import io.horizontalsystems.ethereumkit.core.eip1559.Eip1559GasPriceProvider
+import io.horizontalsystems.ethereumkit.core.eip1559.FeeHistory
 import io.horizontalsystems.ethereumkit.core.signer.Signer
 import io.horizontalsystems.ethereumkit.core.toHexString
-import io.horizontalsystems.ethereumkit.models.Address
+import io.horizontalsystems.ethereumkit.models.*
 import io.horizontalsystems.ethereumkit.sample.App
 import io.horizontalsystems.ethereumkit.sample.Configuration
 import io.horizontalsystems.ethereumkit.sample.SingleLiveEvent
@@ -54,7 +56,8 @@ class MainViewModel : ViewModel() {
 
     private var showTxType = ShowTxType.Eth
 
-    private val gasPrice: Long = 20_000_000_000
+    private val recommendedPriorityFee: Long? = null
+    private var gasPrice: GasPrice = GasPrice.Legacy(20_000_000_000)
 
     private var ethTxs = listOf<TransactionRecord>()
     private var erc20Txs = listOf<TransactionRecord>()
@@ -72,10 +75,11 @@ class MainViewModel : ViewModel() {
     fun init() {
         val words = Configuration.defaultsWords.split(" ")
         val seed = Mnemonic().toSeed(words)
-        signer = Signer.getInstance(seed, Configuration.networkType)
+        signer = Signer.getInstance(seed, Configuration.chain)
         ethereumKit = createKit()
         ethereumAdapter = EthereumAdapter(ethereumKit, signer)
-        erc20Adapter = Erc20Adapter(App.instance, fromToken ?: toToken ?: Configuration.erc20Tokens.first(), ethereumKit, signer)
+        erc20Adapter = Erc20Adapter(App.instance, fromToken ?: toToken
+        ?: Configuration.erc20Tokens.first(), ethereumKit, signer)
         uniswapKit = UniswapKit.getInstance(ethereumKit)
 
         Erc20Kit.addTransactionSyncer(ethereumKit)
@@ -163,45 +167,96 @@ class MainViewModel : ViewModel() {
 
         ethereumAdapter.start()
         erc20Adapter.start()
+
+        val eip1559GasPriceProvider = Eip1559GasPriceProvider(ethereumKit)
+
+        eip1559GasPriceProvider
+                .feeHistory(4, rewardPercentile = listOf(50))
+                .subscribe({
+                    Log.e("AAA", "FeeHistory: $it")
+                    handle(it)
+                }, {
+                    Log.e("AAA", "error: ${it.localizedMessage ?: it.message ?: it.javaClass.simpleName}")
+                }).let { disposables.add(it) }
+
+    }
+
+    private fun handle(feeHistory: FeeHistory) {
+        var recommendedBaseFee: Long? = null
+        var recommendedPriorityFee: Long? = null
+
+        feeHistory.baseFeePerGas.lastOrNull()?.let { currentBaseFee ->
+            recommendedBaseFee = currentBaseFee
+        }
+
+        var priorityFeeSum: Long = 0
+        var priorityFeesCount = 0
+        feeHistory.reward.forEach { priorityFeeArray ->
+            priorityFeeArray.firstOrNull()?.let { priorityFee ->
+                priorityFeeSum += priorityFee
+                priorityFeesCount += 1
+            }
+        }
+
+        if (priorityFeesCount > 0) {
+            recommendedPriorityFee = priorityFeeSum / priorityFeesCount
+        }
+
+        recommendedBaseFee?.let { baseFee ->
+            recommendedPriorityFee?.let { tip ->
+
+                gasPrice = GasPrice.Eip1559(baseFee + tip, tip)
+                Log.e("AAA", "set gasPrice: $gasPrice")
+            }
+
+        }
     }
 
     private fun createKit(): EthereumKit {
-        val syncSource: EthereumKit.SyncSource?
-        val txApiProviderKey: String
+        val rpcSource: RpcSource?
+        val transactionSource: TransactionSource?
 
-        when (Configuration.networkType) {
-            NetworkType.BscMainNet -> {
-                txApiProviderKey = Configuration.bscScanKey
-                syncSource = if (Configuration.webSocket)
-                    EthereumKit.defaultBscWebSocketSyncSource()
+        when (Configuration.chain) {
+            Chain.BinanceSmartChain -> {
+                transactionSource = TransactionSource.bscscan(Configuration.bscScanKey)
+                rpcSource = if (Configuration.webSocket)
+                    RpcSource.binanceSmartChainWebSocket()
                 else
-                    EthereumKit.defaultBscHttpSyncSource()
+                    RpcSource.binanceSmartChainHttp()
+            }
+            Chain.Ethereum -> {
+                transactionSource = TransactionSource.ethereumEtherscan(Configuration.etherscanKey)
+                rpcSource = if (Configuration.webSocket)
+                    RpcSource.ethereumInfuraWebSocket(Configuration.infuraProjectId, Configuration.infuraSecret)
+                else
+                    RpcSource.ethereumInfuraHttp(Configuration.infuraProjectId, Configuration.infuraSecret)
+            }
+            Chain.EthereumRopsten -> {
+                transactionSource = TransactionSource.ropstenEtherscan(Configuration.etherscanKey)
+                rpcSource = if (Configuration.webSocket)
+                    RpcSource.ropstenInfuraWebSocket(Configuration.infuraProjectId, Configuration.infuraSecret)
+                else
+                    RpcSource.ropstenInfuraHttp(Configuration.infuraProjectId, Configuration.infuraSecret)
             }
             else -> {
-                txApiProviderKey = Configuration.etherscanKey
-                syncSource = if (Configuration.webSocket)
-                    EthereumKit.infuraWebSocketSyncSource(
-                        Configuration.networkType,
-                        Configuration.infuraProjectId,
-                        Configuration.infuraSecret
-                    )
-                else
-                    EthereumKit.infuraHttpSyncSource(
-                        Configuration.networkType,
-                        Configuration.infuraProjectId,
-                        Configuration.infuraSecret
-                    )
+                rpcSource = null
+                transactionSource = null
             }
         }
-        checkNotNull(syncSource) {
-            throw Exception("Could not get syncSource!")
+
+        checkNotNull(rpcSource) {
+            throw Exception("Could not get rpcSource!")
+        }
+
+        checkNotNull(transactionSource) {
+            throw Exception("Could not get transactionSource!")
         }
 
         val words = Configuration.defaultsWords.split(" ")
         return EthereumKit.getInstance(
-            App.instance, words, "",
-            Configuration.networkType, syncSource, txApiProviderKey,
-            Configuration.walletId
+                App.instance, words, "",
+                Configuration.chain, rpcSource, transactionSource,
+                Configuration.walletId
         )
     }
 
@@ -276,8 +331,8 @@ class MainViewModel : ViewModel() {
     }
 
     fun clear() {
-        EthereumKit.clear(App.instance, Configuration.networkType, Configuration.walletId)
-        Erc20Kit.clear(App.instance, Configuration.networkType, Configuration.walletId)
+        EthereumKit.clear(App.instance, Configuration.chain, Configuration.walletId)
+        Erc20Kit.clear(App.instance, Configuration.chain, Configuration.walletId)
         init()
     }
 
@@ -406,23 +461,23 @@ class MainViewModel : ViewModel() {
         val transactionData = erc20Adapter.approveTransactionData(spenderAddress, amount)
 
         ethereumKit.estimateGas(transactionData, gasPrice)
-            .flatMap { gasLimit ->
-                logger.info("gas limit: $gasLimit")
-                ethereumKit.rawTransaction(transactionData, gasPrice, gasLimit)
-            }
-            .flatMap { rawTransaction ->
-                val signature = signer.signature(rawTransaction)
-                ethereumKit.send(rawTransaction, signature)
-            }
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe({ fullTransaction ->
-                logger.info("approve: ${fullTransaction.transaction.hash}")
-            }, {
-                logger.warning("approve ERROR = ${it.message}")
-            }).let {
-                disposables.add(it)
-            }
+                .flatMap { gasLimit ->
+                    logger.info("gas limit: $gasLimit")
+                    ethereumKit.rawTransaction(transactionData, gasPrice, gasLimit)
+                }
+                .flatMap { rawTransaction ->
+                    val signature = signer.signature(rawTransaction)
+                    ethereumKit.send(rawTransaction, signature)
+                }
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe({ fullTransaction ->
+                    logger.info("approve: ${fullTransaction.transaction.hash}")
+                }, {
+                    logger.warning("approve ERROR = ${it.message}")
+                }).let {
+                    disposables.add(it)
+                }
     }
 
     private fun uniswapToken(token: Erc20Token?): Token {
@@ -458,27 +513,29 @@ class MainViewModel : ViewModel() {
 
     fun swap() {
         tradeData.value?.let { tradeData ->
-            uniswapKit.estimateSwap(tradeData, gasPrice)
-                .flatMap { gasLimit ->
-                    logger.info("gas limit: $gasLimit")
 
-                    val transactionData = uniswapKit.transactionData(tradeData)
-                    ethereumKit.rawTransaction(transactionData, gasPrice, gasLimit)
-                }
-                .flatMap { rawTransaction ->
-                    val signature = signer.signature(rawTransaction)
-                    ethereumKit.send(rawTransaction, signature)
-                }
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe({ fullTransaction ->
-                    swapStatus.value = null
-                    logger.info("swap SUCCESS, txHash=${fullTransaction.transaction.hash.toHexString()}")
-                }, {
-                    swapStatus.value = it
-                    logger.info("swap ERROR, error=${it.message}")
-                    it.printStackTrace()
-                }).let { disposables.add(it) }
+            val transactionData = uniswapKit.transactionData(tradeData)
+            ethereumKit.estimateGas(transactionData, gasPrice)
+                    .flatMap { gasLimit ->
+                        logger.info("gas limit: $gasLimit")
+
+                        val transactionData = uniswapKit.transactionData(tradeData)
+                        ethereumKit.rawTransaction(transactionData, gasPrice, gasLimit)
+                    }
+                    .flatMap { rawTransaction ->
+                        val signature = signer.signature(rawTransaction)
+                        ethereumKit.send(rawTransaction, signature)
+                    }
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe({ fullTransaction ->
+                        swapStatus.value = null
+                        logger.info("swap SUCCESS, txHash=${fullTransaction.transaction.hash.toHexString()}")
+                    }, {
+                        swapStatus.value = it
+                        logger.info("swap ERROR, error=${it.message}")
+                        it.printStackTrace()
+                    }).let { disposables.add(it) }
         }
     }
 

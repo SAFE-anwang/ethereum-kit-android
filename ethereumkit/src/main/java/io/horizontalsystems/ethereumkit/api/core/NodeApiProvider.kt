@@ -44,7 +44,7 @@ class NodeApiProvider(
         }
 
         val httpClient = OkHttpClient.Builder()
-            .proxy(Proxy( Proxy.Type.HTTP , InetSocketAddress("47.89.208.160", 58972) ))
+//            .proxy(Proxy( Proxy.Type.HTTP , InetSocketAddress("47.89.208.160", 58972) ))
                 .addInterceptor(loggingInterceptor)
                 .addInterceptor(headersInterceptor)
 
@@ -65,16 +65,18 @@ class NodeApiProvider(
             Single.create { emitter ->
                 var error: Throwable = ApiProviderError.ApiUrlNotFound
 
-                urls.forEach { url ->
+                for (url in urls) {
                     try {
-                        val response = service.single(url.toURI(), gson.toJson(rpc))
-                                .map { response -> rpc.parseResponse(response, gson) }
-                                .blockingGet()
+                        val rpcResponse = service.single(url.toURI(), gson.toJson(rpc)).blockingGet()
+                        val response  = rpc.parseResponse(rpcResponse, gson)
 
                         emitter.onSuccess(response)
                         return@create
                     } catch (throwable: Throwable) {
                         error = throwable
+                        if (throwable is JsonRpc.ResponseError.RpcError) {
+                           break
+                        }
                     }
                 }
                 emitter.onError(error)

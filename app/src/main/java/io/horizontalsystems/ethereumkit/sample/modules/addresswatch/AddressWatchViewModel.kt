@@ -4,10 +4,15 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import io.horizontalsystems.erc20kit.core.Erc20Kit
 import io.horizontalsystems.ethereumkit.core.EthereumKit
+import io.horizontalsystems.ethereumkit.models.Chain
+import io.horizontalsystems.ethereumkit.models.RpcSource
+import io.horizontalsystems.ethereumkit.models.TransactionSource
 import io.horizontalsystems.ethereumkit.sample.App
 import io.horizontalsystems.ethereumkit.sample.Configuration
 import io.horizontalsystems.ethereumkit.sample.SingleLiveEvent
-import io.horizontalsystems.ethereumkit.sample.core.*
+import io.horizontalsystems.ethereumkit.sample.core.Erc20BaseAdapter
+import io.horizontalsystems.ethereumkit.sample.core.EthereumBaseAdapter
+import io.horizontalsystems.ethereumkit.sample.core.TransactionRecord
 import io.horizontalsystems.ethereumkit.sample.modules.main.ShowTxType
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
@@ -95,8 +100,8 @@ class AddressWatchViewModel : ViewModel() {
     }
 
     private fun clearKits() {
-        EthereumKit.clear(App.instance, Configuration.networkType, Configuration.walletId)
-        Erc20Kit.clear(App.instance, Configuration.networkType, Configuration.walletId)
+        EthereumKit.clear(App.instance, Configuration.chain, Configuration.walletId)
+        Erc20Kit.clear(App.instance, Configuration.chain, Configuration.walletId)
     }
 
     private fun updateTransactionsSyncState() {
@@ -118,40 +123,48 @@ class AddressWatchViewModel : ViewModel() {
     }
 
     private fun createKit(wordList: List<String>): EthereumKit {
-        val syncSource: EthereumKit.SyncSource?
-        val txApiProviderKey: String
+        val rpcSource: RpcSource?
+        val transactionSource: TransactionSource?
 
-        when (Configuration.networkType) {
-            EthereumKit.NetworkType.BscMainNet -> {
-                txApiProviderKey = Configuration.bscScanKey
-                syncSource = if (Configuration.webSocket)
-                    EthereumKit.defaultBscWebSocketSyncSource()
+        when (Configuration.chain) {
+            Chain.BinanceSmartChain -> {
+                transactionSource = TransactionSource.bscscan(Configuration.bscScanKey)
+                rpcSource = if (Configuration.webSocket)
+                    RpcSource.binanceSmartChainWebSocket()
                 else
-                    EthereumKit.defaultBscHttpSyncSource()
+                    RpcSource.binanceSmartChainHttp()
+            }
+            Chain.Ethereum -> {
+                transactionSource = TransactionSource.ethereumEtherscan(Configuration.etherscanKey)
+                rpcSource = if (Configuration.webSocket)
+                    RpcSource.ethereumInfuraWebSocket(Configuration.infuraProjectId, Configuration.infuraSecret)
+                else
+                    RpcSource.ethereumInfuraHttp(Configuration.infuraProjectId, Configuration.infuraSecret)
+            }
+            Chain.EthereumRopsten -> {
+                transactionSource = TransactionSource.ropstenEtherscan(Configuration.etherscanKey)
+                rpcSource = if (Configuration.webSocket)
+                    RpcSource.ropstenInfuraWebSocket(Configuration.infuraProjectId, Configuration.infuraSecret)
+                else
+                    RpcSource.ropstenInfuraHttp(Configuration.infuraProjectId, Configuration.infuraSecret)
             }
             else -> {
-                txApiProviderKey = Configuration.etherscanKey
-                syncSource = if (Configuration.webSocket)
-                    EthereumKit.infuraWebSocketSyncSource(
-                        Configuration.networkType,
-                        Configuration.infuraProjectId,
-                        Configuration.infuraSecret
-                    )
-                else
-                    EthereumKit.infuraHttpSyncSource(
-                        Configuration.networkType,
-                        Configuration.infuraProjectId,
-                        Configuration.infuraSecret
-                    )
+                rpcSource = null
+                transactionSource = null
             }
         }
-        checkNotNull(syncSource) {
-            throw Exception("Could not get syncSource!")
+
+        checkNotNull(rpcSource) {
+            throw Exception("Could not get rpcSource!")
+        }
+
+        checkNotNull(transactionSource) {
+            throw Exception("Could not get transactionSource!")
         }
 
         return EthereumKit.getInstance(
             App.instance, wordList, "",
-            Configuration.networkType, syncSource, txApiProviderKey,
+            Configuration.chain, rpcSource, transactionSource,
             Configuration.walletId
         )
     }

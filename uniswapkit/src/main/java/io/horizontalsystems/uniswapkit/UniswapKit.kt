@@ -77,10 +77,6 @@ class UniswapKit(
         return TradeData(trade, options)
     }
 
-    fun estimateSwap(tradeData: TradeData, gasPrice: Long): Single<Long> {
-        return tradeManager.estimateSwap(tradeData, gasPrice)
-    }
-
     fun transactionData(tradeData: TradeData): TransactionData {
         return tradeManager.transactionData(tradeData)
     }
@@ -88,7 +84,7 @@ class UniswapKit(
     companion object {
         fun getInstance(ethereumKit: EthereumKit): UniswapKit {
             val tradeManager = TradeManager(ethereumKit)
-            val tokenFactory = TokenFactory(ethereumKit.networkType)
+            val tokenFactory = TokenFactory(ethereumKit.chain)
             val pairSelector = PairSelector(tokenFactory)
 
             return UniswapKit(tradeManager, pairSelector, tokenFactory)
