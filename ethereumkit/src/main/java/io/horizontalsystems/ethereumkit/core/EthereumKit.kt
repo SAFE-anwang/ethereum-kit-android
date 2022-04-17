@@ -193,14 +193,14 @@ class EthereumKit(
         nonce: Long? = null
     ): Single<RawTransaction> {
         val nonceSingle = nonce?.let { Single.just(it) } ?: blockchain.getNonce()
-
+        logger.info("safe4 send transactionInput: $transactionInput")
         return nonceSingle.flatMap { nonce ->
             Single.just(RawTransaction(gasPrice, gasLimit, address, value, nonce, transactionInput))
         }
     }
 
     fun send(rawTransaction: RawTransaction, signature: Signature): Single<FullTransaction> {
-        logger.info("send rawTransaction: $rawTransaction")
+        logger.info("safe4 send rawTransaction: $rawTransaction")
 
         return blockchain.send(rawTransaction, signature)
                     .doOnSuccess { transaction ->
