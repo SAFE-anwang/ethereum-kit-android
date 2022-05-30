@@ -1,11 +1,11 @@
 package io.horizontalsystems.wsafekit
 
-import io.horizontalsystems.ethereumkit.core.EthereumKit
+import io.horizontalsystems.ethereumkit.models.Chain
 import io.horizontalsystems.ethereumkit.models.TransactionData
 import java.math.BigInteger
 
 class WsafeKit(
-        private val wSafeManager: WSafeManager
+    private val wSafeManager: WSafeManager
 ) {
 
     fun transactionData(
@@ -16,8 +16,8 @@ class WsafeKit(
     }
 
     companion object {
-        fun getInstance(ethereumKit: EthereumKit): WsafeKit {
-            val wSafeManager = WSafeManager(ethereumKit)
+        fun getInstance(chain: Chain): WsafeKit {
+            val wSafeManager = WSafeManager(chain)
             return WsafeKit(wSafeManager)
         }
     }

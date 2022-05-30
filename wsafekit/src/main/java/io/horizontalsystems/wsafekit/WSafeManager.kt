@@ -1,6 +1,5 @@
 package io.horizontalsystems.wsafekit
 
-import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.core.hexStringToByteArray
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.Chain
@@ -8,14 +7,14 @@ import io.horizontalsystems.ethereumkit.models.TransactionData
 import java.math.BigInteger
 
 class WSafeManager(
-    evmKit: EthereumKit
+    chain: Chain
 )  {
 
-    private val contractAddress = getContractAddress(evmKit.chain)
+    private val contractAddress = getContractAddress(chain)
 
-    private val safeConvertAddress = getSafeAddress(evmKit.chain)
+    private val safeConvertAddress = getSafeAddress(chain)
 
-    private val safeNetType = getSafeNetType(evmKit.chain)
+    private val safeNetType = getSafeNetType(chain)
 
     fun getSafeConvertAddress(): String {
         return safeConvertAddress;
@@ -49,6 +48,8 @@ class WSafeManager(
         val wethAddressHex = when (chain) {
             Chain.Ethereum -> "0xee9c1ea4dcf0aaf4ff2d78b6ff83aa69797b65eb"
             Chain.EthereumRopsten -> "0x32885f2faf83aeee39e2cfe7f302e3bb884869f4"
+            Chain.BinanceSmartChain -> "0xa3D8077c3A447049164e60294C892e5E4C7f3aD2"
+            Chain.BinanceSmartTestChain -> "0xa3D8077c3A447049164e60294C892e5E4C7f3aD2"
             else -> throw UnsupportedChainError.NoWethAddress
         }
         return Address(wethAddressHex)
@@ -61,6 +62,8 @@ class WSafeManager(
         val safeAddressHex = when (chain) {
             Chain.Ethereum -> "Xnr78kmFtZBWKypYeyDLaaQRLf2EoMSgMV"
             Chain.EthereumRopsten -> "XiY8mw8XXxfkfrgAwgVUs7qQW7vGGFLByx"
+            Chain.BinanceSmartChain -> "Xm3DvW7ZpmCYtyhtPSu5iYQknpofseVxaF"
+            Chain.BinanceSmartTestChain -> "Xm3DvW7ZpmCYtyhtPSu5iYQknpofseVxaF"
             else -> throw UnsupportedChainError.NoSafeAddress
         }
         return safeAddressHex
@@ -73,6 +76,8 @@ class WSafeManager(
         val safeAddressHex = when (chain) {
             Chain.Ethereum -> "mainnet"
             Chain.EthereumRopsten -> "testnet"
+            Chain.BinanceSmartChain -> "mainnet"
+            Chain.BinanceSmartTestChain -> "testnet"
             else -> throw UnsupportedChainError.NoSafeNetType
         }
         return safeAddressHex

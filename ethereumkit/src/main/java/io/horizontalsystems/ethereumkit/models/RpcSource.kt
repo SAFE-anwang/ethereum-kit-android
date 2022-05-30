@@ -80,6 +80,20 @@ sealed class RpcSource() {
             return RpcSource.WebSocket(URL("https://bsc-ws-node.nariox.org:443"), null)
         }
 
+        fun binanceSmartTestChainHttp(): RpcSource {
+            return RpcSource.Http(
+                listOf(
+                    URL("https://data-seed-prebsc-1-s1.binance.org:8545/"),
+                    URL("https://data-seed-prebsc-2-s1.binance.org:8545/"),
+                    URL("https://data-seed-prebsc-1-s2.binance.org:8545/"),
+                    URL("https://data-seed-prebsc-2-s2.binance.org:8545/"),
+                    URL("https://data-seed-prebsc-1-s3.binance.org:8545/"),
+                    URL("https://data-seed-prebsc-2-s3.binance.org:8545/")
+                ),
+                null
+            )
+        }
+
         fun polygonRpcHttp(): RpcSource {
             return RpcSource.Http(listOf(URL("https://polygon-rpc.com")), null)
         }
