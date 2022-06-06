@@ -49,7 +49,6 @@ class WSafeManager(
             Chain.Ethereum -> "0xee9c1ea4dcf0aaf4ff2d78b6ff83aa69797b65eb"
             Chain.EthereumRopsten -> "0x32885f2faf83aeee39e2cfe7f302e3bb884869f4"
             Chain.BinanceSmartChain -> "0xa3D8077c3A447049164e60294C892e5E4C7f3aD2"
-            Chain.BinanceSmartTestChain -> "0xa3D8077c3A447049164e60294C892e5E4C7f3aD2"
             else -> throw UnsupportedChainError.NoWethAddress
         }
         return Address(wethAddressHex)
@@ -63,7 +62,6 @@ class WSafeManager(
             Chain.Ethereum -> "Xnr78kmFtZBWKypYeyDLaaQRLf2EoMSgMV"
             Chain.EthereumRopsten -> "XiY8mw8XXxfkfrgAwgVUs7qQW7vGGFLByx"
             Chain.BinanceSmartChain -> "Xm3DvW7ZpmCYtyhtPSu5iYQknpofseVxaF"
-            Chain.BinanceSmartTestChain -> "Xm3DvW7ZpmCYtyhtPSu5iYQknpofseVxaF"
             else -> throw UnsupportedChainError.NoSafeAddress
         }
         return safeAddressHex
@@ -76,8 +74,7 @@ class WSafeManager(
         val safeAddressHex = when (chain) {
             Chain.Ethereum -> "mainnet"
             Chain.EthereumRopsten -> "testnet"
-            Chain.BinanceSmartChain -> "mainnet"
-            Chain.BinanceSmartTestChain -> "testnet"
+            Chain.BinanceSmartChain -> "testnet"
             else -> throw UnsupportedChainError.NoSafeNetType
         }
         return safeAddressHex
