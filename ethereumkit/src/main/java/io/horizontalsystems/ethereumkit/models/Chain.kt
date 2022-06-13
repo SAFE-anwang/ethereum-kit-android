@@ -9,8 +9,8 @@ sealed class Chain(
     val isMainNet = coinType != 1
 
     object Ethereum: Chain(1, 60, 15, true)
-//    object BinanceSmartChain: Chain(56, 60, 5, false) // 主链
-    object BinanceSmartChain: Chain(97, 60, 5, false)  // 测试链
+    object BinanceSmartChain: Chain(56, 60, 5, false) //BSC正式环境
+//    object BinanceSmartChain: Chain(97, 60, 5, false)  //BSC测试环境
     object Polygon: Chain(137, 60, 1, true)
     object Optimism: Chain(10, 60, 1, false)
     object ArbitrumOne: Chain(42161, 60, 1, false)

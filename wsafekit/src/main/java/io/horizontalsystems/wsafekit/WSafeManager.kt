@@ -48,7 +48,8 @@ class WSafeManager(
         val wethAddressHex = when (chain) {
             Chain.Ethereum -> "0xee9c1ea4dcf0aaf4ff2d78b6ff83aa69797b65eb"
             Chain.EthereumRopsten -> "0x32885f2faf83aeee39e2cfe7f302e3bb884869f4"
-            Chain.BinanceSmartChain -> "0xa3d8077c3a447049164e60294c892e5e4c7f3ad2"
+            Chain.BinanceSmartChain -> "0x4d7fa587ec8e50bd0e9cd837cb4da796f47218a1" //BSC正式环境
+//            Chain.BinanceSmartChain -> "0xa3d8077c3a447049164e60294c892e5e4c7f3ad2" //BSC测试环境
             else -> throw UnsupportedChainError.NoWethAddress
         }
         return Address(wethAddressHex)
@@ -61,7 +62,8 @@ class WSafeManager(
         val safeAddressHex = when (chain) {
             Chain.Ethereum -> "Xnr78kmFtZBWKypYeyDLaaQRLf2EoMSgMV"
             Chain.EthereumRopsten -> "XiY8mw8XXxfkfrgAwgVUs7qQW7vGGFLByx"
-            Chain.BinanceSmartChain -> "Xm3DvW7ZpmCYtyhtPSu5iYQknpofseVxaF"
+            Chain.BinanceSmartChain -> "XdyjRkZpyDdPD3uJAUC3MzJSoCtEZincFf" //BSC正式环境
+//            Chain.BinanceSmartChain -> "Xm3DvW7ZpmCYtyhtPSu5iYQknpofseVxaF" //BSC测试环境
             else -> throw UnsupportedChainError.NoSafeAddress
         }
         return safeAddressHex
@@ -74,7 +76,8 @@ class WSafeManager(
         val safeAddressHex = when (chain) {
             Chain.Ethereum -> "mainnet"
             Chain.EthereumRopsten -> "testnet"
-            Chain.BinanceSmartChain -> "testnet"
+            Chain.BinanceSmartChain -> "mainnet" //BSC正式环境
+//            Chain.BinanceSmartChain -> "testnet" //BSC测试环境
             else -> throw UnsupportedChainError.NoSafeNetType
         }
         return safeAddressHex

@@ -58,27 +58,27 @@ sealed class RpcSource() {
         fun binanceSmartChainHttp(): RpcSource {
             return RpcSource.Http(
                     listOf(
-                        // 主链
-//                            URL("https://bsc-dataseed.binance.org/"),
-//                            URL("https://bsc-dataseed1.defibit.io/"),
-//                            URL("https://bsc-dataseed1.ninicoin.io/"),
-//                            URL("https://bsc-dataseed2.defibit.io/"),
-//                            URL("https://bsc-dataseed3.defibit.io/"),
-//                            URL("https://bsc-dataseed4.defibit.io/"),
-//                            URL("https://bsc-dataseed2.ninicoin.io/"),
-//                            URL("https://bsc-dataseed3.ninicoin.io/"),
-//                            URL("https://bsc-dataseed4.ninicoin.io/"),
-//                            URL("https://bsc-dataseed1.binance.org/"),
-//                            URL("https://bsc-dataseed2.binance.org/"),
-//                            URL("https://bsc-dataseed3.binance.org/"),
-//                            URL("https://bsc-dataseed4.binance.org/")
-                        // 测试链
-                        URL("https://data-seed-prebsc-1-s1.binance.org:8545/"),
-                        URL("https://data-seed-prebsc-2-s1.binance.org:8545/"),
-                        URL("https://data-seed-prebsc-1-s2.binance.org:8545/"),
-                        URL("https://data-seed-prebsc-2-s2.binance.org:8545/"),
-                        URL("https://data-seed-prebsc-1-s3.binance.org:8545/"),
-                        URL("https://data-seed-prebsc-2-s3.binance.org:8545/")
+                        //BSC正式环境
+                        URL("https://bsc-dataseed.binance.org/"),
+                        URL("https://bsc-dataseed1.defibit.io/"),
+                        URL("https://bsc-dataseed1.ninicoin.io/"),
+                        URL("https://bsc-dataseed2.defibit.io/"),
+                        URL("https://bsc-dataseed3.defibit.io/"),
+                        URL("https://bsc-dataseed4.defibit.io/"),
+                        URL("https://bsc-dataseed2.ninicoin.io/"),
+                        URL("https://bsc-dataseed3.ninicoin.io/"),
+                        URL("https://bsc-dataseed4.ninicoin.io/"),
+                        URL("https://bsc-dataseed1.binance.org/"),
+                        URL("https://bsc-dataseed2.binance.org/"),
+                        URL("https://bsc-dataseed3.binance.org/"),
+                        URL("https://bsc-dataseed4.binance.org/")
+                        //BSC测试环境
+//                        URL("https://data-seed-prebsc-1-s1.binance.org:8545/"),
+//                        URL("https://data-seed-prebsc-2-s1.binance.org:8545/"),
+//                        URL("https://data-seed-prebsc-1-s2.binance.org:8545/"),
+//                        URL("https://data-seed-prebsc-2-s2.binance.org:8545/"),
+//                        URL("https://data-seed-prebsc-1-s3.binance.org:8545/"),
+//                        URL("https://data-seed-prebsc-2-s3.binance.org:8545/")
                     ),
                     null
             )
