@@ -144,12 +144,13 @@ class Erc20Kit(
         }
 
         fun addTransactionSyncer(ethereumKit: EthereumKit) {
-            ethereumKit.addTransactionSyncer(Erc20TransactionSyncer(ethereumKit.transactionProvider))
+            ethereumKit.addTransactionSyncer(Erc20TransactionSyncer(ethereumKit.transactionProvider, ethereumKit.eip20Storage))
         }
 
-        fun addDecorator(ethereumKit: EthereumKit) {
-            val decorator = Eip20TransactionDecorator(ethereumKit.receiveAddress, Eip20ContractMethodFactories)
-            ethereumKit.addDecorator(decorator)
+        fun addDecorators(ethereumKit: EthereumKit) {
+            ethereumKit.addMethodDecorator(Eip20MethodDecorator(Eip20ContractMethodFactories))
+            ethereumKit.addEventDecorator(Eip20EventDecorator(ethereumKit.receiveAddress, ethereumKit.eip20Storage))
+            ethereumKit.addTransactionDecorator(Eip20TransactionDecorator(ethereumKit.receiveAddress))
         }
 
         fun clear(context: Context, chain: Chain, walletId: String) {

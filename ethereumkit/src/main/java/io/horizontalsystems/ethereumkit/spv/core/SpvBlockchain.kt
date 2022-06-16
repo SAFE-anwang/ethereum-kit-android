@@ -6,9 +6,12 @@ import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcBlock
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransaction
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransactionReceipt
 import io.horizontalsystems.ethereumkit.api.models.AccountState
-import io.horizontalsystems.ethereumkit.core.*
 import io.horizontalsystems.ethereumkit.core.EthereumKit.SyncError
 import io.horizontalsystems.ethereumkit.core.EthereumKit.SyncState
+import io.horizontalsystems.ethereumkit.core.IBlockchain
+import io.horizontalsystems.ethereumkit.core.IBlockchainListener
+import io.horizontalsystems.ethereumkit.core.ISpvStorage
+import io.horizontalsystems.ethereumkit.core.TransactionBuilder
 import io.horizontalsystems.ethereumkit.crypto.ECKey
 import io.horizontalsystems.ethereumkit.models.*
 import io.horizontalsystems.ethereumkit.network.INetwork
@@ -24,9 +27,7 @@ import io.horizontalsystems.ethereumkit.spv.net.tasks.HandshakeTask
 import io.reactivex.Single
 import io.reactivex.subjects.PublishSubject
 import java.math.BigInteger
-import java.util.*
 import java.util.logging.Logger
-import kotlin.collections.HashMap
 
 class SpvBlockchain(
         private val peer: IPeer,
@@ -97,15 +98,15 @@ class SpvBlockchain(
         TODO("not implemented")
     }
 
-    override fun getTransactionReceipt(transactionHash: ByteArray): Single<Optional<RpcTransactionReceipt>> {
+    override fun getTransactionReceipt(transactionHash: ByteArray): Single<RpcTransactionReceipt> {
         TODO("not implemented")
     }
 
-    override fun getTransaction(transactionHash: ByteArray): Single<Optional<RpcTransaction>> {
+    override fun getTransaction(transactionHash: ByteArray): Single<RpcTransaction> {
         TODO("not implemented")
     }
 
-    override fun getBlock(blockNumber: Long): Single<Optional<RpcBlock>> {
+    override fun getBlock(blockNumber: Long): Single<RpcBlock> {
         TODO("not implemented")
     }
 

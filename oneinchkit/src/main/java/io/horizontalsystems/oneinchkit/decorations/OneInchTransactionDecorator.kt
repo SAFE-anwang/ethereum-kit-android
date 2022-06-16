@@ -1,142 +1,192 @@
 package io.horizontalsystems.oneinchkit.decorations
 
-import io.horizontalsystems.erc20kit.core.getErc20Event
-import io.horizontalsystems.erc20kit.decorations.TransferEventDecoration
-import io.horizontalsystems.ethereumkit.core.IDecorator
-import io.horizontalsystems.ethereumkit.decorations.ContractEventDecoration
-import io.horizontalsystems.ethereumkit.decorations.ContractMethodDecoration
-import io.horizontalsystems.ethereumkit.models.*
-import io.horizontalsystems.oneinchkit.contracts.OneInchContractMethodFactories
+import io.horizontalsystems.erc20kit.events.TransferEventInstance
+import io.horizontalsystems.ethereumkit.contracts.ContractEventInstance
+import io.horizontalsystems.ethereumkit.contracts.ContractMethod
+import io.horizontalsystems.ethereumkit.core.ITransactionDecorator
+import io.horizontalsystems.ethereumkit.decorations.TransactionDecoration
+import io.horizontalsystems.ethereumkit.models.Address
+import io.horizontalsystems.ethereumkit.models.InternalTransaction
 import io.horizontalsystems.oneinchkit.contracts.OneInchV4Method
 import io.horizontalsystems.oneinchkit.contracts.SwapMethod
 import io.horizontalsystems.oneinchkit.contracts.UnoswapMethod
-import io.horizontalsystems.oneinchkit.decorations.OneInchMethodDecoration.Token
 import java.math.BigInteger
 
 class OneInchTransactionDecorator(
-        private val address: Address,
-        private val contractMethodFactories: OneInchContractMethodFactories
-) : IDecorator {
+    private val address: Address
+) : ITransactionDecorator {
 
     private val evmTokenAddresses = mutableListOf("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE", "0x0000000000000000000000000000000000000000")
 
-    override fun decorate(logs: List<TransactionLog>): List<ContractEventDecoration> {
-        return listOf()
-    }
+    override fun decoration(from: Address?, to: Address?, value: BigInteger?, contractMethod: ContractMethod?, internalTransactions: List<InternalTransaction>, eventInstances: List<ContractEventInstance>): TransactionDecoration? {
+        if (from == null || to == null || value == null || contractMethod == null) return null
 
-    override fun decorate(transactionData: TransactionData, fullTransaction: FullTransaction?): ContractMethodDecoration? {
-        val contractMethod = contractMethodFactories.createMethodFromInput(transactionData.input) ?: return null
-
-        if (fullTransaction != null && fullTransaction.transaction.from != address) {
-            // We only parse transactions created by the user (owner of this wallet).
-            // If a swap was initiated by someone else and "recipient" is set to user's it should be shown as just an incoming transaction
-            return null
-        }
-
-        return when (contractMethod) {
-            is UnoswapMethod -> {
-                var toToken: Token? = null
-                var toAmount: BigInteger? = null
-                fullTransaction?.let {
-                    totalETHIncoming(address, fullTransaction.internalTransactions)?.let { amount ->
-                        toAmount = amount
-                        toToken = Token.EvmCoin
-                    }
-                }
-
-                val logs = fullTransaction?.receiptWithLogs?.logs
-                if (toToken == null && logs != null) {
-                    val incomingEip20Log = logs.firstOrNull { log ->
-                        (log.getErc20Event() as? TransferEventDecoration)?.to == address
-                    }
-
-                    (incomingEip20Log?.getErc20Event() as? TransferEventDecoration)?.let { transferEventDecoration ->
-                        totalTokenIncoming(address, transferEventDecoration.contractAddress, logs)?.let { amount ->
-                            toAmount = amount
-                            toToken = Token.Eip20(transferEventDecoration.contractAddress)
-                        }
-                    }
-                }
-
-                OneInchUnoswapMethodDecoration(
-                        fromToken = addressToToken(contractMethod.srcToken),
-                        toToken = toToken,
-                        fromAmount = contractMethod.amount,
-                        toAmountMin = contractMethod.minReturn,
-                        toAmount = toAmount,
-                        params = contractMethod.params
-                )
-            }
+        when (contractMethod) {
             is SwapMethod -> {
-                var toAmount: BigInteger? = null
                 val swapDescription = contractMethod.swapDescription
-                val toToken = addressToToken(swapDescription.dstToken)
+                val tokenOut = addressToToken(swapDescription.dstToken, eventInstances)
+                var amountOut: OneInchDecoration.Amount = OneInchDecoration.Amount.Extremum(swapDescription.minReturnAmount)
 
-                if (fullTransaction != null && toToken == Token.EvmCoin) {
-                    totalETHIncoming(swapDescription.dstReceiver, fullTransaction.internalTransactions)?.let { amount ->
-                        toAmount = amount
+                when (tokenOut) {
+                    OneInchDecoration.Token.EvmCoin -> {
+                        if (internalTransactions.isNotEmpty()) {
+                            amountOut = OneInchDecoration.Amount.Exact(getTotalETHIncoming(swapDescription.dstReceiver, internalTransactions))
+                        }
+                    }
+
+                    is OneInchDecoration.Token.Eip20Coin -> {
+                        if (eventInstances.isNotEmpty()) {
+                            amountOut = OneInchDecoration.Amount.Exact(getTotalToken(swapDescription.dstReceiver, swapDescription.dstToken, eventInstances, true))
+                        }
+
                     }
                 }
 
-                if (toAmount == null) {
-                    fullTransaction?.receiptWithLogs?.logs?.let { logs ->
-                        totalTokenIncoming(swapDescription.dstReceiver, swapDescription.dstToken, logs)?.let { amount ->
-                            toAmount = amount
+                return OneInchSwapDecoration(
+                    to,
+                    addressToToken(swapDescription.srcToken, eventInstances),
+                    tokenOut,
+                    swapDescription.amount,
+                    amountOut,
+                    swapDescription.flags,
+                    swapDescription.permit,
+                    contractMethod.data,
+                    if (swapDescription.dstReceiver == from) null else swapDescription.dstReceiver
+                )
+            }
+
+            is UnoswapMethod -> {
+                var tokenOut: OneInchDecoration.Token? = null
+                var amountOut: OneInchDecoration.Amount = OneInchDecoration.Amount.Extremum(contractMethod.minReturn)
+
+                if (internalTransactions.isNotEmpty()) {
+                    val amount = getTotalETHIncoming(address, internalTransactions)
+
+                    if (amount > BigInteger.ZERO) {
+                        tokenOut = OneInchDecoration.Token.EvmCoin
+                        amountOut = OneInchDecoration.Amount.Exact(amount)
+                    }
+                }
+
+                if (tokenOut == null && eventInstances.isNotEmpty()) {
+                    val tokenAmountOut = getTokenAmount(eventInstances, true)
+
+                    if (tokenAmountOut != null) {
+                        tokenOut = tokenAmountOut.first
+                        amountOut = OneInchDecoration.Amount.Exact(tokenAmountOut.second)
+                    }
+                }
+
+                return OneInchUnoswapDecoration(
+                    to,
+                    addressToToken(contractMethod.srcToken, eventInstances),
+                    tokenOut,
+                    contractMethod.amount,
+                    amountOut,
+                    contractMethod.params
+                )
+            }
+
+            is OneInchV4Method -> {
+                val tokenAmountIn: OneInchUnknownDecoration.TokenAmount?
+                val tokenAmountOut: OneInchUnknownDecoration.TokenAmount?
+
+                val incomingEth = getTotalETHIncoming(address, internalTransactions)
+                val outgoingEth = value - incomingEth
+                val incomingTokenAmount = getTokenAmount(eventInstances, true)?.let { OneInchUnknownDecoration.TokenAmount(it.first, it.second) }
+                val outgoingTokenAmount = getTokenAmount(eventInstances, false)?.let { OneInchUnknownDecoration.TokenAmount(it.first, it.second) }
+
+                when {
+                    outgoingEth > BigInteger.ZERO -> {
+                        tokenAmountIn = OneInchUnknownDecoration.TokenAmount(OneInchDecoration.Token.EvmCoin, outgoingEth)
+                        tokenAmountOut = incomingTokenAmount
+                    }
+                    outgoingEth < BigInteger.ZERO -> {
+                        tokenAmountIn = outgoingTokenAmount
+                        tokenAmountOut = OneInchUnknownDecoration.TokenAmount(OneInchDecoration.Token.EvmCoin, outgoingEth)
+                    }
+                    else -> {
+                        tokenAmountIn = outgoingTokenAmount
+                        tokenAmountOut = incomingTokenAmount
+                    }
+                }
+
+                return OneInchUnknownDecoration(to, tokenAmountIn, tokenAmountOut)
+            }
+
+            else -> return null
+        }
+    }
+
+    private fun findEip20Token(eventInstances: List<ContractEventInstance>, tokenAddress: Address): OneInchDecoration.Token {
+        val tokenInfo = eventInstances
+            .mapNotNull { it as TransferEventInstance }
+            .firstOrNull { it.contractAddress == tokenAddress }?.tokenInfo
+
+        return OneInchDecoration.Token.Eip20Coin(tokenAddress, tokenInfo)
+    }
+
+    private fun getTokenAmount(eventInstances: List<ContractEventInstance>, incoming: Boolean): Pair<OneInchDecoration.Token, BigInteger>? {
+        var resolvedToken: OneInchDecoration.Token? = null
+        var resolvedAmount: BigInteger? = null
+
+        val eip20EventInstance = eventInstances.firstOrNull { eventInstance ->
+            if (eventInstance is TransferEventInstance) {
+                return@firstOrNull if (incoming) eventInstance.to == address else eventInstance.from == address
+            }
+
+            return@firstOrNull false
+        }
+
+        if (eip20EventInstance != null) {
+            val amount = getTotalToken(address, eip20EventInstance.contractAddress, eventInstances, incoming)
+
+            if (amount > BigInteger.ZERO) {
+                resolvedToken = findEip20Token(eventInstances, eip20EventInstance.contractAddress)
+                resolvedAmount = amount
+            }
+        }
+
+        return if (resolvedToken != null && resolvedAmount != null) {
+            Pair(resolvedToken, resolvedAmount)
+        } else {
+            null
+        }
+    }
+
+    private fun getTotalToken(userAddress: Address, tokenAddress: Address, eventInstances: List<ContractEventInstance>, incoming: Boolean): BigInteger {
+        var amountOut = BigInteger.ZERO
+
+        for (eventInstance in eventInstances) {
+            if (eventInstance.contractAddress == tokenAddress) {
+                (eventInstance as? TransferEventInstance)?.let { transferEventDecoration ->
+                    if ((incoming && transferEventDecoration.to == userAddress) || (!incoming && transferEventDecoration.from == userAddress)) {
+                        if (transferEventDecoration.value > BigInteger.ZERO) {
+                            amountOut += transferEventDecoration.value
                         }
                     }
                 }
-                OneInchSwapMethodDecoration(
-                        fromToken = addressToToken(swapDescription.srcToken),
-                        toToken = toToken,
-                        fromAmount = swapDescription.amount,
-                        toAmountMin = swapDescription.minReturnAmount,
-                        toAmount = toAmount,
-                        flags = swapDescription.flags,
-                        permit = swapDescription.permit,
-                        data = contractMethod.data,
-                        recipient = swapDescription.dstReceiver
-                )
             }
-            is OneInchV4Method -> {
-                OneInchV4MethodDecoration()
-            }
-            else -> null
         }
 
+        return amountOut
     }
 
-    private fun totalTokenIncoming(userAddress: Address, tokenAddress: Address, logs: List<TransactionLog>): BigInteger? {
+    private fun getTotalETHIncoming(userAddress: Address, internalTransactions: List<InternalTransaction>): BigInteger {
         var amountOut = BigInteger.ZERO
 
-        for (log in logs) {
-            if (log.address == tokenAddress) {
-                (log.getErc20Event() as? TransferEventDecoration)?.let { transferEventDecoration ->
-                    if (transferEventDecoration.to == userAddress && transferEventDecoration.value > BigInteger.ZERO) {
-                        amountOut += transferEventDecoration.value
-                        log.relevant = true
-                    }
-                }
+        for (internalTransaction in internalTransactions) {
+            if (internalTransaction.to == userAddress) {
+                amountOut += internalTransaction.value
             }
         }
 
-        return if (amountOut > BigInteger.ZERO) amountOut else null
+        return amountOut
     }
 
-    private fun totalETHIncoming(userAddress: Address, transactions: List<InternalTransaction>): BigInteger? {
-        var amountOut = BigInteger.ZERO
-
-        for (transaction in transactions) {
-            if (transaction.to == userAddress) {
-                amountOut += transaction.value
-            }
-        }
-
-        return if (amountOut > BigInteger.ZERO) amountOut else null
-    }
-
-    private fun addressToToken(address: Address) = if (evmTokenAddresses.contains(address.eip55))
-        Token.EvmCoin
+    private fun addressToToken(address: Address, eventInstances: List<ContractEventInstance>) = if (evmTokenAddresses.contains(address.eip55))
+        OneInchDecoration.Token.EvmCoin
     else
-        Token.Eip20(address)
+        findEip20Token(eventInstances, address)
 
 }

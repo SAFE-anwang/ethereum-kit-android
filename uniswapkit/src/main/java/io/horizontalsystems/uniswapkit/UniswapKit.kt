@@ -10,9 +10,9 @@ import java.math.BigDecimal
 import java.util.logging.Logger
 
 class UniswapKit(
-        private val tradeManager: TradeManager,
-        private val pairSelector: PairSelector,
-        private val tokenFactory: TokenFactory
+    private val tradeManager: TradeManager,
+    private val pairSelector: PairSelector,
+    private val tokenFactory: TokenFactory
 ) {
     private val logger = Logger.getLogger(this.javaClass.simpleName)
 
@@ -42,9 +42,9 @@ class UniswapKit(
     fun bestTradeExactIn(swapData: SwapData, amountIn: BigDecimal, options: TradeOptions = TradeOptions()): TradeData {
         val tokenAmountIn = TokenAmount(swapData.tokenIn, amountIn)
         val sortedTrades = TradeManager.tradeExactIn(
-                swapData.pairs,
-                tokenAmountIn,
-                swapData.tokenOut
+            swapData.pairs,
+            tokenAmountIn,
+            swapData.tokenOut
         ).sorted()
 
         logger.info("bestTradeExactIn trades (${sortedTrades.size}):")
@@ -61,9 +61,9 @@ class UniswapKit(
     fun bestTradeExactOut(swapData: SwapData, amountOut: BigDecimal, options: TradeOptions = TradeOptions()): TradeData {
         val tokenAmountOut = TokenAmount(swapData.tokenOut, amountOut)
         val sortedTrades = TradeManager.tradeExactOut(
-                swapData.pairs,
-                swapData.tokenIn,
-                tokenAmountOut
+            swapData.pairs,
+            swapData.tokenIn,
+            tokenAmountOut
         ).sorted()
 
         logger.info("bestTradeExactOut trades  (${sortedTrades.size}):")
@@ -90,14 +90,11 @@ class UniswapKit(
             return UniswapKit(tradeManager, pairSelector, tokenFactory)
         }
 
-        fun addDecorator(ethereumKit: EthereumKit) {
-            val decorator = SwapTransactionDecorator(ethereumKit.receiveAddress, SwapContractMethodFactories)
-            ethereumKit.addDecorator(decorator)
+        fun addDecorators(ethereumKit: EthereumKit) {
+            ethereumKit.addMethodDecorator(SwapMethodDecorator(SwapContractMethodFactories))
+            ethereumKit.addTransactionDecorator(SwapTransactionDecorator())
         }
 
-        fun addTransactionWatcher(evmKit: EthereumKit) {
-            evmKit.addTransactionWatcher(UniswapTransactionWatcher(evmKit.receiveAddress))
-        }
     }
 
 }

@@ -83,13 +83,9 @@ class MainViewModel : ViewModel() {
         uniswapKit = UniswapKit.getInstance(ethereumKit)
 
         Erc20Kit.addTransactionSyncer(ethereumKit)
-        Erc20Kit.addDecorator(ethereumKit)
-
-        UniswapKit.addDecorator(ethereumKit)
-        UniswapKit.addTransactionWatcher(ethereumKit)
-
-        OneInchKit.addDecorator(ethereumKit)
-        OneInchKit.addTransactionWatcher(ethereumKit)
+        Erc20Kit.addDecorators(ethereumKit)
+        UniswapKit.addDecorators(ethereumKit)
+        OneInchKit.addDecorators(ethereumKit)
 
         updateBalance()
         updateErc20Balance()
@@ -171,13 +167,13 @@ class MainViewModel : ViewModel() {
         val eip1559GasPriceProvider = Eip1559GasPriceProvider(ethereumKit)
 
         eip1559GasPriceProvider
-                .feeHistory(4, rewardPercentile = listOf(50))
-                .subscribe({
-                    Log.e("AAA", "FeeHistory: $it")
-                    handle(it)
-                }, {
-                    Log.e("AAA", "error: ${it.localizedMessage ?: it.message ?: it.javaClass.simpleName}")
-                }).let { disposables.add(it) }
+            .feeHistory(4, rewardPercentile = listOf(50))
+            .subscribe({
+                Log.e("AAA", "FeeHistory: $it")
+                handle(it)
+            }, {
+                Log.e("AAA", "error: ${it.localizedMessage ?: it.message ?: it.javaClass.simpleName}")
+            }).let { disposables.add(it) }
 
     }
 
@@ -254,9 +250,9 @@ class MainViewModel : ViewModel() {
 
         val words = Configuration.defaultsWords.split(" ")
         return EthereumKit.getInstance(
-                App.instance, words, "",
-                Configuration.chain, rpcSource, transactionSource,
-                Configuration.walletId
+            App.instance, words, "",
+            Configuration.chain, rpcSource, transactionSource,
+            Configuration.walletId
         )
     }
 
@@ -290,26 +286,26 @@ class MainViewModel : ViewModel() {
 
     private fun updateEthTransactions() {
         ethereumAdapter.transactions()
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { list: List<TransactionRecord> ->
-                    ethTxs = list
-                    updateTransactionList()
-                }.let {
-                    disposables.add(it)
-                }
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { list: List<TransactionRecord> ->
+                ethTxs = list
+                updateTransactionList()
+            }.let {
+                disposables.add(it)
+            }
     }
 
     private fun updateErc20Transactions() {
         erc20Adapter.transactions()
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { list: List<TransactionRecord> ->
-                    erc20Txs = list
-                    updateTransactionList()
-                }.let {
-                    disposables.add(it)
-                }
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { list: List<TransactionRecord> ->
+                erc20Txs = list
+                updateTransactionList()
+            }.let {
+                disposables.add(it)
+            }
     }
 
     private fun updateTransactionList() {
@@ -351,16 +347,16 @@ class MainViewModel : ViewModel() {
             ethereumAdapter.estimatedGasLimit(Address(toAddress), value, gasPrice)
 
         estimateSingle
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe({
-                    //success
-                    estimatedGas.value = it.toString()
-                }, {
-                    logger.warning("Gas estimate: ${it.message}")
-                    estimatedGas.value = it.message
-                })
-                .let { disposables.add(it) }
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
+                //success
+                estimatedGas.value = it.toString()
+            }, {
+                logger.warning("Gas estimate: ${it.message}")
+                estimatedGas.value = it.message
+            })
+            .let { disposables.add(it) }
     }
 
     fun send(toAddress: String, amount: BigDecimal) {
@@ -370,17 +366,17 @@ class MainViewModel : ViewModel() {
         }
 
         ethereumAdapter.send(Address(toAddress), amount, gasPrice, gasLimit)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe({ fullTransaction ->
-                    //success
-                    logger.info("Successfully sent, hash: ${fullTransaction.transaction.hash.toHexString()}")
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({ fullTransaction ->
+                //success
+                logger.info("Successfully sent, hash: ${fullTransaction.transaction.hash.toHexString()}")
 
-                    sendStatus.value = null
-                }, {
-                    logger.warning("Ether send failed: ${it.message}")
-                    sendStatus.value = it
-                }).let { disposables.add(it) }
+                sendStatus.value = null
+            }, {
+                logger.warning("Ether send failed: ${it.message}")
+                sendStatus.value = it
+            }).let { disposables.add(it) }
 
     }
 
@@ -395,25 +391,25 @@ class MainViewModel : ViewModel() {
         }
 
         erc20Adapter.send(Address(toAddress), amount, gasPrice, gasLimit)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe({ fullTransaction ->
-                    logger.info("Successfully sent, hash: ${fullTransaction.transaction.hash.toHexString()}")
-                    //success
-                    sendStatus.value = null
-                }, {
-                    logger.warning("Erc20 send failed: ${it.message}")
-                    sendStatus.value = it
-                }).let { disposables.add(it) }
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({ fullTransaction ->
+                logger.info("Successfully sent, hash: ${fullTransaction.transaction.hash.toHexString()}")
+                //success
+                sendStatus.value = null
+            }, {
+                logger.warning("Erc20 send failed: ${it.message}")
+                sendStatus.value = it
+            }).let { disposables.add(it) }
     }
 
     fun filterTransactions(ethTx: Boolean) {
-        if (ethTx) {
+        showTxType = if (ethTx) {
             updateEthTransactions()
-            showTxType = ShowTxType.Eth
+            ShowTxType.Eth
         } else {
             updateErc20Transactions()
-            showTxType = ShowTxType.Erc20
+            ShowTxType.Erc20
         }
         showTxTypeLiveData.postValue(showTxType)
     }
@@ -428,28 +424,28 @@ class MainViewModel : ViewModel() {
         val tokenOut = uniswapToken(toToken)
 
         uniswapKit.swapData(tokenIn, tokenOut)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe({
-                    swapData.value = it
-                }, {
-                    logger.warning("swapData ERROR = ${it.message}")
-                }).let {
-                    disposables.add(it)
-                }
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
+                swapData.value = it
+            }, {
+                logger.warning("swapData ERROR = ${it.message}")
+            }).let {
+                disposables.add(it)
+            }
     }
 
     fun syncAllowance() {
         erc20Adapter.allowance(uniswapKit.routerAddress)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe({
-                    logger.info("allowance: ${it.toPlainString()}")
-                }, {
-                    logger.warning("swapData ERROR = ${it.message}")
-                }).let {
-                    disposables.add(it)
-                }
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
+                logger.info("allowance: ${it.toPlainString()}")
+            }, {
+                logger.warning("swapData ERROR = ${it.message}")
+            }).let {
+                disposables.add(it)
+            }
     }
 
     fun approve(decimalAmount: BigDecimal) {
@@ -461,23 +457,23 @@ class MainViewModel : ViewModel() {
         val transactionData = erc20Adapter.approveTransactionData(spenderAddress, amount)
 
         ethereumKit.estimateGas(transactionData, gasPrice)
-                .flatMap { gasLimit ->
-                    logger.info("gas limit: $gasLimit")
-                    ethereumKit.rawTransaction(transactionData, gasPrice, gasLimit)
-                }
-                .flatMap { rawTransaction ->
-                    val signature = signer.signature(rawTransaction)
-                    ethereumKit.send(rawTransaction, signature)
-                }
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe({ fullTransaction ->
-                    logger.info("approve: ${fullTransaction.transaction.hash}")
-                }, {
-                    logger.warning("approve ERROR = ${it.message}")
-                }).let {
-                    disposables.add(it)
-                }
+            .flatMap { gasLimit ->
+                logger.info("gas limit: $gasLimit")
+                ethereumKit.rawTransaction(transactionData, gasPrice, gasLimit)
+            }
+            .flatMap { rawTransaction ->
+                val signature = signer.signature(rawTransaction)
+                ethereumKit.send(rawTransaction, signature)
+            }
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({ fullTransaction ->
+                logger.info("approve: ${fullTransaction.transaction.hash}")
+            }, {
+                logger.warning("approve ERROR = ${it.message}")
+            }).let {
+                disposables.add(it)
+            }
     }
 
     private fun uniswapToken(token: Erc20Token?): Token {
@@ -516,26 +512,26 @@ class MainViewModel : ViewModel() {
 
             val transactionData = uniswapKit.transactionData(tradeData)
             ethereumKit.estimateGas(transactionData, gasPrice)
-                    .flatMap { gasLimit ->
-                        logger.info("gas limit: $gasLimit")
+                .flatMap { gasLimit ->
+                    logger.info("gas limit: $gasLimit")
 
-                        val transactionData = uniswapKit.transactionData(tradeData)
-                        ethereumKit.rawTransaction(transactionData, gasPrice, gasLimit)
-                    }
-                    .flatMap { rawTransaction ->
-                        val signature = signer.signature(rawTransaction)
-                        ethereumKit.send(rawTransaction, signature)
-                    }
-                    .subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe({ fullTransaction ->
-                        swapStatus.value = null
-                        logger.info("swap SUCCESS, txHash=${fullTransaction.transaction.hash.toHexString()}")
-                    }, {
-                        swapStatus.value = it
-                        logger.info("swap ERROR, error=${it.message}")
-                        it.printStackTrace()
-                    }).let { disposables.add(it) }
+                    val transactionData = uniswapKit.transactionData(tradeData)
+                    ethereumKit.rawTransaction(transactionData, gasPrice, gasLimit)
+                }
+                .flatMap { rawTransaction ->
+                    val signature = signer.signature(rawTransaction)
+                    ethereumKit.send(rawTransaction, signature)
+                }
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe({ fullTransaction ->
+                    swapStatus.value = null
+                    logger.info("swap SUCCESS, txHash=${fullTransaction.transaction.hash.toHexString()}")
+                }, {
+                    swapStatus.value = it
+                    logger.info("swap ERROR, error=${it.message}")
+                    it.printStackTrace()
+                }).let { disposables.add(it) }
         }
     }
 
@@ -546,7 +542,7 @@ enum class ShowTxType {
 }
 
 data class Erc20Token(
-        val name: String,
-        val code: String,
-        val contractAddress: Address,
-        val decimals: Int)
+    val name: String,
+    val code: String,
+    val contractAddress: Address,
+    val decimals: Int)
