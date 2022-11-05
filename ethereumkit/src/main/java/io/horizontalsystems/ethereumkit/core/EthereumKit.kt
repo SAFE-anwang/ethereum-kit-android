@@ -445,7 +445,7 @@ class EthereumKit(
         }
 
         fun privateKey(seed: ByteArray, chain: Chain): BigInteger {
-            val hdWallet = HDWallet(seed, chain.coinType)
+            val hdWallet = HDWallet(seed, chain.coinType, HDWallet.Purpose.BIP44)
             return hdWallet.privateKey(0, 0, true).privKey
         }
 
