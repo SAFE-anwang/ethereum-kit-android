@@ -21,9 +21,9 @@ class TradeManager(
     private val address: Address = evmKit.receiveAddress
     private val logger = Logger.getLogger(this.javaClass.simpleName)
 
-    val routerAddress: Address = getRouterAddress(evmKit.chain)
-    val factoryAddressString: String = getFactoryAddressString(evmKit.chain)
-    val initCodeHashString: String = getInitCodeHashString(evmKit.chain)
+    fun routerAddress(): Address = getRouterAddress(evmKit.chain, Extensions.isSafeSwap)
+    fun factoryAddressString(): String = getFactoryAddressString(evmKit.chain, Extensions.isSafeSwap)
+    fun initCodeHashString(): String = getInitCodeHashString(evmKit.chain, Extensions.isSafeSwap)
 
     sealed class UnsupportedChainError : Throwable() {
         object NoRouterAddress : UnsupportedChainError()
@@ -35,7 +35,7 @@ class TradeManager(
 
         val (token0, token1) = if (tokenA.sortsBefore(tokenB)) Pair(tokenA, tokenB) else Pair(tokenB, tokenA)
 
-        val pairAddress = Pair.address(token0, token1, factoryAddressString, initCodeHashString)
+        val pairAddress = Pair.address(token0, token1, factoryAddressString(), initCodeHashString())
 
         logger.info("pairAddress: ${pairAddress.hex}")
 
@@ -62,7 +62,7 @@ class TradeManager(
 
     fun transactionData(tradeData: TradeData): TransactionData {
         return buildSwapData(tradeData).let {
-            TransactionData(routerAddress, it.amount, it.input)
+            TransactionData(routerAddress(), it.amount, it.input)
         }
     }
 
@@ -121,27 +121,57 @@ class TradeManager(
 
     companion object {
 
-        private fun getRouterAddress(chain: Chain) =
-            when (chain) {
-                Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli -> Address("0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D")
-                Chain.BinanceSmartChain -> Address("0x10ED43C718714eb63d5aA57B78B54704E256024E")
-                Chain.Polygon -> Address("0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff")
-                else -> throw UnsupportedChainError.NoRouterAddress
+        private fun getRouterAddress(chain: Chain, isSafeSwap: Boolean) =
+            if (isSafeSwap) {
+                when (chain) {
+                    Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli -> Address(
+                        "0x6476008C612dF9F8Db166844fFE39D24aEa12271"
+                    )
+                    Chain.BinanceSmartChain -> Address("0x6476008C612dF9F8Db166844fFE39D24aEa12271")
+                    Chain.Polygon -> Address("0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff")
+                    else -> throw UnsupportedChainError.NoRouterAddress
+                }
+            } else {
+                when (chain) {
+                    Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli -> Address(
+                        "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
+                    )
+                    Chain.BinanceSmartChain -> Address("0x10ED43C718714eb63d5aA57B78B54704E256024E")
+                    Chain.Polygon -> Address("0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff")
+                    else -> throw UnsupportedChainError.NoRouterAddress
+                }
             }
 
-        private fun getFactoryAddressString(chain: Chain) =
-            when (chain) {
-                Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli -> "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"
-                Chain.BinanceSmartChain -> "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73"
-                Chain.Polygon -> "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32"
-                else -> throw UnsupportedChainError.NoFactoryAddress
+        private fun getFactoryAddressString(chain: Chain, isSafeSwap: Boolean) =
+            if (isSafeSwap) {
+                when (chain) {
+                    Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli -> "0xB3c827077312163c53E3822defE32cAffE574B42"
+                    Chain.BinanceSmartChain -> "0xB3c827077312163c53E3822defE32cAffE574B42"
+                    Chain.Polygon -> "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32"
+                    else -> throw UnsupportedChainError.NoFactoryAddress
+                }
+            } else {
+                when (chain) {
+                    Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli -> "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"
+                    Chain.BinanceSmartChain -> "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73"
+                    Chain.Polygon -> "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32"
+                    else -> throw UnsupportedChainError.NoFactoryAddress
+                }
             }
 
-        private fun getInitCodeHashString(chain: Chain) =
-            when (chain) {
-                Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli, Chain.Polygon -> "0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f"
-                Chain.BinanceSmartChain -> "0x00fb7f630766e6a796048ea87d01acd3068e8ff67d078148a3fa3f4a84f69bd5"
-                else -> throw UnsupportedChainError.NoInitCodeHash
+        private fun getInitCodeHashString(chain: Chain, isSafeSwap: Boolean) =
+            if (isSafeSwap) {
+                when (chain) {
+                    Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli, Chain.Polygon -> "0xad0e51aa7a058efb9eb40fd6385473f0175ee7419e8d4f91a4e0294ec12b2d13"
+                    Chain.BinanceSmartChain -> "0xad0e51aa7a058efb9eb40fd6385473f0175ee7419e8d4f91a4e0294ec12b2d13"
+                    else -> throw UnsupportedChainError.NoInitCodeHash
+                }
+            } else {
+                when (chain) {
+                    Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli, Chain.Polygon -> "0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f"
+                    Chain.BinanceSmartChain -> "0x00fb7f630766e6a796048ea87d01acd3068e8ff67d078148a3fa3f4a84f69bd5"
+                    else -> throw UnsupportedChainError.NoInitCodeHash
+                }
             }
 
         fun tradeExactIn(pairs: List<Pair>, tokenAmountIn: TokenAmount, tokenOut: Token, maxHops: Int = 3, currentPairs: List<Pair> = listOf(), originalTokenAmountIn: TokenAmount? = null): List<Trade> {

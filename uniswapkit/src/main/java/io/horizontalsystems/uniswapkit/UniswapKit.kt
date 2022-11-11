@@ -10,14 +10,14 @@ import java.math.BigDecimal
 import java.util.logging.Logger
 
 class UniswapKit(
-        private val tradeManager: TradeManager,
+        val tradeManager: TradeManager,
         private val pairSelector: PairSelector,
         private val tokenFactory: TokenFactory
 ) {
     private val logger = Logger.getLogger(this.javaClass.simpleName)
 
     val routerAddress: Address
-        get() = tradeManager.routerAddress
+        get() = tradeManager.routerAddress()
 
     fun etherToken(): Token {
         return tokenFactory.etherToken()
