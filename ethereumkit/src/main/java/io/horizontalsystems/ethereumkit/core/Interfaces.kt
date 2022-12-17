@@ -5,15 +5,14 @@ import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcBlock
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransaction
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransactionReceipt
 import io.horizontalsystems.ethereumkit.api.models.AccountState
-import io.horizontalsystems.ethereumkit.decorations.ContractEventDecoration
-import io.horizontalsystems.ethereumkit.decorations.ContractMethodDecoration
+import io.horizontalsystems.ethereumkit.contracts.ContractEventInstance
+import io.horizontalsystems.ethereumkit.contracts.ContractMethod
+import io.horizontalsystems.ethereumkit.decorations.TransactionDecoration
 import io.horizontalsystems.ethereumkit.models.*
 import io.horizontalsystems.ethereumkit.spv.models.AccountStateSpv
 import io.horizontalsystems.ethereumkit.spv.models.BlockHeader
-import io.reactivex.Flowable
 import io.reactivex.Single
 import java.math.BigInteger
-import java.util.*
 
 
 interface IApiStorage {
@@ -49,9 +48,9 @@ interface IBlockchain {
     fun send(rawTransaction: RawTransaction, signature: Signature): Single<Transaction>
     fun getNonce(): Single<Long>
     fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice, data: ByteArray?): Single<Long>
-    fun getTransactionReceipt(transactionHash: ByteArray): Single<Optional<RpcTransactionReceipt>>
-    fun getTransaction(transactionHash: ByteArray): Single<Optional<RpcTransaction>>
-    fun getBlock(blockNumber: Long): Single<Optional<RpcBlock>>
+    fun getTransactionReceipt(transactionHash: ByteArray): Single<RpcTransactionReceipt>
+    fun getTransaction(transactionHash: ByteArray): Single<RpcTransaction>
+    fun getBlock(blockNumber: Long): Single<RpcBlock>
 
     fun getLogs(address: Address?, topics: List<ByteArray?>, fromBlock: Long, toBlock: Long, pullTimestamps: Boolean): Single<List<TransactionLog>>
     fun getStorageAt(contractAddress: Address, position: ByteArray, defaultBlockParameter: DefaultBlockParameter): Single<ByteArray>
@@ -66,94 +65,60 @@ interface IBlockchainListener {
     fun onUpdateAccountState(accountState: AccountState)
 }
 
-interface INotSyncedTransactionPool {
-    val notSyncedTransactionsSignal: Flowable<Unit>
-
-    fun add(notSyncedTransactions: List<NotSyncedTransaction>)
-    fun remove(notSyncedTransaction: NotSyncedTransaction)
-    fun update(notSyncedTransaction: NotSyncedTransaction)
-    fun getNotSyncedTransactions(limit: Int): List<NotSyncedTransaction>
-}
-
-interface ITransactionSyncerStateStorage {
-    fun getTransactionSyncerState(id: String): TransactionSyncerState?
-    fun save(transactionSyncerState: TransactionSyncerState)
-}
-
 interface ITransactionStorage {
-    fun getNotSyncedTransactions(limit: Int): List<NotSyncedTransaction>
-    fun getNotSyncedInternalTransactions(): NotSyncedInternalTransaction?
-    fun addNotSyncedTransactions(transactions: List<NotSyncedTransaction>)
-    fun update(notSyncedTransaction: NotSyncedTransaction)
-    fun remove(transaction: NotSyncedTransaction)
+    fun getTransactions(hashes: List<ByteArray>): List<Transaction>
+    fun getTransaction(hash: ByteArray): Transaction?
+    fun getTransactionsBeforeAsync(tags: List<List<String>>, hash: ByteArray?, limit: Int?): Single<List<Transaction>>
+    fun save(transactions: List<Transaction>)
 
-    fun getFullTransaction(hash: ByteArray): FullTransaction?
-    fun getFullTransactions(hashes: List<ByteArray>): List<FullTransaction>
-    fun getTransactionHashes(): List<ByteArray>
-    fun getTransactionsBeforeAsync(tags: List<List<String>>, hash: ByteArray?, limit: Int?): Single<List<FullTransaction>>
-    fun getPendingTransactions(tags: List<List<String>>): List<FullTransaction>
-    fun save(transaction: Transaction)
+    fun getPendingTransactions(): List<Transaction>
+    fun getPendingTransactions(tags: List<List<String>>): List<Transaction>
+    fun getNonPendingTransactionsByNonces(from: Address, pendingTransactionNonces: List<Long>): List<Transaction>
 
+    fun getLastInternalTransaction(): InternalTransaction?
+    fun getInternalTransactions(): List<InternalTransaction>
+    fun getInternalTransactionsByHashes(hashes: List<ByteArray>): List<InternalTransaction>
     fun saveInternalTransactions(internalTransactions: List<InternalTransaction>)
-    fun add(notSyncedInternalTransaction: NotSyncedInternalTransaction)
-    fun remove(notSyncedInternalTransaction: NotSyncedInternalTransaction)
 
-    fun getTransactionReceipt(transactionHash: ByteArray): TransactionReceipt?
-    fun save(transactionReceipt: TransactionReceipt)
-
-    fun save(logs: List<TransactionLog>)
-    fun remove(logs: List<TransactionLog>)
-    fun set(tags: List<TransactionTag>)
-
-    fun getPendingTransactionList(nonce: Long): List<Transaction>
-    fun getPendingTransactions(fromTransaction: Transaction?): List<Transaction>
-    fun addDroppedTransaction(droppedTransaction: DroppedTransaction)
+    fun saveTags(tags: List<TransactionTag>)
 }
 
-interface ITransactionSyncerListener {
-    fun onTransactionsSynced(transactions: List<FullTransaction>)
+interface IEip20Storage {
+    fun getLastEvent(): Eip20Event?
+    fun save(events: List<Eip20Event>)
+    fun getEvents(): List<Eip20Event>
+    fun getEventsByHashes(hashes: List<ByteArray>): List<Eip20Event>
 }
 
 interface ITransactionSyncer {
-    val id: String
-    val state: EthereumKit.SyncState
-    val stateAsync: Flowable<EthereumKit.SyncState>
-
-    fun start()
-    fun stop()
-
-    fun onEthereumKitSynced()
-    fun onLastBlockBloomFilter(bloomFilter: BloomFilter)
-    fun onUpdateAccountState(accountState: AccountState)
-    fun onLastBlockNumber(blockNumber: Long)
-
-    fun set(delegate: ITransactionSyncerDelegate)
+    fun getTransactionsSingle(): Single<Pair<List<Transaction>, Boolean>>
 }
 
-interface ITransactionSyncerDelegate {
-    val notSyncedTransactionsSignal: Flowable<Unit>
-
-    fun getNotSyncedTransactions(limit: Int): List<NotSyncedTransaction>
-    fun add(notSyncedTransactions: List<NotSyncedTransaction>)
-    fun remove(notSyncedTransaction: NotSyncedTransaction)
-    fun update(notSyncedTransaction: NotSyncedTransaction)
-
-    fun getTransactionSyncerState(id: String): TransactionSyncerState?
-    fun update(transactionSyncerState: TransactionSyncerState)
+interface IMethodDecorator {
+    fun contractMethod(input: ByteArray): ContractMethod?
 }
 
-interface IDecorator {
-    fun decorate(logs: List<TransactionLog>): List<ContractEventDecoration>
-    fun decorate(transactionData: TransactionData, fullTransaction: FullTransaction?): ContractMethodDecoration?
+interface IEventDecorator {
+    fun contractEventInstancesMap(transactions: List<Transaction>): Map<String, List<ContractEventInstance>>
+    fun contractEventInstances(logs: List<TransactionLog>): List<ContractEventInstance>
 }
 
-interface ITransactionWatcher {
-    fun needInternalTransactions(fullTransaction: FullTransaction): Boolean
+interface ITransactionDecorator {
+    fun decoration(
+        from: Address?,
+        to: Address?,
+        value: BigInteger?,
+        contractMethod: ContractMethod?,
+        internalTransactions: List<InternalTransaction>,
+        eventInstances: List<ContractEventInstance>
+    ): TransactionDecoration?
 }
 
 interface ITransactionProvider {
     fun getTransactions(startBlock: Long): Single<List<ProviderTransaction>>
-    fun getInternalTransactions(startBlock: Long): Single<List<InternalTransaction>>
-    fun getInternalTransactionsAsync(hash: ByteArray): Single<List<InternalTransaction>>
+    fun getInternalTransactions(startBlock: Long): Single<List<ProviderInternalTransaction>>
+    fun getInternalTransactionsAsync(hash: ByteArray): Single<List<ProviderInternalTransaction>>
     fun getTokenTransactions(startBlock: Long): Single<List<ProviderTokenTransaction>>
+    fun getEip721Transactions(startBlock: Long): Single<List<ProviderEip721Transaction>>
+    fun getEip1155Transactions(startBlock: Long): Single<List<ProviderEip1155Transaction>>
 }

@@ -4,8 +4,8 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 @Entity
-data class TransactionSyncerState(
-        @PrimaryKey
-        val id: String,
-        val lastBlockNumber: Long
+class TransactionSyncerState(
+    @PrimaryKey
+    val syncerId: String,
+    val lastBlockNumber: Long
 )

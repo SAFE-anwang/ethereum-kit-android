@@ -23,18 +23,6 @@ class TransactionSource(val name: String, val type: SourceType) {
             return etherscan("api", null, apiKey)
         }
 
-        fun ropstenEtherscan(apiKey: String): TransactionSource {
-            return etherscan("api-ropsten", "ropsten", apiKey)
-        }
-
-        fun kovanEtherscan(apiKey: String): TransactionSource {
-            return etherscan("api-kovan", "kovan", apiKey)
-        }
-
-        fun rinkebyEtherscan(apiKey: String): TransactionSource {
-            return etherscan("api-rinkeby", "rinkeby", apiKey)
-        }
-
         fun goerliEtherscan(apiKey: String): TransactionSource {
             return etherscan("api-goerli", "goerli", apiKey)
         }
@@ -64,6 +52,13 @@ class TransactionSource(val name: String, val type: SourceType) {
             return TransactionSource(
                 "arbiscan.io",
                 SourceType.Etherscan("https://api.arbiscan.io", "https://arbiscan.io", apiKey)
+            )
+        }
+
+        fun snowtrace(apiKey: String): TransactionSource {
+            return TransactionSource(
+                "snowtrace.io",
+                SourceType.Etherscan("https://api.snowtrace.io", "https://snowtrace.io", apiKey)
             )
         }
 

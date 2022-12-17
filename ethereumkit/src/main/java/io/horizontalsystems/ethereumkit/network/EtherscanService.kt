@@ -21,8 +21,8 @@ import java.net.Proxy
 import java.util.logging.Logger
 
 class EtherscanService(
-        private val baseUrl: String,
-        private val apiKey: String
+    baseUrl: String,
+    private val apiKey: String
 ) {
 
     private val logger = Logger.getLogger("EtherscanService")
@@ -43,47 +43,82 @@ class EtherscanService(
                 .addInterceptor(loggingInterceptor)
 
         gson = GsonBuilder()
-                .setLenient()
-                .create()
+            .setLenient()
+            .create()
 
         val retrofit = Retrofit.Builder()
-                .baseUrl(baseUrl)
-                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
-                .addConverterFactory(GsonConverterFactory.create(gson))
-                .client(httpClient.build())
-                .build()
+            .baseUrl(baseUrl)
+            .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .client(httpClient.build())
+            .build()
 
         service = retrofit.create(EtherscanServiceAPI::class.java)
     }
 
     fun getTransactionList(address: Address, startBlock: Long): Single<EtherscanResponse> {
-        return service.getTransactionList("account", "txList", address.hex, startBlock, 99_999_999, "desc", apiKey)
-                .map { parseResponse(it) }
-                .retryWhenError(RequestError.RateLimitExceed::class)
+        return service.accountApi(
+            action = "txList",
+            address = address.hex,
+            startBlock = startBlock,
+            apiKey = apiKey
+        ).map {
+            parseResponse(it)
+        }.retryWhenError(RequestError.RateLimitExceed::class)
     }
 
     fun getInternalTransactionList(address: Address, startBlock: Long): Single<EtherscanResponse> {
-        return service.getTransactionList("account", "txlistinternal", address.hex, startBlock, 99_999_999, "desc", apiKey)
-                .map { parseResponse(it) }
-                .retryWhenError(RequestError.RateLimitExceed::class)
+        return service.accountApi(
+            action = "txlistinternal",
+            address = address.hex,
+            startBlock = startBlock,
+            apiKey = apiKey
+        ).map {
+            parseResponse(it)
+        }.retryWhenError(RequestError.RateLimitExceed::class)
     }
 
     fun getTokenTransactions(address: Address, startBlock: Long): Single<EtherscanResponse> {
-        return service.getTokenTransactions("account", "tokentx", address.hex, startBlock, 99_999_999, "desc", apiKey)
-                .map { parseResponse(it) }
-                .retryWhenError(RequestError.RateLimitExceed::class)
+        return service.accountApi(
+            action = "tokentx",
+            address = address.hex,
+            startBlock = startBlock,
+            apiKey = apiKey
+        ).map {
+            parseResponse(it)
+        }.retryWhenError(RequestError.RateLimitExceed::class)
     }
 
     fun getInternalTransactionsAsync(transactionHash: ByteArray): Single<EtherscanResponse> {
-        return service.getInternalTransactions(
-                "account",
-                "txlistinternal",
-                transactionHash.toHexString(),
-                "desc",
-                apiKey
-        )
-                .map { parseResponse(it) }
-                .retryWhenError(RequestError.RateLimitExceed::class)
+        return service.accountApi(
+            action = "txlistinternal",
+            txHash = transactionHash.toHexString(),
+            apiKey = apiKey
+        ).map {
+            parseResponse(it)
+        }.retryWhenError(RequestError.RateLimitExceed::class)
+    }
+
+    fun getEip721Transactions(address: Address, startBlock: Long): Single<EtherscanResponse> {
+        return service.accountApi(
+            action = "tokennfttx",
+            address = address.hex,
+            startBlock = startBlock,
+            apiKey = apiKey
+        ).map {
+            parseResponse(it)
+        }.retryWhenError(RequestError.RateLimitExceed::class)
+    }
+
+    fun getEip1155Transactions(address: Address, startBlock: Long): Single<EtherscanResponse> {
+        return service.accountApi(
+            action = "token1155tx",
+            address = address.hex,
+            startBlock = startBlock,
+            apiKey = apiKey
+        ).map {
+            parseResponse(it)
+        }.retryWhenError(RequestError.RateLimitExceed::class)
     }
 
     private fun parseResponse(response: JsonElement): EtherscanResponse {
@@ -114,34 +149,17 @@ class EtherscanService(
     }
 
     private interface EtherscanServiceAPI {
-
         @GET("/api")
-        fun getTransactionList(
-                @Query("module") module: String,
-                @Query("action") action: String,
-                @Query("address") address: String,
-                @Query("startblock") startblock: Long,
-                @Query("endblock") endblock: Long,
-                @Query("sort") sort: String,
-                @Query("apiKey") apiKey: String): Single<JsonElement>
-
-        @GET("/api")
-        fun getTokenTransactions(
-                @Query("module") module: String,
-                @Query("action") action: String,
-                @Query("address") address: String,
-                @Query("startblock") startblock: Long,
-                @Query("endblock") endblock: Long,
-                @Query("sort") sort: String,
-                @Query("apiKey") apiKey: String): Single<JsonElement>
-
-        @GET("/api")
-        fun getInternalTransactions(
-                @Query("module") module: String,
-                @Query("action") action: String,
-                @Query("txhash") address: String,
-                @Query("sort") sort: String,
-                @Query("apiKey") apiKey: String): Single<JsonElement>
+        fun accountApi(
+            @Query("module") module: String = "account",
+            @Query("action") action: String,
+            @Query("address") address: String? = null,
+            @Query("txhash") txHash: String? = null,
+            @Query("startblock") startBlock: Long? = null,
+            @Query("endblock") endBlock: Long? = 99_999_999,
+            @Query("sort") sort: String? = "desc",
+            @Query("apikey") apiKey: String
+        ): Single<JsonElement>
     }
 
 }

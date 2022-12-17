@@ -6,9 +6,10 @@ import io.horizontalsystems.ethereumkit.sample.modules.main.Erc20Token
 
 object Configuration {
     const val webSocket: Boolean = false
-    val chain: Chain = Chain.Ethereum
+    val chain: Chain = Chain.EthereumGoerli
     const val walletId = "walletId"
-    const val defaultsWords = "mom year father track attend frown loyal goddess crisp abandon juice roof"
+    val watchAddress: String? = null
+    const val defaultsWords = "apart approve black comfort steel spin real renew tone primary key cherry"
 
     const val infuraProjectId = "2a1306f1d12f4c109a4d4fb9be46b02e"
     const val infuraSecret = "fc479a9290b64a84a15fa6544a130218"
@@ -27,9 +28,9 @@ object Configuration {
                         Erc20Token("PancakeSwap", "CAKE", Address("0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82"), 18),
                         Erc20Token("BUSD", "BUSD", Address("0xe9e7cea3dedca5984780bafc599bd69add087d56"), 18)
                 )
-                Chain.EthereumRopsten -> listOf(
-                        Erc20Token("DAI", "DAI", Address("0xad6d458402f60fd3bd25163575031acdce07538d"), 18),
-                        Erc20Token("WEENUS", "WEENUS", Address("0x101848d5c5bbca18e6b4431eedf6b95e9adf82fa"), 18)
+                Chain.EthereumGoerli -> listOf(
+                    Erc20Token("WEENUS", "WEENUS", Address("0xaff4481d10270f50f203e0763e2597776068cbc5"), 18),
+                    Erc20Token("USDT", "USDT", Address("0x183F3D42f1F78498f16bC6de7F5A6328fE39f25c"), 6)
                 )
                 else -> listOf()
             }

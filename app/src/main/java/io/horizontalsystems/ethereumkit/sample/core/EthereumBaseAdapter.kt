@@ -2,9 +2,11 @@ package io.horizontalsystems.ethereumkit.sample.core
 
 import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.core.toHexString
+import io.horizontalsystems.ethereumkit.decorations.TransactionDecoration
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.FullTransaction
 import io.horizontalsystems.ethereumkit.models.GasPrice
+import io.horizontalsystems.oneinchkit.decorations.OneInchUnknownDecoration
 import io.reactivex.Flowable
 import io.reactivex.Single
 import java.math.BigDecimal
@@ -85,7 +87,7 @@ open class EthereumBaseAdapter(private val ethereumKit: EthereumKit) : IAdapter 
     }
 
     override fun transactions(fromHash: ByteArray?, limit: Int?): Single<List<TransactionRecord>> {
-        return ethereumKit.getTransactionsAsync(listOf(listOf("ETH")), fromHash, limit)
+        return ethereumKit.getFullTransactionsAsync(listOf(), fromHash, limit)
             .map { transactions ->
                 transactions.map { transactionRecord(it) }
             }
@@ -93,39 +95,37 @@ open class EthereumBaseAdapter(private val ethereumKit: EthereumKit) : IAdapter 
 
     private fun transactionRecord(fullTransaction: FullTransaction): TransactionRecord {
         val transaction = fullTransaction.transaction
-        val receipt = fullTransaction.receiptWithLogs?.receipt
         val mineAddress = ethereumKit.receiveAddress
 
-        val from = TransactionAddress(transaction.from.hex, transaction.from == mineAddress)
-        val to = TransactionAddress(transaction.to!!.hex, transaction.to == mineAddress)
-        var amount: BigDecimal
+        var amount: BigDecimal = 0.toBigDecimal()
 
-        transaction.value.toBigDecimal().let {
+        transaction.value?.toBigDecimal()?.let {
             amount = it.movePointLeft(decimal)
-            if (from.mine) {
-                amount = -amount
-            }
-        }
-
-        fullTransaction.internalTransactions.forEach { internalTransaction ->
-            var internalAmount = internalTransaction.value.toBigDecimal().movePointLeft(decimal)
-            internalAmount =
-                if (internalTransaction.from == receiveAddress) internalAmount.negate() else internalAmount
-            amount += internalAmount
         }
 
         return TransactionRecord(
             transactionHash = transaction.hash.toHexString(),
-            transactionIndex = receipt?.transactionIndex ?: 0,
-            interTransactionIndex = 0,
-            blockHeight = receipt?.blockNumber,
-            amount = amount,
             timestamp = transaction.timestamp,
-            from = from,
-            to = to,
-            isError = fullTransaction.isFailed(),
-            mainDecoration = fullTransaction.mainDecoration,
-            eventsDecorations = fullTransaction.eventDecorations
+            isError = fullTransaction.transaction.isFailed,
+            from = transaction.from,
+            to = transaction.to,
+            amount = amount,
+            blockHeight = transaction.blockNumber,
+            transactionIndex = transaction.transactionIndex ?: 0,
+            decoration = fullTransaction.decoration.describe()
         )
     }
 }
+
+fun TransactionDecoration.describe(): String =
+    when (this) {
+        is OneInchUnknownDecoration -> {
+            val _out = this.tokenAmountOut?.let { "${it.value} (${it.token.toString()})" } ?: "n/a"
+            val _in = this.tokenAmountIn?.let { "${it.value} (${it.token.toString()})" } ?: "n/a"
+
+            "OneInchUnknownDecoration($_out <-> $_in)"
+        }
+
+        else -> this.toString()
+    }
+

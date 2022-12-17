@@ -48,6 +48,10 @@ class Signer(
         return ethSigner.signByteArray(message)
     }
 
+    fun signByteArrayLegacy(message: ByteArray): ByteArray {
+        return ethSigner.signByteArrayLegacy(message)
+    }
+
     fun signTypedData(rawJsonMessage: String): ByteArray {
         return ethSigner.signTypedData(rawJsonMessage)
     }
@@ -81,7 +85,7 @@ class Signer(
 
         fun address(seed: ByteArray, chain: Chain): Address {
             val privateKey = privateKey(seed, chain)
-            return ethereumAddress(privateKey)
+            return address(privateKey)
         }
 
         fun privateKey(
@@ -108,13 +112,6 @@ class Signer(
         }
 
         fun address(privateKey: BigInteger): Address {
-            val publicKey =
-                CryptoUtils.ecKeyFromPrivate(privateKey).publicKeyPoint.getEncoded(false).drop(1)
-                    .toByteArray()
-            return Address(CryptoUtils.sha3(publicKey).takeLast(20).toByteArray())
-        }
-
-        private fun ethereumAddress(privateKey: BigInteger): Address {
             val publicKey =
                 CryptoUtils.ecKeyFromPrivate(privateKey).publicKeyPoint.getEncoded(false).drop(1)
                     .toByteArray()

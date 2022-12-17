@@ -55,7 +55,7 @@ class AddressWatchViewModel : ViewModel() {
         val erc20Adapter = Erc20BaseAdapter(App.instance, Configuration.erc20Tokens.first(), evmKit)
 
         Erc20Kit.addTransactionSyncer(evmKit)
-        Erc20Kit.addDecorator(evmKit)
+        Erc20Kit.addDecorators(evmKit)
 
         evmAdapter.lastBlockHeightFlowable.subscribe {
             lastBlockHeight.postValue(evmKit.lastBlockHeight)
@@ -141,12 +141,12 @@ class AddressWatchViewModel : ViewModel() {
                 else
                     RpcSource.ethereumInfuraHttp(Configuration.infuraProjectId, Configuration.infuraSecret)
             }
-            Chain.EthereumRopsten -> {
-                transactionSource = TransactionSource.ropstenEtherscan(Configuration.etherscanKey)
+            Chain.EthereumGoerli -> {
+                transactionSource = TransactionSource.goerliEtherscan(Configuration.etherscanKey)
                 rpcSource = if (Configuration.webSocket)
-                    RpcSource.ropstenInfuraWebSocket(Configuration.infuraProjectId, Configuration.infuraSecret)
+                    RpcSource.goerliInfuraWebSocket(Configuration.infuraProjectId, Configuration.infuraSecret)
                 else
-                    RpcSource.ropstenInfuraHttp(Configuration.infuraProjectId, Configuration.infuraSecret)
+                    RpcSource.goerliInfuraHttp(Configuration.infuraProjectId, Configuration.infuraSecret)
             }
             else -> {
                 rpcSource = null
