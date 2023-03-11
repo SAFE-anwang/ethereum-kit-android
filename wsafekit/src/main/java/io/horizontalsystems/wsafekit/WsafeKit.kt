@@ -15,6 +15,13 @@ class WsafeKit(
         return wSafeManager.transactionData(amount, to)
     }
 
+    fun transactionDataMatic(
+        amount: BigInteger,
+        to: String
+    ): TransactionData {
+        return wSafeManager.transactionDataMatic(amount, to)
+    }
+
     companion object {
         fun getInstance(chain: Chain): WsafeKit {
             val wSafeManager = WSafeManager(chain)
