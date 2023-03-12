@@ -35,13 +35,6 @@ class WSafeManager(
         ).hexStringToByteArray())
     }
 
-    fun transactionDataMatic(amount: BigInteger,
-                        to: String): TransactionData {
-        return TransactionData(to = contractAddress, value = BigInteger.ZERO,
-            Web3jUtils.getMatic2safeTransactionInput(amount, to
-        ).hexStringToByteArray())
-    }
-
     sealed class UnsupportedChainError : Throwable() {
         object NoWethAddress : UnsupportedChainError()
         object NoSafeAddress : UnsupportedChainError()
