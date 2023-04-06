@@ -130,6 +130,9 @@ class EthereumKit(
         transactionSyncManager.sync()
     }
 
+    fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long> {
+        return blockchain.getNonce(defaultBlockParameter)
+    }
     fun getFullTransactionsFlowable(tags: List<List<String>>): Flowable<List<FullTransaction>> {
         return transactionManager.getFullTransactionsFlowable(tags)
     }
@@ -194,15 +197,15 @@ class EthereumKit(
         gasLimit: Long,
         nonce: Long? = null
     ): Single<RawTransaction> {
-        val nonceSingle = nonce?.let { Single.just(it) } ?: blockchain.getNonce()
-        logger.info("safe4 send transactionInput: $transactionInput")
+        val nonceSingle = nonce?.let { Single.just(it) } ?: blockchain.getNonce(DefaultBlockParameter.Pending)
+
         return nonceSingle.flatMap { nonce ->
             Single.just(RawTransaction(gasPrice, gasLimit, address, value, nonce, transactionInput))
         }
     }
 
     fun send(rawTransaction: RawTransaction, signature: Signature): Single<FullTransaction> {
-        logger.info("safe4 send rawTransaction: $rawTransaction")
+        logger.info("send rawTransaction: $rawTransaction")
 
         return blockchain.send(rawTransaction, signature)
             .map { transactionManager.handle(listOf(it)).first() }
@@ -436,6 +439,10 @@ class EthereumKit(
 
         fun clear(context: Context, chain: Chain, walletId: String) {
             EthereumDatabaseManager.clear(context, chain, walletId)
+        }
+
+        fun getNodeApiProvider(rpcSource: RpcSource.Http): NodeApiProvider {
+            return NodeApiProvider(rpcSource.urls, gson, rpcSource.auth)
         }
 
         private fun transactionProvider(transactionSource: TransactionSource, address: Address): ITransactionProvider {
