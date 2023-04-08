@@ -124,7 +124,7 @@ class TradeManager(
         private fun getRouterAddress(chain: Chain, isSafeSwap: Boolean) =
             if (isSafeSwap) {
                 when (chain) {
-                    Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli -> Address(
+                    Chain.Ethereum, /*Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby,*/ Chain.EthereumGoerli -> Address(
                         "0x6476008C612dF9F8Db166844fFE39D24aEa12271"
                     )
                     Chain.BinanceSmartChain -> Address("0x6476008C612dF9F8Db166844fFE39D24aEa12271")
@@ -134,7 +134,7 @@ class TradeManager(
                 }
             } else {
                 when (chain) {
-                    Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli -> Address(
+                    Chain.Ethereum, /*Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby,*/ Chain.EthereumGoerli -> Address(
                         "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
                     )
                     Chain.BinanceSmartChain -> Address("0x10ED43C718714eb63d5aA57B78B54704E256024E")
@@ -147,7 +147,7 @@ class TradeManager(
         private fun getFactoryAddressString(chain: Chain, isSafeSwap: Boolean) =
             if (isSafeSwap) {
                 when (chain) {
-                    Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli -> "0xB3c827077312163c53E3822defE32cAffE574B42"
+                    Chain.Ethereum, /*Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby,*/ Chain.EthereumGoerli -> "0xB3c827077312163c53E3822defE32cAffE574B42"
                     Chain.BinanceSmartChain -> "0xB3c827077312163c53E3822defE32cAffE574B42"
                     Chain.Polygon -> "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32"
                     Chain.Avalanche -> "0x9Ad6C38BE94206cA50bb0d90783181662f0Cfa10"
@@ -155,7 +155,7 @@ class TradeManager(
                 }
             } else {
                 when (chain) {
-                    Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli -> "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"
+                    Chain.Ethereum, /*Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby,*/ Chain.EthereumGoerli -> "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"
                     Chain.BinanceSmartChain -> "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73"
                     Chain.Polygon -> "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32"
                     Chain.Avalanche -> "0x9Ad6C38BE94206cA50bb0d90783181662f0Cfa10"
@@ -166,13 +166,13 @@ class TradeManager(
         private fun getInitCodeHashString(chain: Chain, isSafeSwap: Boolean) =
             if (isSafeSwap) {
                 when (chain) {
-                    Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli, Chain.Polygon, Chain.Avalanche -> "0xad0e51aa7a058efb9eb40fd6385473f0175ee7419e8d4f91a4e0294ec12b2d13"
+                    Chain.Ethereum, /*Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby,*/ Chain.EthereumGoerli, Chain.Polygon, Chain.Avalanche -> "0xad0e51aa7a058efb9eb40fd6385473f0175ee7419e8d4f91a4e0294ec12b2d13"
                     Chain.BinanceSmartChain -> "0xad0e51aa7a058efb9eb40fd6385473f0175ee7419e8d4f91a4e0294ec12b2d13"
                     else -> throw UnsupportedChainError.NoInitCodeHash
                 }
             } else {
                 when (chain) {
-                    Chain.Ethereum, Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby, Chain.EthereumGoerli, Chain.Polygon, Chain.Avalanche -> "0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f"
+                    Chain.Ethereum, /*Chain.EthereumRopsten, Chain.EthereumKovan, Chain.EthereumRinkeby,*/ Chain.EthereumGoerli, Chain.Polygon, Chain.Avalanche -> "0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f"
                     Chain.BinanceSmartChain -> "0x00fb7f630766e6a796048ea87d01acd3068e8ff67d078148a3fa3f4a84f69bd5"
                     else -> throw UnsupportedChainError.NoInitCodeHash
                 }
