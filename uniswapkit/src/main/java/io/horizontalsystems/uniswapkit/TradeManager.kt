@@ -1,11 +1,13 @@
 package io.horizontalsystems.uniswapkit
 
+import android.util.Log
 import io.horizontalsystems.ethereumkit.contracts.ContractMethod
 import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.core.toHexString
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.Chain
 import io.horizontalsystems.ethereumkit.models.TransactionData
+import io.horizontalsystems.ethereumkit.models.TransactionLiquidityData
 import io.horizontalsystems.uniswapkit.contract.*
 import io.horizontalsystems.uniswapkit.models.*
 import io.horizontalsystems.uniswapkit.models.Token.Erc20
@@ -94,6 +96,60 @@ class TradeManager(
 
         return SwapData(amount, method.encodedABI())
     }
+
+
+    fun transactionLiquidityData(tradeData: TradeData): TransactionData {
+        return buildLiquidityData(tradeData).let {
+            TransactionData(routerAddress(), it.amountA, it.input)
+        }
+    }
+
+
+    private fun buildLiquidityData(tradeData: TradeData): LiquidityData {
+        val trade = tradeData.trade
+
+        val tokenIn = trade.tokenAmountIn.token
+        val tokenOut = trade.tokenAmountOut.token
+
+        val to = tradeData.options.recipient ?: address
+        val deadline = (Date().time / 1000 + tradeData.options.ttl).toBigInteger()
+
+        val method = buildMethodForLiquidityOut(tokenIn, tokenOut, to, deadline, tradeData, trade)
+
+        return LiquidityData(trade.tokenAmountIn.rawAmount, tradeData.tokenAmountInMax.rawAmount, method.encodedABI())
+    }
+
+
+    private class LiquidityData(val amountA: BigInteger, val amountB: BigInteger, val input: ByteArray)
+
+    private fun buildMethodForLiquidityOut(tokenIn: Token, tokenOut: Token, to: Address, deadline: BigInteger, tradeData: TradeData, trade: Trade): ContractMethod {
+        Log.e("longwen", "tokenIn=${tokenIn.address}, $tokenIn, tokenOut=${tokenOut.address}, $tokenOut")
+        return when {
+            tokenIn is Ether && tokenOut is Erc20 -> AddLiquidityMethod(
+                tokenIn.address,
+                tokenOut.address,
+                trade.tokenAmountOut.rawAmount,
+                trade.tokenAmountIn.rawAmount,
+                BigInteger.ZERO, BigInteger.ZERO,
+                to, deadline)
+            tokenIn is Erc20 && tokenOut is Ether -> AddLiquidityMethod(
+                tokenOut.address,
+                tokenIn.address,
+                trade.tokenAmountOut.rawAmount,
+                trade.tokenAmountIn.rawAmount,
+                BigInteger.ZERO, BigInteger.ZERO,
+                to, deadline)
+            tokenIn is Erc20 && tokenOut is Erc20 -> AddLiquidityMethod(
+                tokenOut.address,
+                tokenIn.address,
+                trade.tokenAmountOut.rawAmount,
+                trade.tokenAmountIn.rawAmount,
+                BigInteger.ZERO, BigInteger.ZERO,
+                to, deadline)
+            else -> throw Exception("Invalid tokenIn/Out for swap!")
+        }
+    }
+
 
     private fun buildMethodForExactOut(tokenIn: Token, tokenOut: Token, path: List<Address>, to: Address, deadline: BigInteger, tradeData: TradeData, trade: Trade): ContractMethod {
         val amountInMax = tradeData.tokenAmountInMax.rawAmount

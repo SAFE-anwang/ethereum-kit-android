@@ -3,6 +3,7 @@ package io.horizontalsystems.uniswapkit
 import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.TransactionData
+import io.horizontalsystems.ethereumkit.models.TransactionLiquidityData
 import io.horizontalsystems.uniswapkit.contract.SwapContractMethodFactories
 import io.horizontalsystems.uniswapkit.models.*
 import io.reactivex.Single
@@ -79,6 +80,10 @@ class UniswapKit(
 
     fun transactionData(tradeData: TradeData): TransactionData {
         return tradeManager.transactionData(tradeData)
+    }
+
+    fun transactionLiquidityData(tradeData: TradeData): TransactionData {
+        return tradeManager.transactionLiquidityData(tradeData)
     }
 
     companion object {
