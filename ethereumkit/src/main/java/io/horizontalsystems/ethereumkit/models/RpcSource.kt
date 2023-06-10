@@ -64,10 +64,6 @@ sealed class RpcSource() {
             )
         }
 
-        fun binanceSmartChainWebSocket(): WebSocket {
-            return WebSocket(URL("https://bsc-ws-node.nariox.org:443"), null)
-        }
-
         fun polygonRpcHttp(): Http {
             return Http(listOf(URL("https://polygon-rpc.com")), null)
         }
@@ -82,6 +78,14 @@ sealed class RpcSource() {
 
         fun avaxNetworkHttp(): Http {
             return Http(listOf(URL("https://api.avax.network/ext/bc/C/rpc")), null)
+        }
+
+        fun gnosisRpcHttp(): Http {
+            return Http(listOf(URL("https://rpc.gnosischain.com")), null)
+        }
+
+        fun fantomRpcHttp(): Http {
+            return Http(listOf(URL("https://rpc.fantom.network")), null)
         }
 
     }

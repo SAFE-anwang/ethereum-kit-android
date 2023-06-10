@@ -61,7 +61,6 @@ class EthereumKit(
     private val accountStateSubject = PublishSubject.create<AccountState>()
 
     val defaultGasLimit: Long = 21_000
-    private val maxGasLimit: Long = 2_000_000
     private val defaultMinAmount: BigInteger = BigInteger.ONE
 
     private var started = false
@@ -130,6 +129,9 @@ class EthereumKit(
         transactionSyncManager.sync()
     }
 
+    fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long> {
+        return blockchain.getNonce(defaultBlockParameter)
+    }
     fun getFullTransactionsFlowable(tags: List<List<String>>): Flowable<List<FullTransaction>> {
         return transactionManager.getFullTransactionsFlowable(tags)
     }
@@ -159,11 +161,11 @@ class EthereumKit(
         // if amount is 0 - set default minimum amount
         val resolvedAmount = if (value == BigInteger.ZERO) defaultMinAmount else value
 
-        return blockchain.estimateGas(to, resolvedAmount, maxGasLimit, gasPrice, null)
+        return blockchain.estimateGas(to, resolvedAmount, chain.gasLimit, gasPrice, null)
     }
 
     fun estimateGas(to: Address?, value: BigInteger?, gasPrice: GasPrice, data: ByteArray?): Single<Long> {
-        return blockchain.estimateGas(to, value, maxGasLimit, gasPrice, data)
+        return blockchain.estimateGas(to, value, chain.gasLimit, gasPrice, data)
     }
 
     fun estimateGas(transactionData: TransactionData, gasPrice: GasPrice): Single<Long> {
@@ -194,15 +196,15 @@ class EthereumKit(
         gasLimit: Long,
         nonce: Long? = null
     ): Single<RawTransaction> {
-        val nonceSingle = nonce?.let { Single.just(it) } ?: blockchain.getNonce()
-        logger.info("safe4 send transactionInput: $transactionInput")
+        val nonceSingle = nonce?.let { Single.just(it) } ?: blockchain.getNonce(DefaultBlockParameter.Pending)
+
         return nonceSingle.flatMap { nonce ->
             Single.just(RawTransaction(gasPrice, gasLimit, address, value, nonce, transactionInput))
         }
     }
 
     fun send(rawTransaction: RawTransaction, signature: Signature): Single<FullTransaction> {
-        logger.info("safe4 send rawTransaction: $rawTransaction")
+        logger.info("send rawTransaction: $rawTransaction")
 
         return blockchain.send(rawTransaction, signature)
             .map { transactionManager.handle(listOf(it)).first() }
@@ -436,6 +438,10 @@ class EthereumKit(
 
         fun clear(context: Context, chain: Chain, walletId: String) {
             EthereumDatabaseManager.clear(context, chain, walletId)
+        }
+
+        fun getNodeApiProvider(rpcSource: RpcSource.Http): NodeApiProvider {
+            return NodeApiProvider(rpcSource.urls, gson, rpcSource.auth)
         }
 
         private fun transactionProvider(transactionSource: TransactionSource, address: Address): ITransactionProvider {
