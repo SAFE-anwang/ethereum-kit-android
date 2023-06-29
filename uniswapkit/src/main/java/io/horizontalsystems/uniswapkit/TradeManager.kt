@@ -1,5 +1,6 @@
 package io.horizontalsystems.uniswapkit
 
+import android.content.Context
 import android.util.Log
 import io.horizontalsystems.ethereumkit.contracts.ContractMethod
 import io.horizontalsystems.ethereumkit.core.EthereumKit
@@ -7,15 +8,16 @@ import io.horizontalsystems.ethereumkit.core.toHexString
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.Chain
 import io.horizontalsystems.ethereumkit.models.TransactionData
-import io.horizontalsystems.ethereumkit.models.TransactionLiquidityData
 import io.horizontalsystems.uniswapkit.contract.*
 import io.horizontalsystems.uniswapkit.models.*
 import io.horizontalsystems.uniswapkit.models.Token.Erc20
 import io.horizontalsystems.uniswapkit.models.Token.Ether
 import io.reactivex.Single
+import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.*
 import java.util.logging.Logger
+
 
 class TradeManager(
     private val evmKit: EthereumKit
@@ -100,12 +102,12 @@ class TradeManager(
 
     fun transactionLiquidityData(tradeData: TradeData): TransactionData {
         return buildLiquidityData(tradeData).let {
-            TransactionData(routerAddress(), it.amountA, it.input)
+            TransactionData(routerAddress(), it.value, it.input)
         }
     }
 
 
-    private fun buildLiquidityData(tradeData: TradeData): LiquidityData {
+    private fun buildLiquidityData(tradeData: TradeData): TransactionData {
         val trade = tradeData.trade
 
         val tokenIn = trade.tokenAmountIn.token
@@ -114,40 +116,41 @@ class TradeManager(
         val to = tradeData.options.recipient ?: address
         val deadline = (Date().time / 1000 + tradeData.options.ttl).toBigInteger()
 
-        val method = buildMethodForLiquidityOut(tokenIn, tokenOut, to, deadline, tradeData, trade)
+        val amount0Min: BigInteger = trade.tokenAmountIn.rawAmount.multiply(
+            /*BigInteger.ONE.subtract(*/
+            BigInteger(
+                "5"
+            )
+//            )
+        ).divide(BigInteger("1000"))
+        val amount1Min: BigInteger = trade.tokenAmountOut.rawAmount.multiply(
+            /*BigInteger.ONE.subtract(*/
+                BigInteger(
+                    "5"
+                )
+//            )
+        ).divide(BigInteger("1000"))
+        val method = buildMethodForLiquidityOut(tokenIn, tokenOut, to, deadline, tradeData, trade, amount0Min, amount1Min)
 
-        return LiquidityData(trade.tokenAmountIn.rawAmount, tradeData.tokenAmountInMax.rawAmount, method.encodedABI())
+        return TransactionData(routerAddress(), trade.tokenAmountIn.rawAmount, method.encodedABI())
     }
 
 
     private class LiquidityData(val amountA: BigInteger, val amountB: BigInteger, val input: ByteArray)
 
-    private fun buildMethodForLiquidityOut(tokenIn: Token, tokenOut: Token, to: Address, deadline: BigInteger, tradeData: TradeData, trade: Trade): ContractMethod {
-        Log.e("longwen", "tokenIn=${tokenIn.address}, $tokenIn, tokenOut=${tokenOut.address}, $tokenOut")
-        return when {
-            tokenIn is Ether && tokenOut is Erc20 -> AddLiquidityMethod(
-                tokenIn.address,
-                tokenOut.address,
-                trade.tokenAmountOut.rawAmount,
-                trade.tokenAmountIn.rawAmount,
-                BigInteger.ZERO, BigInteger.ZERO,
-                to, deadline)
-            tokenIn is Erc20 && tokenOut is Ether -> AddLiquidityMethod(
-                tokenOut.address,
-                tokenIn.address,
-                trade.tokenAmountOut.rawAmount,
-                trade.tokenAmountIn.rawAmount,
-                BigInteger.ZERO, BigInteger.ZERO,
-                to, deadline)
-            tokenIn is Erc20 && tokenOut is Erc20 -> AddLiquidityMethod(
-                tokenOut.address,
-                tokenIn.address,
-                trade.tokenAmountOut.rawAmount,
-                trade.tokenAmountIn.rawAmount,
-                BigInteger.ZERO, BigInteger.ZERO,
-                to, deadline)
-            else -> throw Exception("Invalid tokenIn/Out for swap!")
-        }
+    private fun buildMethodForLiquidityOut(tokenIn: Token, tokenOut: Token, to: Address, deadline: BigInteger,
+                                           tradeData: TradeData, trade: Trade,
+                                           amount0Min: BigInteger,
+                                           amount1Min: BigInteger): ContractMethod {
+        return AddLiquidityMethod(
+            tokenIn.address,
+            tokenOut.address,
+            trade.tokenAmountIn.rawAmount,
+            trade.tokenAmountOut.rawAmount,
+            amount0Min,
+            amount1Min,
+            to,
+            deadline)
     }
 
 

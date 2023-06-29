@@ -17,7 +17,8 @@ import java.math.BigInteger
 class Signer(
     private val transactionBuilder: TransactionBuilder,
     private val transactionSigner: TransactionSigner,
-    private val ethSigner: EthSigner
+    private val ethSigner: EthSigner,
+    val privateKey: BigInteger
 ) {
 
     fun signature(rawTransaction: RawTransaction): Signature {
@@ -68,7 +69,7 @@ class Signer(
             val transactionBuilder = TransactionBuilder(address, chain.id)
             val ethSigner = EthSigner(privateKey, CryptoUtils, EIP712Encoder())
 
-            return Signer(transactionBuilder, transactionSigner, ethSigner)
+            return Signer(transactionBuilder, transactionSigner, ethSigner, privateKey)
         }
 
         fun getInstance(seed: ByteArray, chain: Chain): Signer {

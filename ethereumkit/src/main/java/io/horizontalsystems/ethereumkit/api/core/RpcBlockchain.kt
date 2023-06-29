@@ -1,5 +1,6 @@
 package io.horizontalsystems.ethereumkit.api.core
 
+import android.util.Log
 import io.horizontalsystems.ethereumkit.api.jsonrpc.*
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcBlock
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransaction
