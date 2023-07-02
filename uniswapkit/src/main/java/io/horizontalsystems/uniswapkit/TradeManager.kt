@@ -115,18 +115,24 @@ class TradeManager(
 
         val to = tradeData.options.recipient ?: address
         val deadline = (Date().time / 1000 + tradeData.options.ttl).toBigInteger()
-
+        val slippage = if (tokenIn.address.hex == "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c" ||
+                tokenOut.address.hex == "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c") {
+            "25"
+        } else {
+            "5"
+        }
+        Log.e("longwen", "slippage=$slippage")
         val amount0Min: BigInteger = trade.tokenAmountIn.rawAmount.multiply(
             /*BigInteger.ONE.subtract(*/
             BigInteger(
-                "5"
+                slippage
             )
 //            )
         ).divide(BigInteger("1000"))
         val amount1Min: BigInteger = trade.tokenAmountOut.rawAmount.multiply(
             /*BigInteger.ONE.subtract(*/
                 BigInteger(
-                    "5"
+                    slippage
                 )
 //            )
         ).divide(BigInteger("1000"))
