@@ -1,19 +1,22 @@
-package io.horizontalsystems.uniswapkit
+package io.horizontalsystems.uniswapkit.liquidity
 
 import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.TransactionData
 import io.horizontalsystems.ethereumkit.models.TransactionLiquidityData
+import io.horizontalsystems.uniswapkit.PairSelector
+import io.horizontalsystems.uniswapkit.TokenFactory
+import io.horizontalsystems.uniswapkit.TradeManager
 import io.horizontalsystems.uniswapkit.contract.SwapContractMethodFactories
 import io.horizontalsystems.uniswapkit.models.*
 import io.reactivex.Single
 import java.math.BigDecimal
 import java.util.logging.Logger
 
-class UniswapKit(
-        val tradeManager: TradeManager,
-        private val pairSelector: PairSelector,
-        private val tokenFactory: TokenFactory
+class PancakeSwapKit(
+    val tradeManager: TradeManager,
+    private val pairSelector: PairSelector,
+    private val tokenFactory: TokenFactory
 ) {
     private val logger = Logger.getLogger(this.javaClass.simpleName)
 
@@ -38,6 +41,26 @@ class UniswapKit(
             val pairs = array.map { it as Pair }
             SwapData(pairs, tokenIn, tokenOut)
         }
+    }
+
+    fun bestTradeExact(swapData: SwapData, amountIn: BigDecimal, amountOut: BigDecimal, options: TradeOptions = TradeOptions()): TradeData {
+        val tokenAmountIn = TokenAmount(swapData.tokenIn, amountIn)
+        val tokenAmountOut = TokenAmount(swapData.tokenOut, amountOut)
+        val sortedTrades = TradeManager.tradeExactIn(
+            swapData.pairs,
+            tokenAmountIn,
+            swapData.tokenOut
+        ).sorted()
+
+        logger.info("bestTradeExactIn trades (${sortedTrades.size}):")
+        sortedTrades.forEachIndexed { index, trade ->
+            logger.info("$index: {in: ${trade.tokenAmountIn}, out: ${trade.tokenAmountOut}, impact: ${trade.priceImpact.toBigDecimal(2)}, pathSize: ${trade.route.path.size}")
+        }
+
+        val trade = sortedTrades.firstOrNull() ?: throw TradeError.TradeNotFound()
+        logger.info("bestTradeExactIn path: ${trade.route.path.joinToString(" > ")}")
+
+        return TradeData(trade, options)
     }
 
     fun bestTradeExactIn(swapData: SwapData, amountIn: BigDecimal, options: TradeOptions = TradeOptions()): TradeData {
@@ -87,18 +110,18 @@ class UniswapKit(
     }
 
     companion object {
-        fun getInstance(ethereumKit: EthereumKit): UniswapKit {
+        fun getInstance(ethereumKit: EthereumKit): PancakeSwapKit {
             val tradeManager = TradeManager(ethereumKit)
             val tokenFactory = TokenFactory(ethereumKit.chain)
             val pairSelector = PairSelector(tokenFactory)
 
-            return UniswapKit(tradeManager, pairSelector, tokenFactory)
+            return PancakeSwapKit(tradeManager, pairSelector, tokenFactory)
         }
 
-        fun addDecorators(ethereumKit: EthereumKit) {
+        /*fun addDecorators(ethereumKit: EthereumKit) {
             ethereumKit.addMethodDecorator(SwapMethodDecorator(SwapContractMethodFactories))
             ethereumKit.addTransactionDecorator(SwapTransactionDecorator())
-        }
+        }*/
 
     }
 

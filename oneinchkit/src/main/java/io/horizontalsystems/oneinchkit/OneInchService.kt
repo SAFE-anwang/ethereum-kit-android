@@ -6,6 +6,8 @@ import io.horizontalsystems.ethereumkit.models.Chain
 import io.horizontalsystems.ethereumkit.models.GasPrice
 import io.horizontalsystems.ethereumkit.network.*
 import io.reactivex.Single
+import okhttp3.Credentials
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -22,7 +24,7 @@ class OneInchService(
     chain: Chain
 ) {
     private val logger = Logger.getLogger("OneInchService")
-    private val url = "https://unstoppable.api.enterprise.1inch.exchange/v5.0/${chain.id}/"
+    private val url = "https://api.1inch.dev/swap/v5.0/${chain.id}/"
     private val service: OneInchServiceApi
 
     init {
@@ -30,8 +32,15 @@ class OneInchService(
             logger.info(message)
         }.setLevel(HttpLoggingInterceptor.Level.BASIC)
 
+        val headersInterceptor = Interceptor { chain ->
+            val requestBuilder = chain.request().newBuilder()
+            requestBuilder.header("Authorization", "Bearer eJ6FPSDW5z2vKD6oEcjQwnzFzvQ6nXgZ")
+            chain.proceed(requestBuilder.build())
+        }
+
         val httpClient = OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
+            .addInterceptor(headersInterceptor)
 
         val gson = GsonBuilder()
             .setLenient()

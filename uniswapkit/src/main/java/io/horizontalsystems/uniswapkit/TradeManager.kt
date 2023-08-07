@@ -1,5 +1,7 @@
 package io.horizontalsystems.uniswapkit
 
+import android.content.Context
+import android.util.Log
 import io.horizontalsystems.ethereumkit.contracts.ContractMethod
 import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.core.toHexString
@@ -11,9 +13,11 @@ import io.horizontalsystems.uniswapkit.models.*
 import io.horizontalsystems.uniswapkit.models.Token.Erc20
 import io.horizontalsystems.uniswapkit.models.Token.Ether
 import io.reactivex.Single
+import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.*
 import java.util.logging.Logger
+
 
 class TradeManager(
     private val evmKit: EthereumKit
@@ -94,6 +98,67 @@ class TradeManager(
 
         return SwapData(amount, method.encodedABI())
     }
+
+
+    fun transactionLiquidityData(tradeData: TradeData): TransactionData {
+        return buildLiquidityData(tradeData).let {
+            TransactionData(routerAddress(), it.value, it.input)
+        }
+    }
+
+
+    private fun buildLiquidityData(tradeData: TradeData): TransactionData {
+        val trade = tradeData.trade
+
+        val tokenIn = trade.tokenAmountIn.token
+        val tokenOut = trade.tokenAmountOut.token
+
+        val to = tradeData.options.recipient ?: address
+        val deadline = (Date().time / 1000 + tradeData.options.ttl).toBigInteger()
+        val slippage = if (tokenIn.address.hex == "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c" ||
+                tokenOut.address.hex == "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c") {
+            "25"
+        } else {
+            "5"
+        }
+        Log.e("longwen", "slippage=$slippage")
+        val amount0Min: BigInteger = trade.tokenAmountIn.rawAmount.multiply(
+            /*BigInteger.ONE.subtract(*/
+            BigInteger(
+                slippage
+            )
+//            )
+        ).divide(BigInteger("1000"))
+        val amount1Min: BigInteger = trade.tokenAmountOut.rawAmount.multiply(
+            /*BigInteger.ONE.subtract(*/
+                BigInteger(
+                    slippage
+                )
+//            )
+        ).divide(BigInteger("1000"))
+        val method = buildMethodForLiquidityOut(tokenIn, tokenOut, to, deadline, tradeData, trade, amount0Min, amount1Min)
+
+        return TransactionData(routerAddress(), trade.tokenAmountIn.rawAmount, method.encodedABI())
+    }
+
+
+    private class LiquidityData(val amountA: BigInteger, val amountB: BigInteger, val input: ByteArray)
+
+    private fun buildMethodForLiquidityOut(tokenIn: Token, tokenOut: Token, to: Address, deadline: BigInteger,
+                                           tradeData: TradeData, trade: Trade,
+                                           amount0Min: BigInteger,
+                                           amount1Min: BigInteger): ContractMethod {
+        return AddLiquidityMethod(
+            tokenIn.address,
+            tokenOut.address,
+            trade.tokenAmountIn.rawAmount,
+            trade.tokenAmountOut.rawAmount,
+            amount0Min,
+            amount1Min,
+            to,
+            deadline)
+    }
+
 
     private fun buildMethodForExactOut(tokenIn: Token, tokenOut: Token, path: List<Address>, to: Address, deadline: BigInteger, tradeData: TradeData, trade: Trade): ContractMethod {
         val amountInMax = tradeData.tokenAmountInMax.rawAmount
