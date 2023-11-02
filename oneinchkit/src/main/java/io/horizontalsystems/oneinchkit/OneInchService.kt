@@ -21,10 +21,11 @@ import java.net.Proxy
 import java.util.logging.Logger
 
 class OneInchService(
-    chain: Chain
+    chain: Chain,
+    apiKey: String
 ) {
     private val logger = Logger.getLogger("OneInchService")
-    private val url = "https://api.1inch.dev/swap/v5.0/${chain.id}/"
+    private val url = "https://api.1inch.dev/swap/v5.2/${chain.id}/"
     private val service: OneInchServiceApi
 
     init {
@@ -32,15 +33,16 @@ class OneInchService(
             logger.info(message)
         }.setLevel(HttpLoggingInterceptor.Level.BASIC)
 
-        val headersInterceptor = Interceptor { chain ->
-            val requestBuilder = chain.request().newBuilder()
-            requestBuilder.header("Authorization", "Bearer eJ6FPSDW5z2vKD6oEcjQwnzFzvQ6nXgZ")
-            chain.proceed(requestBuilder.build())
+        val headersInterceptor = Interceptor { interceptorChain ->
+            val requestBuilder = interceptorChain.request().newBuilder()
+            requestBuilder.header("Accept", "application/json")
+            requestBuilder.header("Authorization", "Bearer $apiKey")
+            interceptorChain.proceed(requestBuilder.build())
         }
 
         val httpClient = OkHttpClient.Builder()
-            .addInterceptor(loggingInterceptor)
             .addInterceptor(headersInterceptor)
+            .addInterceptor(loggingInterceptor)
 
         val gson = GsonBuilder()
             .setLenient()
@@ -169,8 +171,8 @@ class OneInchService(
 
         @GET("quote")
         fun getQuote(
-            @Query("fromTokenAddress") fromTokenAddress: String,
-            @Query("toTokenAddress") toTokenAddress: String,
+            @Query("src") fromTokenAddress: String,
+            @Query("dst") toTokenAddress: String,
             @Query("amount") amount: BigInteger,
             @Query("protocols") protocols: String? = null,
             @Query("maxFeePerGas") maxFeePerGas: Long? = null,
@@ -180,18 +182,22 @@ class OneInchService(
             @Query("connectorTokens") connectorTokens: String? = null,
             @Query("gasLimit") gasLimit: Long? = null,
             @Query("parts") parts: Int? = null,
-            @Query("mainRouteParts") mainRouteParts: Int? = null
+            @Query("mainRouteParts") mainRouteParts: Int? = null,
+            @Query("includeTokensInfo") includeTokensInfo: Boolean = true,
+            @Query("includeProtocols") includeProtocols: Boolean = true,
+            @Query("includeGas") includeGas: Boolean = true,
         ): Single<Quote>
 
         @GET("swap")
         fun getSwap(
-            @Query("fromTokenAddress") fromTokenAddress: String,
-            @Query("toTokenAddress") toTokenAddress: String,
+            @Query("src") fromTokenAddress: String,
+            @Query("dst") toTokenAddress: String,
             @Query("amount") amount: BigInteger,
-            @Query("fromAddress") fromAddress: String,
+            @Query("from") fromAddress: String,
             @Query("slippage") slippagePercentage: Float,
+            @Query("referrer") referrer: String? = null,
             @Query("protocols") protocols: String? = null,
-            @Query("destReceiver") recipient: String? = null,
+            @Query("receiver") recipient: String? = null,
             @Query("maxFeePerGas") maxFeePerGas: Long? = null,
             @Query("maxPriorityFeePerGas") maxPriorityFeePerGas: Long? = null,
             @Query("gasPrice") gasPrice: Long? = null,
@@ -201,7 +207,10 @@ class OneInchService(
             @Query("allowPartialFill") allowPartialFill: Boolean? = null,
             @Query("gasLimit") gasLimit: Long? = null,
             @Query("parts") parts: Int? = null,
-            @Query("mainRouteParts") mainRouteParts: Int? = null
+            @Query("mainRouteParts") mainRouteParts: Int? = null,
+            @Query("includeTokensInfo") includeTokensInfo: Boolean = true,
+            @Query("includeProtocols") includeProtocols: Boolean = true,
+            @Query("includeGas") includeGas: Boolean = true,
         ): Single<Swap>
     }
 

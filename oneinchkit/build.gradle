@@ -45,6 +45,8 @@ android {
     buildFeatures {
         viewBinding true
     }
+
+    namespace 'io.horizontalsystems.oneinchkit'
 }
 
 dependencies {

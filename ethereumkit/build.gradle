@@ -49,6 +49,8 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    namespace 'io.horizontalsystems.ethereumkit'
+
 }
 
 dependencies {

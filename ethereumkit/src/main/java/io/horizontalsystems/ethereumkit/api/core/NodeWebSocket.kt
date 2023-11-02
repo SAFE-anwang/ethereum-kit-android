@@ -21,12 +21,13 @@ import okhttp3.logging.HttpLoggingInterceptor
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.URL
+import java.net.URI
 import java.util.logging.Logger
 
 class NodeWebSocket(
-        url: URL,
-        private val gson: Gson,
-        auth: String? = null
+    uri: URI,
+    private val gson: Gson,
+    auth: String? = null
 ) : IRpcWebSocket {
     private val logger = Logger.getLogger(this.javaClass.simpleName)
     private var disposables = CompositeDisposable()
@@ -65,13 +66,12 @@ class NodeWebSocket(
         }
 
         val okHttpClient = OkHttpClient.Builder()
-//            .proxy(Proxy( Proxy.Type.HTTP , InetSocketAddress("47.89.208.160", 58972) ))
                 .addInterceptor(headersInterceptor)
                 .addInterceptor(loggingInterceptor)
                 .build()
 
         scarlet = Scarlet.Builder()
-                .webSocketFactory(okHttpClient.newWebSocketFactory(url.toString()))
+                .webSocketFactory(okHttpClient.newWebSocketFactory(uri.toString()))
                 .addMessageAdapterFactory(GsonMessageAdapter.Factory(gson))
                 .addStreamAdapterFactory(RxJava2StreamAdapterFactory())
                 .backoffStrategy(backoffStrategy)
@@ -81,7 +81,7 @@ class NodeWebSocket(
     //region IRpcWebSocket
     override var listener: IRpcWebSocketListener? = null
 
-    override val source: String = url.host
+    override val source: String = uri.host
 
     override fun start() {
         state = WebSocketState.Connecting
