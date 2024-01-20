@@ -49,7 +49,7 @@ class WSafeManager(
             Chain.Ethereum -> "0xee9c1ea4dcf0aaf4ff2d78b6ff83aa69797b65eb"
 //            Chain.EthereumRopsten -> "0x32885f2faf83aeee39e2cfe7f302e3bb884869f4"
             Chain.BinanceSmartChain -> "0x4d7fa587ec8e50bd0e9cd837cb4da796f47218a1" //BSC正式环境
-            Chain.Polygon -> "0xb7Dd19490951339fE65E341Df6eC5f7f93FF2779"
+            Chain.Polygon -> "0xb7dd19490951339fe65e341df6ec5f7f93ff2779"
 //            Chain.BinanceSmartChain -> "0xa3d8077c3a447049164e60294c892e5e4c7f3ad2" //BSC测试环境
             else -> throw UnsupportedChainError.NoWethAddress
         }

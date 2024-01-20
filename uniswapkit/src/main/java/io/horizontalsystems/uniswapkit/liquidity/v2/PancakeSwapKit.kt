@@ -21,7 +21,7 @@ class PancakeSwapKit(
     private val logger = Logger.getLogger(this.javaClass.simpleName)
 
     val routerAddress: Address
-        get() = tradeManager.routerAddress()
+        get() = tradeManager.liquidityRouterAddress()
 
     fun etherToken(): Token {
         return tokenFactory.etherToken()
@@ -34,7 +34,7 @@ class PancakeSwapKit(
     fun swapData(tokenIn: Token, tokenOut: Token): Single<SwapData> {
         val tokenPairs = pairSelector.tokenPairs(tokenIn, tokenOut)
         val singles = tokenPairs.map { (tokenA, tokenB) ->
-            tradeManager.pair(tokenA, tokenB)
+            tradeManager.liquidityPair(tokenA, tokenB)
         }
 
         return Single.zip(singles) { array ->
