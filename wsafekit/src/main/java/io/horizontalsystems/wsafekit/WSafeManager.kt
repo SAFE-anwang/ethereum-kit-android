@@ -86,5 +86,5 @@ class WSafeManager(
         return safeAddressHex
     }
 
-    
+
 }
