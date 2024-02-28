@@ -14,6 +14,7 @@ import retrofit2.Retrofit
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
+import retrofit2.http.Path
 import retrofit2.http.Query
 import java.math.BigInteger
 import java.net.InetSocketAddress
@@ -21,11 +22,10 @@ import java.net.Proxy
 import java.util.logging.Logger
 
 class OneInchService(
-    chain: Chain,
     apiKey: String
 ) {
     private val logger = Logger.getLogger("OneInchService")
-    private val url = "https://api.1inch.dev/swap/v5.2/${chain.id}/"
+    private val url = "https://api.1inch.dev/swap/v5.2/"
     private val service: OneInchServiceApi
 
     init {
@@ -63,10 +63,11 @@ class OneInchService(
         service = retrofit.create(OneInchServiceApi::class.java)
     }
 
-    fun getApproveCallDataAsync(tokenAddress: Address, amount: BigInteger) =
-        service.getApproveCallData(tokenAddress.hex, amount)
+    fun getApproveCallDataAsync(chain: Chain, tokenAddress: Address, amount: BigInteger) =
+        service.getApproveCallData(chainId = chain.id, tokenAddress = tokenAddress.hex, amount = amount)
 
     fun getQuoteAsync(
+        chain: Chain,
         fromToken: Address,
         toToken: Address,
         amount: BigInteger,
@@ -79,6 +80,7 @@ class OneInchService(
         parts: Int? = null
     ) = if (gasPrice is GasPrice.Eip1559) {
         service.getQuote(
+            chainId = chain.id,
             fromTokenAddress = fromToken.hex,
             toTokenAddress = toToken.hex,
             amount = amount,
@@ -93,6 +95,7 @@ class OneInchService(
         )
     } else {
         service.getQuote(
+            chainId = chain.id,
             fromTokenAddress = fromToken.hex,
             toTokenAddress = toToken.hex,
             amount = amount,
@@ -107,6 +110,7 @@ class OneInchService(
     }
 
     fun getSwapAsync(
+        chain: Chain,
         fromTokenAddress: Address,
         toTokenAddress: Address,
         amount: BigInteger,
@@ -124,6 +128,7 @@ class OneInchService(
         mainRouteParts: Int? = null
     ) = if (gasPrice is GasPrice.Eip1559) {
         service.getSwap(
+            chainId = chain.id,
             fromTokenAddress = fromTokenAddress.hex,
             toTokenAddress = toTokenAddress.hex,
             amount = amount,
@@ -143,6 +148,7 @@ class OneInchService(
         )
     } else {
         service.getSwap(
+            chainId = chain.id,
             fromTokenAddress = fromTokenAddress.hex,
             toTokenAddress = toTokenAddress.hex,
             amount = amount,
@@ -162,15 +168,17 @@ class OneInchService(
     }
 
     private interface OneInchServiceApi {
-        @GET("approve/calldata")
+        @GET("{chain_id}/approve/calldata")
         fun getApproveCallData(
+            @Path("chain_id") chainId: Int,
             @Query("tokenAddress") tokenAddress: String,
             @Query("amount") amount: BigInteger? = null,
             @Query("infinity") infinity: Boolean? = null
         ): Single<ApproveCallData>
 
-        @GET("quote")
+        @GET("{chain_id}/quote")
         fun getQuote(
+            @Path("chain_id") chainId: Int,
             @Query("src") fromTokenAddress: String,
             @Query("dst") toTokenAddress: String,
             @Query("amount") amount: BigInteger,
@@ -185,11 +193,12 @@ class OneInchService(
             @Query("mainRouteParts") mainRouteParts: Int? = null,
             @Query("includeTokensInfo") includeTokensInfo: Boolean = true,
             @Query("includeProtocols") includeProtocols: Boolean = true,
-            @Query("includeGas") includeGas: Boolean = true,
+            @Query("includeGas") includeGas: Boolean = true
         ): Single<Quote>
 
-        @GET("swap")
+        @GET("{chain_id}/swap")
         fun getSwap(
+            @Path("chain_id") chainId: Int,
             @Query("src") fromTokenAddress: String,
             @Query("dst") toTokenAddress: String,
             @Query("amount") amount: BigInteger,
@@ -210,7 +219,7 @@ class OneInchService(
             @Query("mainRouteParts") mainRouteParts: Int? = null,
             @Query("includeTokensInfo") includeTokensInfo: Boolean = true,
             @Query("includeProtocols") includeProtocols: Boolean = true,
-            @Query("includeGas") includeGas: Boolean = true,
+            @Query("includeGas") includeGas: Boolean = true
         ): Single<Swap>
     }
 

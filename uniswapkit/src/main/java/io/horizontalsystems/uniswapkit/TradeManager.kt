@@ -7,6 +7,7 @@ import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.core.toHexString
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.Chain
+import io.horizontalsystems.ethereumkit.models.RpcSource
 import io.horizontalsystems.ethereumkit.models.TransactionData
 import io.horizontalsystems.uniswapkit.contract.*
 import io.horizontalsystems.uniswapkit.models.*
@@ -18,20 +19,16 @@ import java.math.BigInteger
 import java.util.*
 import java.util.logging.Logger
 
-
-class TradeManager(
-    private val evmKit: EthereumKit
-) {
-    private val address: Address = evmKit.receiveAddress
+class TradeManager {
     private val logger = Logger.getLogger(this.javaClass.simpleName)
 
-    fun routerAddress(): Address = getRouterAddress(evmKit.chain, Extensions.isSafeSwap)
-    fun factoryAddressString(): String = getFactoryAddressString(evmKit.chain, Extensions.isSafeSwap)
-    fun initCodeHashString(): String = getInitCodeHashString(evmKit.chain, Extensions.isSafeSwap)
+    fun routerAddress(chain: Chain): Address = getRouterAddress(chain, Extensions.isSafeSwap)
+    fun factoryAddressString(chain: Chain): String = getFactoryAddressString(chain, Extensions.isSafeSwap)
+    fun initCodeHashString(chain: Chain): String = getInitCodeHashString(chain, Extensions.isSafeSwap)
 
-    fun liquidityRouterAddress(): Address = getLiquidityRouterAddress(evmKit.chain)
-    fun liquidityFactoryAddressString(): String = getLiquidityFactoryAddressString(evmKit.chain)
-    fun liquidityInitCodeHashString(): String = getLiquidityInitCodeHashString(evmKit.chain)
+    fun liquidityRouterAddress(chain: Chain): Address = getLiquidityRouterAddress(chain)
+    fun liquidityFactoryAddressString(chain: Chain): String = getLiquidityFactoryAddressString(chain)
+    fun liquidityInitCodeHashString(chain: Chain): String = getLiquidityInitCodeHashString(chain)
 
     sealed class UnsupportedChainError : Throwable() {
         object NoRouterAddress : UnsupportedChainError()
@@ -39,15 +36,16 @@ class TradeManager(
         object NoInitCodeHash : UnsupportedChainError()
     }
 
-    fun pair(tokenA: Token, tokenB: Token): Single<Pair> {
-
+    fun pair(rpcSource: RpcSource, chain: Chain, tokenA: Token, tokenB: Token): Single<Pair> {
         val (token0, token1) = if (tokenA.sortsBefore(tokenB)) Pair(tokenA, tokenB) else Pair(tokenB, tokenA)
+        val factoryAddressString = getFactoryAddressString(chain)
+        val initCodeHashString = getInitCodeHashString(chain)
 
-        val pairAddress = Pair.address(token0, token1, factoryAddressString(), initCodeHashString())
+        val pairAddress = Pair.address(token0, token1, factoryAddressString, initCodeHashString)
 
         logger.info("pairAddress: ${pairAddress.hex}")
 
-        return evmKit.call(pairAddress, GetReservesMethod().encodedABI())
+        return EthereumKit.call(rpcSource, pairAddress, GetReservesMethod().encodedABI())
                 .map { data ->
                     logger.info("getReserves data: ${data.toHexString()}")
 
@@ -68,15 +66,16 @@ class TradeManager(
                 }
     }
 
-    fun liquidityPair(tokenA: Token, tokenB: Token): Single<Pair> {
+
+    fun liquidityPair(rpcSource: RpcSource, chain: Chain, tokenA: Token, tokenB: Token): Single<Pair> {
 
         val (token0, token1) = if (tokenA.sortsBefore(tokenB)) Pair(tokenA, tokenB) else Pair(tokenB, tokenA)
 
-        val pairAddress = Pair.address(token0, token1, liquidityFactoryAddressString(), liquidityInitCodeHashString())
+        val pairAddress = Pair.address(token0, token1, liquidityFactoryAddressString(chain), liquidityInitCodeHashString(chain))
 
         logger.info("pairAddress: ${pairAddress.hex}")
 
-        return evmKit.call(pairAddress, GetReservesMethod().encodedABI())
+        return EthereumKit.call(rpcSource, pairAddress, GetReservesMethod().encodedABI())
                 .map { data ->
                     logger.info("getReserves data: ${data.toHexString()}")
 
@@ -97,22 +96,25 @@ class TradeManager(
                 }
     }
 
-    fun transactionData(tradeData: TradeData): TransactionData {
-        return buildSwapData(tradeData).let {
-            TransactionData(routerAddress(), it.amount, it.input)
+    fun transactionData(receiveAddress: Address, chain: Chain, tradeData: TradeData): TransactionData {
+        val routerAddress = getRouterAddress(chain)
+
+        return buildSwapData(receiveAddress, tradeData).let {
+
+            TransactionData(routerAddress, it.amount, it.input)
         }
     }
 
     private class SwapData(val amount: BigInteger, val input: ByteArray)
 
-    private fun buildSwapData(tradeData: TradeData): SwapData {
+    private fun buildSwapData(receiveAddress: Address, tradeData: TradeData): SwapData {
         val trade = tradeData.trade
 
         val tokenIn = trade.tokenAmountIn.token
         val tokenOut = trade.tokenAmountOut.token
 
         val path = trade.route.path.map { it.address }
-        val to = tradeData.options.recipient ?: address
+        val to = tradeData.options.recipient ?: receiveAddress
         val deadline = (Date().time / 1000 + tradeData.options.ttl).toBigInteger()
 
         val method = when (trade.type) {
@@ -133,20 +135,23 @@ class TradeManager(
     }
 
 
-    fun transactionLiquidityData(tradeData: TradeData): TransactionData {
-        return buildLiquidityData(tradeData).let {
-            TransactionData(routerAddress(), it.value, it.input)
+    fun transactionLiquidityData(receiveAddress: Address, chain: Chain, tradeData: TradeData): TransactionData {
+        val routerAddress = liquidityRouterAddress(chain)
+
+        return buildLiquidityData(receiveAddress, tradeData).let {
+
+            TransactionData(routerAddress, it.value, it.input)
         }
     }
 
 
-    private fun buildLiquidityData(tradeData: TradeData): TransactionData {
+    private fun buildLiquidityData(receiveAddress: Address, tradeData: TradeData): TransactionData {
         val trade = tradeData.trade
 
         val tokenIn = trade.tokenAmountIn.token
         val tokenOut = trade.tokenAmountOut.token
 
-        val to = tradeData.options.recipient ?: address
+        val to = tradeData.options.recipient ?: receiveAddress
         val deadline = (Date().time / 1000 + tradeData.options.ttl).toBigInteger()
         val slippage = if (tokenIn.address.hex == "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c" ||
                 tokenOut.address.hex == "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c") {
@@ -232,11 +237,9 @@ class TradeManager(
                 }
             } else {
                 when (chain) {
-                    Chain.Ethereum, Chain.EthereumGoerli -> Address(
-                        "0xEfF92A263d31888d860bD50809A8D171709b7b1c"
-                    )
+                    Chain.Ethereum, Chain.EthereumGoerli -> Address("0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D")
                     Chain.BinanceSmartChain -> Address("0x10ED43C718714eb63d5aA57B78B54704E256024E")
-                    Chain.Polygon -> Address("0x8cFe327CEc66d1C090Dd72bd0FF11d690C33a2Eb")
+                    Chain.Polygon -> Address("0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff")
                     Chain.Avalanche -> Address("0x60aE616a2155Ee3d9A68541Ba4544862310933d4")
                     else -> throw UnsupportedChainError.NoRouterAddress
                 }

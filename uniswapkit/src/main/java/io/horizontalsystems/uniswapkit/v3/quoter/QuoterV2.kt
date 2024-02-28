@@ -3,7 +3,9 @@ package io.horizontalsystems.uniswapkit.v3.quoter
 import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.Chain
+import io.horizontalsystems.ethereumkit.models.RpcSource
 import io.horizontalsystems.ethereumkit.spv.core.toBigInteger
+import io.horizontalsystems.uniswapkit.TokenFactory
 import io.horizontalsystems.uniswapkit.TradeError
 import io.horizontalsystems.uniswapkit.models.DexType
 import io.horizontalsystems.uniswapkit.models.Token
@@ -17,16 +19,15 @@ import java.math.BigInteger
 import kotlin.coroutines.coroutineContext
 
 class QuoterV2(
-    private val ethereumKit: EthereumKit,
-    private val weth: Token,
-    dexType: DexType
+    private val tokenFactory: TokenFactory,
+    private val dexType: DexType
 ) {
 
     private val feeAmounts = FeeAmount.sorted(dexType)
 
-    private val quoterAddress = when (dexType) {
-        DexType.Uniswap -> getUniswapQuoterAddress(ethereumKit.chain)
-        DexType.PancakeSwap -> getPancakeSwapQuoterAddress(ethereumKit.chain)
+    private fun quoterAddress(chain: Chain) = when (dexType) {
+        DexType.Uniswap -> getUniswapQuoterAddress(chain)
+        DexType.PancakeSwap -> getPancakeSwapQuoterAddress(chain)
     }
 
     private fun getUniswapQuoterAddress(chain: Chain) = when (chain) {
@@ -35,32 +36,38 @@ class QuoterV2(
         Chain.Optimism,
         Chain.ArbitrumOne,
         Chain.EthereumGoerli -> "0x61fFE014bA17989E743c5F6cB21bF9697530B21e"
+
         Chain.BinanceSmartChain -> "0x78D78E420Da98ad378D7799bE8f4AF69033EB077"
-        else -> throw IllegalStateException("Not supported Uniswap chain ${ethereumKit.chain}")
+        else -> throw IllegalStateException("Not supported Uniswap chain $chain")
     }
 
     private fun getPancakeSwapQuoterAddress(chain: Chain) = when (chain) {
         Chain.BinanceSmartChain,
         Chain.Ethereum -> "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997"
         Chain.Polygon -> "0x3d146FcE6c1006857750cBe8aF44f76a28041CCc"
-        else -> throw IllegalStateException("Not supported PancakeSwap chain ${ethereumKit.chain}")
+
+        else -> throw IllegalStateException("Not supported PancakeSwap chain $chain")
     }
 
     suspend fun bestTradeExactIn(
+        rpcSource: RpcSource,
+        chain: Chain,
         tokenIn: Token,
         tokenOut: Token,
         amountIn: BigInteger
     ): BestTrade {
-        quoteExactInputSingle(tokenIn, tokenOut, amountIn)?.let {
+        quoteExactInputSingle(rpcSource, chain, tokenIn, tokenOut, amountIn)?.let {
             return it
         }
-        quoteExactInputMultihop(tokenIn, tokenOut, amountIn)?.let {
+        quoteExactInputMultihop(rpcSource, chain, tokenIn, tokenOut, amountIn)?.let {
             return it
         }
         throw TradeError.TradeNotFound()
     }
 
     private suspend fun quoteExactInputSingle(
+        rpcSource: RpcSource,
+        chain: Chain,
         tokenIn: Token,
         tokenOut: Token,
         amountIn: BigInteger
@@ -71,7 +78,8 @@ class QuoterV2(
             coroutineContext.ensureActive()
             try {
                 val callResponse = ethCall(
-                    contractAddress = Address(quoterAddress),
+                    rpcSource = rpcSource,
+                    chain = chain,
                     data = QuoteExactInputSingleMethod(
                         tokenIn = tokenIn.address,
                         tokenOut = tokenOut.address,
@@ -99,18 +107,25 @@ class QuoterV2(
     }
 
     private suspend fun quoteExactInputMultihop(
+        rpcSource: RpcSource,
+        chain: Chain,
         tokenIn: Token,
         tokenOut: Token,
         amountIn: BigInteger
     ): BestTrade? {
+        val weth = tokenFactory.etherToken(chain)
 
         val swapInToWeth = quoteExactInputSingle(
+            rpcSource = rpcSource,
+            chain = chain,
             tokenIn = tokenIn,
             tokenOut = weth,
             amountIn = amountIn
         ) ?: return null
 
         val swapWethToOut = quoteExactInputSingle(
+            rpcSource = rpcSource,
+            chain = chain,
             tokenIn = weth,
             tokenOut = tokenOut,
             amountIn = swapInToWeth.amountOut
@@ -121,7 +136,8 @@ class QuoterV2(
         coroutineContext.ensureActive()
         return try {
             val callResponse = ethCall(
-                contractAddress = Address(quoterAddress),
+                rpcSource = rpcSource,
+                chain = chain,
                 data = QuoteExactInputMethod(
                     path = path,
                     amountIn = amountIn,
@@ -143,20 +159,24 @@ class QuoterV2(
     }
 
     suspend fun bestTradeExactOut(
+        rpcSource: RpcSource,
+        chain: Chain,
         tokenIn: Token,
         tokenOut: Token,
         amountOut: BigInteger
     ): BestTrade {
-        quoteExactOutputSingle(tokenIn, tokenOut, amountOut)?.let {
+        quoteExactOutputSingle(rpcSource, chain, tokenIn, tokenOut, amountOut)?.let {
             return it
         }
-        quoteExactOutputMultihop(tokenIn, tokenOut, amountOut)?.let {
+        quoteExactOutputMultihop(rpcSource, chain, tokenIn, tokenOut, amountOut)?.let {
             return it
         }
         throw TradeError.TradeNotFound()
     }
 
     private suspend fun quoteExactOutputSingle(
+        rpcSource: RpcSource,
+        chain: Chain,
         tokenIn: Token,
         tokenOut: Token,
         amountOut: BigInteger
@@ -167,7 +187,8 @@ class QuoterV2(
             coroutineContext.ensureActive()
             try {
                 val callResponse = ethCall(
-                    contractAddress = Address(quoterAddress),
+                    rpcSource = rpcSource,
+                    chain = chain,
                     data = QuoteExactOutputSingleMethod(
                         tokenIn = tokenIn.address,
                         tokenOut = tokenOut.address,
@@ -195,17 +216,25 @@ class QuoterV2(
     }
 
     private suspend fun quoteExactOutputMultihop(
+        rpcSource: RpcSource,
+        chain: Chain,
         tokenIn: Token,
         tokenOut: Token,
         amountOut: BigInteger
     ): BestTrade? {
+        val weth = tokenFactory.etherToken(chain)
+
         val swapWethToOut = quoteExactOutputSingle(
+            rpcSource = rpcSource,
+            chain = chain,
             tokenIn = weth,
             tokenOut = tokenOut,
             amountOut = amountOut
         ) ?: return null
 
         val swapInToWeth = quoteExactOutputSingle(
+            rpcSource = rpcSource,
+            chain = chain,
             tokenIn = tokenIn,
             tokenOut = weth,
             amountOut = swapWethToOut.amountIn
@@ -216,7 +245,8 @@ class QuoterV2(
         coroutineContext.ensureActive()
         return try {
             val callResponse = ethCall(
-                contractAddress = Address(quoterAddress),
+                rpcSource = rpcSource,
+                chain = chain,
                 data = QuoteExactOutputMethod(
                     path = path,
                     amountOut = amountOut,
@@ -237,7 +267,8 @@ class QuoterV2(
         }
     }
 
-    private suspend fun ethCall(contractAddress: Address, data: ByteArray): ByteArray {
-        return ethereumKit.call(contractAddress, data).await()
+    private suspend fun ethCall(rpcSource: RpcSource, chain: Chain, data: ByteArray): ByteArray {
+        val quoterAddress = Address(quoterAddress(chain))
+        return EthereumKit.call(rpcSource, quoterAddress, data).await()
     }
 }
