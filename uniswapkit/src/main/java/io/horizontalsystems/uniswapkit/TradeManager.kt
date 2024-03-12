@@ -38,8 +38,8 @@ class TradeManager {
 
     fun pair(rpcSource: RpcSource, chain: Chain, tokenA: Token, tokenB: Token): Single<Pair> {
         val (token0, token1) = if (tokenA.sortsBefore(tokenB)) Pair(tokenA, tokenB) else Pair(tokenB, tokenA)
-        val factoryAddressString = getFactoryAddressString(chain)
-        val initCodeHashString = getInitCodeHashString(chain)
+        val factoryAddressString = factoryAddressString(chain)
+        val initCodeHashString = initCodeHashString(chain)
 
         val pairAddress = Pair.address(token0, token1, factoryAddressString, initCodeHashString)
 
@@ -97,7 +97,7 @@ class TradeManager {
     }
 
     fun transactionData(receiveAddress: Address, chain: Chain, tradeData: TradeData): TransactionData {
-        val routerAddress = getRouterAddress(chain)
+        val routerAddress = routerAddress(chain)
 
         return buildSwapData(receiveAddress, tradeData).let {
 
@@ -224,7 +224,7 @@ class TradeManager {
 
     companion object {
 
-        private fun getRouterAddress(chain: Chain, isSafeSwap: Boolean) =
+        fun getRouterAddress(chain: Chain, isSafeSwap: Boolean) =
             if (isSafeSwap) {
                 when (chain) {
                     Chain.Ethereum, Chain.EthereumGoerli -> Address(

@@ -2,6 +2,7 @@ package io.horizontalsystems.uniswapkit.liquidity
 
 import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.models.Address
+import io.horizontalsystems.ethereumkit.models.Chain
 import io.horizontalsystems.ethereumkit.models.TransactionData
 import io.horizontalsystems.ethereumkit.models.TransactionLiquidityData
 import io.horizontalsystems.uniswapkit.PairSelector
@@ -20,11 +21,11 @@ class PancakeSwapKit(
 ) {
     private val logger = Logger.getLogger(this.javaClass.simpleName)
 
-    val routerAddress: Address
-        get() = tradeManager.liquidityRouterAddress()
+    fun routerAddress(chain: Chain): Address
+         = tradeManager.liquidityRouterAddress(chain)
 
-    fun etherToken(): Token {
-        return tokenFactory.etherToken()
+    fun etherToken(chain: Chain): Token {
+        return tokenFactory.etherToken(chain)
     }
 
     fun token(contractAddress: Address, decimals: Int): Token {

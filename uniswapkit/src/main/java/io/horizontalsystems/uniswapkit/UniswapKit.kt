@@ -20,7 +20,7 @@ class UniswapKit(
     private val logger = Logger.getLogger(this.javaClass.simpleName)
 
     fun routerAddress(chain: Chain): Address
-         = TradeManager.getRouterAddress(chain)
+         = TradeManager.getRouterAddress(chain, Extensions.isSafeSwap)
 
     fun etherToken(chain: Chain): Token {
         return tokenFactory.etherToken(chain)
