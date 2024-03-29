@@ -32,7 +32,7 @@ sealed class RpcSource {
         }
 
         fun bscRpcHttp(): Http {
-            return Http(listOf(URI("https://bscrpc.com")), null)
+            return Http(listOf(URI("https://bsc-mainnet.core.chainstack.com/67f0d109c5c0b7f0aa251a89f12c0b7b")), null)
         }
 
         fun binanceSmartChainHttp(): Http {

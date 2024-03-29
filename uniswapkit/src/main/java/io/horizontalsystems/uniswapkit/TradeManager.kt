@@ -161,22 +161,18 @@ class TradeManager {
         }
         Log.e("longwen", "slippage=$slippage")
         val amount0Min: BigInteger = trade.tokenAmountIn.rawAmount.multiply(
-            /*BigInteger.ONE.subtract(*/
             BigInteger(
                 slippage
             )
-//            )
         ).divide(BigInteger("1000"))
         val amount1Min: BigInteger = trade.tokenAmountOut.rawAmount.multiply(
-            /*BigInteger.ONE.subtract(*/
                 BigInteger(
                     slippage
                 )
-//            )
         ).divide(BigInteger("1000"))
         val method = buildMethodForLiquidityOut(tokenIn, tokenOut, to, deadline, tradeData, trade, amount0Min, amount1Min)
 
-        return TransactionData(routerAddress(), trade.tokenAmountIn.rawAmount, method.encodedABI())
+        return TransactionData(liquidityRouterAddress(), trade.tokenAmountIn.rawAmount, method.encodedABI())
     }
 
 
@@ -186,6 +182,8 @@ class TradeManager {
                                            tradeData: TradeData, trade: Trade,
                                            amount0Min: BigInteger,
                                            amount1Min: BigInteger): ContractMethod {
+        Log.d("longwen", "A: ${tokenIn.address}=${trade.tokenAmountIn.rawAmount}")
+        Log.d("longwen", "B: ${tokenOut.address}=${trade.tokenAmountOut.rawAmount}")
         return AddLiquidityMethod(
             tokenIn.address,
             tokenOut.address,
@@ -237,9 +235,11 @@ class TradeManager {
                 }
             } else {
                 when (chain) {
-                    Chain.Ethereum, Chain.EthereumGoerli -> Address("0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D")
+                    Chain.Ethereum, Chain.EthereumGoerli -> Address(
+                        "0x7a250d5630b4cf539739df2c5dacb4c659f2488d"
+                    )
                     Chain.BinanceSmartChain -> Address("0x10ED43C718714eb63d5aA57B78B54704E256024E")
-                    Chain.Polygon -> Address("0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff")
+                    Chain.Polygon -> Address("0x8cFe327CEc66d1C090Dd72bd0FF11d690C33a2Eb")
                     Chain.Avalanche -> Address("0x60aE616a2155Ee3d9A68541Ba4544862310933d4")
                     else -> throw UnsupportedChainError.NoRouterAddress
                 }
@@ -256,7 +256,7 @@ class TradeManager {
                 }
             } else {
                 when (chain) {
-                    Chain.Ethereum, Chain.EthereumGoerli -> "0x1097053Fd2ea711dad45caCcc45EfF7548fCB362"
+                    Chain.Ethereum, Chain.EthereumGoerli -> "0x5c69bee701ef814a2b6a3edd4b1652cb9cc5aa6f"
                     Chain.BinanceSmartChain -> "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73"
                     Chain.Polygon -> "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32"
                     Chain.Avalanche -> "0x9Ad6C38BE94206cA50bb0d90783181662f0Cfa10"
@@ -282,7 +282,7 @@ class TradeManager {
         private fun getLiquidityRouterAddress(chain: Chain) =
             when (chain) {
                 Chain.Ethereum, Chain.EthereumGoerli -> Address(
-                    "0xEfF92A263d31888d860bD50809A8D171709b7b1c"
+                    "0x7a250d5630b4cf539739df2c5dacb4c659f2488d"
                 )
                 Chain.BinanceSmartChain -> Address("0x10ED43C718714eb63d5aA57B78B54704E256024E")
                 Chain.Polygon -> Address("0x8cFe327CEc66d1C090Dd72bd0FF11d690C33a2Eb")
@@ -292,7 +292,7 @@ class TradeManager {
 
         private fun getLiquidityFactoryAddressString(chain: Chain) =
             when (chain) {
-                Chain.Ethereum, Chain.EthereumGoerli -> "0x1097053Fd2ea711dad45caCcc45EfF7548fCB362"
+                Chain.Ethereum, Chain.EthereumGoerli -> "0x5c69bee701ef814a2b6a3edd4b1652cb9cc5aa6f"
                 Chain.BinanceSmartChain -> "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73"
                 Chain.Polygon -> "0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E"
                 Chain.Avalanche -> "0x9Ad6C38BE94206cA50bb0d90783181662f0Cfa10"
@@ -331,6 +331,44 @@ class TradeManager {
                 } else if (maxHops > 1 && pairs.size > 1) {
                     val pairsExcludingThisPair = pairs.toMutableList().apply { removeAt(index) }
                     val tradesRecursion = tradeExactIn(
+                            pairsExcludingThisPair,
+                            tokenAmountOut,
+                            tokenOut,
+                            maxHops - 1,
+                            currentPairs + listOf(pair),
+                            originalTokenAmountIn
+                    )
+                    trades.addAll(tradesRecursion)
+                }
+            }
+            Log.e("longwen", "trades size=${trades.size}")
+            return trades
+        }
+
+        fun tradeLiquidityExactIn(pairs: List<Pair>, tokenAmountIn: TokenAmount, tokenOut: Token, maxHops: Int = 3, currentPairs: List<Pair> = listOf(), originalTokenAmountIn: TokenAmount? = null): List<Trade> {
+            //todo validations
+            val trades = mutableListOf<Trade>()
+            val originalTokenAmountIn = originalTokenAmountIn ?: tokenAmountIn
+
+            for ((index, pair) in pairs.withIndex()) {
+
+                val tokenAmountOut = try {
+                    pair.tokenAmountOut(tokenAmountIn)
+                } catch (error: Throwable) {
+                    continue
+                }
+
+                if (tokenAmountOut.token == tokenOut) {
+                    val trade = Trade(
+                            TradeType.ExactIn,
+                            Route(currentPairs + listOf(pair), originalTokenAmountIn.token, tokenOut),
+                            originalTokenAmountIn,
+                            tokenAmountOut
+                    )
+                    trades.add(trade)
+                } else if (maxHops > 1 && pairs.size > 1) {
+                    val pairsExcludingThisPair = pairs.toMutableList().apply { removeAt(index) }
+                    val tradesRecursion = tradeLiquidityExactIn(
                             pairsExcludingThisPair,
                             tokenAmountOut,
                             tokenOut,

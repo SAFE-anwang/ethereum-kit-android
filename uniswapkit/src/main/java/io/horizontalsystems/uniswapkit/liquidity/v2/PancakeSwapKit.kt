@@ -66,7 +66,7 @@ class PancakeSwapKit(
 
     fun bestTradeExactIn(swapData: SwapData, amountIn: BigDecimal, options: TradeOptions = TradeOptions()): TradeData {
         val tokenAmountIn = TokenAmount(swapData.tokenIn, amountIn)
-        val sortedTrades = TradeManager.tradeExactIn(
+        val sortedTrades = TradeManager.tradeLiquidityExactIn(
             swapData.pairs,
             tokenAmountIn,
             swapData.tokenOut
