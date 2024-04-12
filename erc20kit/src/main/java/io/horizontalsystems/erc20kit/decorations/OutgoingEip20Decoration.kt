@@ -12,9 +12,14 @@ class OutgoingEip20Decoration(
     val value: BigInteger,
     val sentToSelf: Boolean,
     val tokenInfo: TokenInfo?
-) : TransactionDecoration() {
+) : TransactionDecoration {
 
-    override fun tags(): List<String> =
-        listOf(contractAddress.hex, TransactionTag.EIP20_TRANSFER, TransactionTag.tokenOutgoing(contractAddress.hex), TransactionTag.OUTGOING)
+    override fun tags() = listOf(
+        contractAddress.hex,
+        TransactionTag.EIP20_TRANSFER,
+        TransactionTag.tokenOutgoing(contractAddress.hex),
+        TransactionTag.OUTGOING,
+        TransactionTag.toAddress(to.hex)
+    )
 
 }

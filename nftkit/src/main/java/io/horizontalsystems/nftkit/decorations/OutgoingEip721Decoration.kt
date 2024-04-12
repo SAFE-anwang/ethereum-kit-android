@@ -12,10 +12,15 @@ class OutgoingEip721Decoration(
     val tokenId: BigInteger,
     val sentToSelf: Boolean,
     val tokenInfo: TokenInfo?,
-) : TransactionDecoration() {
+) : TransactionDecoration {
 
-    override fun tags(): List<String> =
-        listOf(contractAddress.hex, EIP721_TRANSFER, TransactionTag.tokenOutgoing(contractAddress.hex), TransactionTag.OUTGOING)
+    override fun tags() = listOf(
+        contractAddress.hex,
+        EIP721_TRANSFER,
+        TransactionTag.tokenOutgoing(contractAddress.hex),
+        TransactionTag.OUTGOING,
+        TransactionTag.toAddress(to.hex)
+    )
 
     companion object {
         const val EIP721_TRANSFER = "eip721Transfer"

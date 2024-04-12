@@ -1,7 +1,12 @@
 package io.horizontalsystems.ethereumkit.core
 
 import io.horizontalsystems.ethereumkit.decorations.DecorationManager
-import io.horizontalsystems.ethereumkit.models.*
+import io.horizontalsystems.ethereumkit.models.Address
+import io.horizontalsystems.ethereumkit.models.FullRpcTransaction
+import io.horizontalsystems.ethereumkit.models.FullTransaction
+import io.horizontalsystems.ethereumkit.models.Transaction
+import io.horizontalsystems.ethereumkit.models.TransactionData
+import io.horizontalsystems.ethereumkit.models.TransactionTag
 import io.reactivex.BackpressureStrategy
 import io.reactivex.Flowable
 import io.reactivex.Single
@@ -48,6 +53,14 @@ class TransactionManager(
     fun getFullTransactions(hashes: List<ByteArray>): List<FullTransaction> =
         decorationManager.decorateTransactions(storage.getTransactions(hashes))
 
+    fun getDistinctTokenContractAddresses(): List<String> {
+        return storage.getDistinctTokenContractAddresses().map {
+            it
+                .replace("_outgoing", "")
+                .replace("_incoming", "")
+        }
+    }
+
     private fun save(transactions: List<Transaction>) {
         val existingTransactions = storage.getTransactions(hashes = transactions.map { it.hash }).associateBy { it.hashString }
 
@@ -91,12 +104,15 @@ class TransactionManager(
         val fullTransactions = decorationManager.decorateTransactions(transactions + failedTransactions)
 
         val transactionWithTags = mutableListOf<TransactionWithTags>()
-        val allTags: MutableList<TransactionTag> = mutableListOf()
+        val allTags = mutableListOf<TransactionTag>()
 
         fullTransactions.forEach { fullTransaction ->
-            val tags = fullTransaction.decoration.tags().map { TransactionTag(it, fullTransaction.transaction.hash) }
-            allTags.addAll(tags)
-            transactionWithTags.add(TransactionWithTags(fullTransaction, tags.map { it.name }))
+            val tags = fullTransaction.decoration.tags()
+            val transactionHash = fullTransaction.transaction.hash
+            val transactionTags = tags.map { TransactionTag(it, transactionHash) }
+
+            allTags.addAll(transactionTags)
+            transactionWithTags.add(TransactionWithTags(fullTransaction, tags))
         }
 
         storage.saveTags(allTags)
