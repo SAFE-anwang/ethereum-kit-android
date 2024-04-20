@@ -138,14 +138,14 @@ class TradeManager {
     fun transactionLiquidityData(receiveAddress: Address, chain: Chain, tradeData: TradeData): TransactionData {
         val routerAddress = liquidityRouterAddress(chain)
 
-        return buildLiquidityData(receiveAddress, tradeData).let {
+        return buildLiquidityData(receiveAddress, tradeData, chain).let {
 
             TransactionData(routerAddress, it.value, it.input)
         }
     }
 
 
-    private fun buildLiquidityData(receiveAddress: Address, tradeData: TradeData): TransactionData {
+    private fun buildLiquidityData(receiveAddress: Address, tradeData: TradeData, chain: Chain): TransactionData {
         val trade = tradeData.trade
 
         val tokenIn = trade.tokenAmountIn.token
@@ -172,7 +172,7 @@ class TradeManager {
         ).divide(BigInteger("1000"))
         val method = buildMethodForLiquidityOut(tokenIn, tokenOut, to, deadline, tradeData, trade, amount0Min, amount1Min)
 
-        return TransactionData(liquidityRouterAddress(), trade.tokenAmountIn.rawAmount, method.encodedABI())
+        return TransactionData(liquidityRouterAddress(chain), trade.tokenAmountIn.rawAmount, method.encodedABI())
     }
 
 

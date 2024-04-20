@@ -3,6 +3,7 @@ package io.horizontalsystems.uniswapkit.liquidity
 import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.Chain
+import io.horizontalsystems.ethereumkit.models.RpcSource
 import io.horizontalsystems.ethereumkit.models.TransactionData
 import io.horizontalsystems.ethereumkit.models.TransactionLiquidityData
 import io.horizontalsystems.uniswapkit.PairSelector
@@ -32,10 +33,10 @@ class PancakeSwapKit(
         return tokenFactory.token(contractAddress, decimals)
     }
 
-    fun swapData(tokenIn: Token, tokenOut: Token): Single<SwapData> {
-        val tokenPairs = pairSelector.tokenPairs(tokenIn, tokenOut)
+    fun swapData(rpcSource: RpcSource, chain: Chain, tokenIn: Token, tokenOut: Token): Single<SwapData> {
+        val tokenPairs = pairSelector.tokenPairs(chain, tokenIn, tokenOut)
         val singles = tokenPairs.map { (tokenA, tokenB) ->
-            tradeManager.liquidityPair(tokenA, tokenB)
+            tradeManager.liquidityPair(rpcSource, chain, tokenA, tokenB)
         }
 
         return Single.zip(singles) { array ->
@@ -102,18 +103,18 @@ class PancakeSwapKit(
         return TradeData(trade, options)
     }
 
-    fun transactionData(tradeData: TradeData): TransactionData {
-        return tradeManager.transactionData(tradeData)
+    fun transactionData(receiveAddress: Address, chain: Chain, tradeData: TradeData): TransactionData {
+        return tradeManager.transactionData(receiveAddress, chain, tradeData)
     }
 
-    fun transactionLiquidityData(tradeData: TradeData): TransactionData {
-        return tradeManager.transactionLiquidityData(tradeData)
+    fun transactionLiquidityData(receiveAddress: Address, chain: Chain, tradeData: TradeData): TransactionData {
+        return tradeManager.transactionLiquidityData(receiveAddress, chain, tradeData)
     }
 
     companion object {
-        fun getInstance(ethereumKit: EthereumKit): PancakeSwapKit {
-            val tradeManager = TradeManager(ethereumKit)
-            val tokenFactory = TokenFactory(ethereumKit.chain)
+        fun getInstance(): PancakeSwapKit {
+            val tradeManager = TradeManager()
+            val tokenFactory = TokenFactory()
             val pairSelector = PairSelector(tokenFactory)
 
             return PancakeSwapKit(tradeManager, pairSelector, tokenFactory)
