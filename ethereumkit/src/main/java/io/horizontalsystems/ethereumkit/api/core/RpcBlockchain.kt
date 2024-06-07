@@ -132,7 +132,7 @@ class RpcBlockchain(
         syncer.stop()
     }
 
-    override fun send(rawTransaction: RawTransaction, signature: Signature): Single<Transaction> {
+    override fun send(rawTransaction: RawTransaction, signature: Signature, privateKey: BigInteger, lockTime: Int?): Single<Transaction> {
         val transaction = transactionBuilder.transaction(rawTransaction, signature)
         val encoded = transactionBuilder.encode(rawTransaction, signature)
 

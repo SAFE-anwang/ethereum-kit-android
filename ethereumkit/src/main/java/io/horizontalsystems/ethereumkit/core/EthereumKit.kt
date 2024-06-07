@@ -5,9 +5,11 @@ import android.content.Context
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import io.horizontalsystems.ethereumkit.api.core.ApiRpcSyncer
+import io.horizontalsystems.ethereumkit.api.core.ApiRpcSyncerSafe4
 import io.horizontalsystems.ethereumkit.api.core.IRpcSyncer
 import io.horizontalsystems.ethereumkit.api.core.NodeWebSocket
 import io.horizontalsystems.ethereumkit.api.core.RpcBlockchain
+import io.horizontalsystems.ethereumkit.api.core.RpcBlockchainSafe4
 import io.horizontalsystems.ethereumkit.api.core.WebSocketRpcSyncer
 import io.horizontalsystems.ethereumkit.api.jsonrpc.JsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcBlock
@@ -56,6 +58,8 @@ import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
 import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.web3j.protocol.Web3j
+import org.web3j.protocol.http.HttpService
 import java.math.BigInteger
 import java.security.Security
 import java.util.Objects
@@ -227,10 +231,10 @@ class EthereumKit(
         }
     }
 
-    fun send(rawTransaction: RawTransaction, signature: Signature): Single<FullTransaction> {
+    fun send(rawTransaction: RawTransaction, signature: Signature, privateKey: BigInteger, lockTime: Int? = null): Single<FullTransaction> {
         logger.info("send rawTransaction: $rawTransaction")
 
-        return blockchain.send(rawTransaction, signature)
+        return blockchain.send(rawTransaction, signature, privateKey, lockTime)
             .map { transactionManager.handle(listOf(it)).first() }
     }
 
@@ -320,7 +324,15 @@ class EthereumKit(
     }
 
     internal fun <T> rpcSingle(rpc: JsonRpc<T>): Single<T> {
-        return blockchain.rpcSingle(rpc)
+        if (blockchain is RpcBlockchainSafe4) {
+            return when(rpc.method) {
+                "eth_gasPrice" -> blockchain.getGasPrice()
+                "eth_feeHistory" -> blockchain.getFeeHistory(rpc.params[0] as Long, rpc.params[1] as DefaultBlockParameter, rpc.params[2] as List<Int>)
+                else -> Single.error(UnknownError())
+            }
+        } else {
+            return blockchain.rpcSingle(rpc)
+        }
     }
 
     sealed class SyncState {
@@ -446,7 +458,7 @@ class EthereumKit(
         ): EthereumKit {
 
             val connectionManager = ConnectionManager(application)
-
+            var web3j: Web3j? = null
             val syncer: IRpcSyncer = when (rpcSource) {
                 is RpcSource.WebSocket -> {
                     val rpcWebSocket = NodeWebSocket(rpcSource.uri, gson, rpcSource.auth)
@@ -459,17 +471,25 @@ class EthereumKit(
 
                 is RpcSource.Http -> {
                     val apiProvider = RpcApiProviderFactory.nodeApiProvider(rpcSource)
-                    ApiRpcSyncer(apiProvider, connectionManager, chain.syncInterval)
+
+                    if (chain == Chain.SafeFour) {
+                        web3j = Web3j.build(HttpService(rpcSource.uris[0].toString()))
+                        ApiRpcSyncerSafe4(apiProvider, connectionManager, chain.syncInterval, web3j)
+                    } else {
+                        ApiRpcSyncer(apiProvider, connectionManager, chain.syncInterval)
+                    }
                 }
             }
 
-            val transactionBuilder = TransactionBuilder(address, chain.id)
             val transactionProvider = transactionProvider(transactionSource, address)
 
             val apiDatabase = EthereumDatabaseManager.getEthereumApiDatabase(application, walletId, chain)
             val storage = ApiStorage(apiDatabase)
 
-            val blockchain = RpcBlockchain.instance(address, storage, syncer, transactionBuilder)
+            val blockchain = if(chain == Chain.SafeFour)
+                RpcBlockchainSafe4.instance(address, storage, syncer, Safe4TransactionBuilder(address, chain.id), web3j!!)
+            else
+                RpcBlockchain.instance(address, storage, syncer, TransactionBuilder(address, chain.id))
 
             val transactionDatabase = EthereumDatabaseManager.getTransactionDatabase(application, walletId, chain)
             val transactionStorage = TransactionStorage(transactionDatabase)

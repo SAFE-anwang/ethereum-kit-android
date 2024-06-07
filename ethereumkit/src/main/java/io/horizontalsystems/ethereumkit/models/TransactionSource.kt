@@ -76,6 +76,12 @@ class TransactionSource(val name: String, val type: SourceType) {
             )
         }
 
+        fun safeFourscan(apiKey: String): TransactionSource {
+            return TransactionSource(
+                    "safe4",
+                    SourceType.Etherscan("https://safe4.anwang.com", "https://safe4.anwang.com", apiKey)
+            )
+        }
     }
 
 }

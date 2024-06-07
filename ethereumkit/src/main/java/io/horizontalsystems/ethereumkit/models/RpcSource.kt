@@ -63,5 +63,15 @@ sealed class RpcSource {
             return Http(listOf(URI("https://fantom-mainnet.core.chainstack.com/01d412d3dbe245ad17742e58fa017171")), null)
         }
 
+
+        fun safeFourHttp(): Http {
+            return Http(
+                    listOf(
+                            URI("http://172.104.162.94:8545")
+                    ),
+                    null
+            )
+        }
+
     }
 }

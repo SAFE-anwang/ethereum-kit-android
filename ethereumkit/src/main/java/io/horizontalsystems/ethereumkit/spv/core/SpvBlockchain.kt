@@ -77,7 +77,7 @@ class SpvBlockchain(
     override val accountState: AccountState?
         get() = storage.getAccountState()?.let { AccountState(it.balance, it.nonce) }
 
-    override fun send(rawTransaction: RawTransaction, signature: Signature): Single<Transaction> {
+    override fun send(rawTransaction: RawTransaction, signature: Signature, privateKey: BigInteger, lockTime: Int?): Single<Transaction> {
         return try {
             val sendId = RandomHelper.randomInt()
             transactionSender.send(sendId, peer, rawTransaction, signature)

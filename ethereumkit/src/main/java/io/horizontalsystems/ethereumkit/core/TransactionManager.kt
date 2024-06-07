@@ -1,5 +1,6 @@
 package io.horizontalsystems.ethereumkit.core
 
+import android.util.Log
 import io.horizontalsystems.ethereumkit.decorations.DecorationManager
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.FullRpcTransaction
@@ -97,6 +98,7 @@ class TransactionManager(
     }
 
     fun handle(transactions: List<Transaction>, initial: Boolean = false): List<FullTransaction> {
+        Log.e("longwen", "send transaction=${transactions.map { it.hashString }}")
         if (transactions.isEmpty()) return listOf()
 
         save(transactions)
