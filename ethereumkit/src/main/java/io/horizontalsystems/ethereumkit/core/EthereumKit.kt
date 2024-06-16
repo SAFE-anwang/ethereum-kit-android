@@ -68,6 +68,7 @@ import java.math.BigInteger
 import java.security.Security
 import java.util.Objects
 import java.util.Optional
+import java.util.Random
 import java.util.logging.Logger
 
 class EthereumKit(
@@ -495,7 +496,8 @@ class EthereumKit(
                     val apiProvider = RpcApiProviderFactory.nodeApiProvider(rpcSource)
 
                     if (chain == Chain.SafeFour) {
-                        web3j = Web3j.build(HttpService(rpcSource.uris[0].toString()))
+                        val index = Random().nextInt(rpcSource.uris.size)
+                        web3j = Web3j.build(HttpService(rpcSource.uris[index].toString()))
                         ApiRpcSyncerSafe4(apiProvider, connectionManager, chain.syncInterval, web3j)
                     } else {
                         ApiRpcSyncer(apiProvider, connectionManager, chain.syncInterval)
