@@ -2,6 +2,7 @@ package io.horizontalsystems.ethereumkit.core
 
 import android.app.Application
 import android.content.Context
+import com.anwang.utils.Safe4Contract
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import io.horizontalsystems.ethereumkit.api.core.ApiRpcSyncer
@@ -26,7 +27,10 @@ import io.horizontalsystems.ethereumkit.crypto.CryptoUtils
 import io.horizontalsystems.ethereumkit.crypto.InternalBouncyCastleProvider
 import io.horizontalsystems.ethereumkit.decorations.DecorationManager
 import io.horizontalsystems.ethereumkit.decorations.EthereumDecorator
+import io.horizontalsystems.ethereumkit.decorations.SafeFourDecorator
 import io.horizontalsystems.ethereumkit.decorations.TransactionDecoration
+import io.horizontalsystems.ethereumkit.decorations.safe4.SafeFourContractMethodFactories
+import io.horizontalsystems.ethereumkit.decorations.safe4.SafeFourMethodDecorator
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.Chain
 import io.horizontalsystems.ethereumkit.models.DefaultBlockParameter
@@ -230,6 +234,24 @@ class EthereumKit(
             Single.just(RawTransaction(gasPrice, gasLimit, address, value, nonce, transactionInput))
         }
     }
+
+    fun safe4LockRawTransaction(
+            transactionData: TransactionData,
+            gasPrice: GasPrice,
+            gasLimit: Long,
+            lockTime: Int,
+            nonce: Long? = null,
+    ): Single<RawTransaction> {
+        return rawTransaction(
+                address = Address(Safe4Contract.AccountManagerContractAddr),
+                value = transactionData.value,
+                transactionInput = Safe4Web3jUtils.getDepositTransactionInput(transactionData.to.hex, lockTime.toBigInteger()).hexStringToByteArray(),
+                gasPrice = gasPrice,
+                gasLimit = gasLimit,
+                nonce = nonce
+        )
+    }
+
 
     fun send(rawTransaction: RawTransaction, signature: Signature, privateKey: BigInteger, lockTime: Int? = null): Single<FullTransaction> {
         logger.info("send rawTransaction: $rawTransaction")
@@ -524,7 +546,10 @@ class EthereumKit(
             blockchain.listener = ethereumKit
 
             decorationManager.addTransactionDecorator(EthereumDecorator(address))
-
+            if (chain == Chain.SafeFour) {
+                decorationManager.addTransactionDecorator(SafeFourDecorator(address))
+                ethereumKit.addMethodDecorator(SafeFourMethodDecorator(SafeFourContractMethodFactories))
+            }
             return ethereumKit
         }
 

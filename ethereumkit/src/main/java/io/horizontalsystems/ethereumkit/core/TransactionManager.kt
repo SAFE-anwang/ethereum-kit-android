@@ -98,7 +98,6 @@ class TransactionManager(
     }
 
     fun handle(transactions: List<Transaction>, initial: Boolean = false): List<FullTransaction> {
-        Log.e("longwen", "send transaction=${transactions.map { it.hashString }}")
         if (transactions.isEmpty()) return listOf()
 
         save(transactions)

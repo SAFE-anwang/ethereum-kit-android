@@ -1,21 +1,15 @@
 package io.horizontalsystems.ethereumkit.core
 
-import android.util.Log
 import com.anwang.utils.Safe4Contract
 import io.horizontalsystems.ethereumkit.crypto.CryptoUtils
 import io.horizontalsystems.ethereumkit.models.*
 import io.horizontalsystems.ethereumkit.spv.core.toBigInteger
 import io.horizontalsystems.ethereumkit.spv.rlp.RLP
-import org.web3j.abi.TypeReference
-import org.web3j.abi.datatypes.Function
-import org.web3j.abi.datatypes.generated.Uint256
 import java.math.BigInteger
-import java.util.Arrays
-import java.util.Collections
 
 class Safe4TransactionBuilder(
         private val address: Address,
-        private val chainId: Int
+        val chainId: Int
 ) {
 
     fun transaction(rawTransaction: RawTransaction, signature: Signature): Transaction {
@@ -55,7 +49,6 @@ class Safe4TransactionBuilder(
                 data.hexStringToByteArray()
         )
         val transactionHash = CryptoUtils.sha3(encode(tempRawTransaction, signature))
-        Log.e("longwen", "local hash =${transactionHash.toHexString()}")
         var maxFeePerGas: Long? = null
         var maxPriorityFeePerGas: Long? = null
 
@@ -79,6 +72,9 @@ class Safe4TransactionBuilder(
                 isFailed = false,
         )
     }
+
+    fun encode(rawTransaction: org.web3j.crypto.RawTransaction, signature: Signature): ByteArray =
+            encodeDeposit(rawTransaction, signature, chainId)
 
     fun encode(rawTransaction: RawTransaction, signature: Signature): ByteArray =
             encode(rawTransaction, signature, chainId)
@@ -112,16 +108,13 @@ class Safe4TransactionBuilder(
                     "0x02".hexStringToByteArray() + encodedTransaction
                 }
                 is GasPrice.Legacy -> {
-                    Log.d("longwen", "encode chainId=$chainId, nonce=${rawTransaction.nonce}, price=${rawTransaction.gasPrice.legacyGasPrice}, " +
-                            "limit=${rawTransaction.gasLimit}, value=${rawTransaction.value}")
                     val elements = arrayOf(
                             RLP.encodeLong(rawTransaction.nonce),
                             RLP.encodeLong(rawTransaction.gasPrice.legacyGasPrice),
                             RLP.encodeLong(rawTransaction.gasLimit),
                             RLP.encodeElement(rawTransaction.to.raw),
                             RLP.encodeBigInteger(rawTransaction.value),
-                            RLP.encodeElement(rawTransaction.data),
-                            RLP.encodeInt(chainId),
+                            RLP.encodeElement(rawTransaction.data)
                     ) + signatureArray
 
                     RLP.encodeList(*elements)
@@ -129,7 +122,28 @@ class Safe4TransactionBuilder(
             }
         }
 
-        fun encodeDeposit(rawTransaction: RawTransaction, signature: Signature?): ByteArray {
+        fun encodeDeposit(rawTransaction: org.web3j.crypto.RawTransaction, signature: Signature?, chainId: Int = 1): ByteArray {
+            val signatureArray = signature?.let {
+                arrayOf(
+                        RLP.encodeInt(it.v),
+                        RLP.encodeBigInteger(it.r.toBigInteger()),
+                        RLP.encodeBigInteger(it.s.toBigInteger())
+                )
+            } ?: arrayOf()
+            val elements = arrayOf(
+                    RLP.encodeLong(rawTransaction.nonce.toLong()),
+                    RLP.encodeLong(rawTransaction.gasPrice.toLong()),
+                    RLP.encodeLong(rawTransaction.gasLimit.toLong()),
+                    RLP.encodeElement(rawTransaction.to.toByteArray()),
+                    RLP.encodeBigInteger(rawTransaction.value),
+                    RLP.encodeElement(rawTransaction.data.toByteArray()),
+                    RLP.encodeInt(chainId)
+            ) + signatureArray
+
+            return RLP.encodeList(*elements)
+        }
+
+        fun encodeDeposit(rawTransaction: RawTransaction, signature: Signature?, chainId: Int = 1): ByteArray {
             val signatureArray = signature?.let {
                 arrayOf(
                         RLP.encodeInt(it.v),
@@ -143,7 +157,8 @@ class Safe4TransactionBuilder(
                     RLP.encodeLong(rawTransaction.gasLimit),
                     RLP.encodeElement(rawTransaction.to.raw),
                     RLP.encodeBigInteger(rawTransaction.value),
-                    RLP.encodeElement(rawTransaction.data)
+                    RLP.encodeElement(rawTransaction.data),
+                    RLP.encodeInt(chainId)
             ) + signatureArray
 
             return RLP.encodeList(*elements)

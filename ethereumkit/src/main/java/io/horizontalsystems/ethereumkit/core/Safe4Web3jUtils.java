@@ -1,6 +1,11 @@
 package io.horizontalsystems.ethereumkit.core;
 
+import android.util.Log;
+
+import org.web3j.abi.DefaultFunctionReturnDecoder;
 import org.web3j.abi.FunctionEncoder;
+import org.web3j.abi.FunctionReturnDecoder;
+import org.web3j.abi.TypeDecoder;
 import org.web3j.abi.TypeReference;
 import org.web3j.abi.datatypes.Address;
 import org.web3j.abi.datatypes.Bool;
@@ -29,4 +34,9 @@ public class Safe4Web3jUtils {
         return FunctionEncoder.encode(function);
     }
 
+
+    public static String depositDecode(String input) {
+        String address = DefaultFunctionReturnDecoder.decodeAddress(input);
+        return address;
+    }
 }

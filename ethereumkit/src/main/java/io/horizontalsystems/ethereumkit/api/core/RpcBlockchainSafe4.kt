@@ -2,6 +2,8 @@ package io.horizontalsystems.ethereumkit.api.core
 
 import android.util.Log
 import com.anwang.Safe4
+import com.anwang.types.accountmanager.AccountAmountInfo
+import com.anwang.utils.Safe4Contract
 import io.horizontalsystems.ethereumkit.api.jsonrpc.CallJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.DataJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.EstimateGasJsonRpc
@@ -17,7 +19,6 @@ import io.horizontalsystems.ethereumkit.core.IBlockchain
 import io.horizontalsystems.ethereumkit.core.IBlockchainListener
 import io.horizontalsystems.ethereumkit.core.RpcApiProviderFactory
 import io.horizontalsystems.ethereumkit.core.Safe4TransactionBuilder
-import io.horizontalsystems.ethereumkit.core.TransactionBuilder
 import io.horizontalsystems.ethereumkit.core.eip1559.FeeHistory
 import io.horizontalsystems.ethereumkit.core.toHexString
 import io.horizontalsystems.ethereumkit.models.Address
@@ -30,16 +31,19 @@ import io.horizontalsystems.ethereumkit.models.Signature
 import io.horizontalsystems.ethereumkit.models.Transaction
 import io.horizontalsystems.ethereumkit.models.TransactionLog
 import io.horizontalsystems.ethereumkit.spv.core.toBigInteger
-import io.reactivex.Observable
 import io.reactivex.Single
-import io.reactivex.SingleSource
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
+import org.web3j.abi.FunctionEncoder
+import org.web3j.abi.TypeReference
+import org.web3j.abi.datatypes.Function
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.DefaultBlockParameterName
 import org.web3j.protocol.core.DefaultBlockParameterNumber
+import org.web3j.protocol.core.Request
 import org.web3j.protocol.core.methods.request.EthFilter
-import org.web3j.protocol.http.HttpService
+import org.web3j.protocol.core.methods.response.EthCall
+import org.web3j.utils.Numeric
 import java.math.BigInteger
 
 class RpcBlockchainSafe4(
@@ -78,15 +82,24 @@ class RpcBlockchainSafe4(
     }
 
     override fun syncAccountState() {
+        // lock amount
+        val outputParameters = mutableListOf<TypeReference<*>>()
+        val typeReference: TypeReference<AccountAmountInfo> = object : TypeReference<AccountAmountInfo>() {}
+        outputParameters.add(typeReference)
+        val function = Function("getTotalAmount", listOf(org.web3j.abi.datatypes.Address(address.hex)), outputParameters)
+        val safe4Account = Single.just(query(function))
+
         val singleBalance = Single.just(web3j.ethGetBalance(address.hex, DefaultBlockParameterName.LATEST))
         val singleTransactionCount = Single.just(web3j.ethGetTransactionCount(address.hex, DefaultBlockParameterName.LATEST))
         Single.zip(
-//            syncer.single(GetBalanceJsonRpc(address, DefaultBlockParameter.Latest)),
-//            syncer.single(GetTransactionCountJsonRpc(address, DefaultBlockParameter.Latest))
                 singleBalance,
-                singleTransactionCount
-        ) { t1, t2 ->
-            val balance = t1.send().balance
+                singleTransactionCount,
+                safe4Account
+        ) { t1, t2, t3 ->
+            val value = t3.send().value
+            val input = value.substring(IntRange(0, 65))
+            val lockAmount = Numeric.hexStringToByteArray(input).toBigInteger()
+            val balance = t1.send().balance.add(lockAmount)
             val transactionCount = t2.send().transactionCount
             Pair(balance, transactionCount)
         }
@@ -102,6 +115,15 @@ class RpcBlockchainSafe4(
             }
     }
 
+    private fun query(function: Function): Request<*, EthCall> {
+        return query(function, org.web3j.abi.datatypes.Address.DEFAULT.value)
+    }
+
+    private fun query(function: Function, from: String): Request<*, EthCall> {
+        val response = web3j.ethCall(org.web3j.protocol.core.methods.request.Transaction.createEthCallTransaction(from, Safe4Contract.AccountManagerContractAddr, FunctionEncoder.encode(function)), DefaultBlockParameterName.LATEST)
+
+        return response
+    }
 
     //region IBlockchain
     override var syncState: SyncState = SyncState.NotSynced(EthereumKit.SyncError.NotStarted())
@@ -154,15 +176,12 @@ class RpcBlockchainSafe4(
             val hash = web3jSafe4.getAccount().deposit(privateKey.toHexString(),
                     rawTransaction.value,
                     org.web3j.abi.datatypes.Address(rawTransaction.to.hex), lockTime.toBigInteger())
-            Log.e("longwen", "lockTime=$lockTime, result=$hash")
             return Single.just(transactionBuilder.transactionDeposit(rawTransaction, signature, lockTime.toBigInteger(), hash))
-//            return Single.just(transactionBuilder.transaction(rawTransaction, signature))
         }
         val transaction = transactionBuilder.transaction(rawTransaction, signature)
         val encoded = transactionBuilder.encode(rawTransaction, signature)
-        Log.e("longwen", "send=${encoded.toHexString()}")
-        return Single.just(web3j.ethSendRawTransaction(encoded.toHexString())
-                .send()).map { transaction }
+        val ethSendTransaction = web3j.ethSendRawTransaction(encoded.toHexString()).send()
+        return Single.just(ethSendTransaction).map { transaction }
     }
 
     override fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long> {
@@ -178,15 +197,15 @@ class RpcBlockchainSafe4(
                 gasPrice.legacyGasPrice
             }
         }
-        return Single.just(web3j.ethEstimateGas(org.web3j.protocol.core.methods.request.Transaction.createFunctionCallTransaction(
+        val estimateGas = web3j.ethEstimateGas(org.web3j.protocol.core.methods.request.Transaction.createFunctionCallTransaction(
                 address.hex,
                 null,
                 price.toBigInteger(),
                 gasLimit?.toBigInteger(),
                 to?.hex,
                 data?.toHexString()
-        )).send().amountUsed.toLong())
-//        return syncer.single(EstimateGasJsonRpc(address, to, amount, gasLimit, gasPrice, data))
+        )).send()
+        return Single.just(estimateGas.amountUsed.toLong())
     }
 
     override fun getTransactionReceipt(transactionHash: ByteArray): Single<RpcTransactionReceipt> {
@@ -221,7 +240,6 @@ class RpcBlockchainSafe4(
                         transactionReceipt.status.toInt()
                 )
         )
-//        return syncer.single(GetTransactionReceiptJsonRpc(transactionHash))
     }
 
     override fun getTransaction(transactionHash: ByteArray): Single<RpcTransaction> {
@@ -243,13 +261,11 @@ class RpcBlockchainSafe4(
                         transaction.input.toByteArray()
                 )
         )
-//        return syncer.single(GetTransactionByHashJsonRpc(transactionHash))
     }
 
     override fun getBlock(blockNumber: Long): Single<RpcBlock> {
         val ethBlock = web3j.ethGetBlockByNumber(DefaultBlockParameterNumber(blockNumber), false).send()
         return Single.just(RpcBlock(ethBlock.block.number.toLong(), ethBlock.block.timestamp.toLong()))
-//        return syncer.single(GetBlockByNumberJsonRpc(blockNumber))
     }
 
     override fun getLogs(
@@ -281,21 +297,6 @@ class RpcBlockchainSafe4(
         } else {
             Single.just(transactionLogs)
         }
-        /*return syncer.single(
-            GetLogsJsonRpc(
-                address,
-                DefaultBlockParameter.BlockNumber(fromBlock),
-                DefaultBlockParameter.BlockNumber(toBlock),
-                topics
-            )
-        )
-            .flatMap { logs ->
-                if (pullTimestamps) {
-                    pullTransactionTimestamps(logs)
-                } else {
-                    Single.just(logs)
-                }
-            }*/
     }
 
     private fun pullTransactionTimestamps(logs: List<TransactionLog>): Single<List<TransactionLog>> {
@@ -334,7 +335,6 @@ class RpcBlockchainSafe4(
         val storageAt = web3j.ethGetStorageAt(contractAddress.hex, position.toBigInteger(),
                 org.web3j.protocol.core.DefaultBlockParameter.valueOf(defaultBlockParameter.raw)).send()
         return Single.just(storageAt.data.toByteArray())
-//        return syncer.single(GetStorageAtJsonRpc(contractAddress, position, defaultBlockParameter))
     }
 
     override fun call(contractAddress: Address, data: ByteArray, defaultBlockParameter: DefaultBlockParameter): Single<ByteArray> {
@@ -378,12 +378,8 @@ class RpcBlockchainSafe4(
     }
 
     fun <T> getGasPrice(): Single<T> {
-        Log.e("longwen", "getGasPrice")
         val gas = web3j.ethGasPrice().sendAsync()
-        Log.e("longwen", "gas=$gas")
         return Single.fromFuture(gas).map { it.gasPrice.toLong() as T }
-
-//        return Single.just(gas.toLong() as T)
     }
 
     fun <T> getFeeHistory(blockCount: Long, defaultBlockParameter: DefaultBlockParameter, rewardPercentiles: List<Int>): Single<T> {
