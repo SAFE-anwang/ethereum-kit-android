@@ -9,7 +9,8 @@ import java.util.*
 class AccountState(
         val balance: BigInteger,
         val nonce: Long,
-        @PrimaryKey val id: String = ""
+        @PrimaryKey val id: String = "",
+        val timeLockBalance: BigInteger = BigInteger.ZERO
 ) {
     override fun equals(other: Any?): Boolean {
         if (other !is AccountState)

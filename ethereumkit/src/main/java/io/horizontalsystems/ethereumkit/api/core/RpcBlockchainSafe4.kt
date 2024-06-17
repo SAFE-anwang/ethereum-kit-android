@@ -99,13 +99,13 @@ class RpcBlockchainSafe4(
             val value = t3.send().value
             val input = value.substring(IntRange(0, 65))
             val lockAmount = Numeric.hexStringToByteArray(input).toBigInteger()
-            val balance = t1.send().balance.add(lockAmount)
+            val balance = t1.send().balance
             val transactionCount = t2.send().transactionCount
-            Pair(balance, transactionCount)
+            BalanceInfo(balance, transactionCount, lockAmount)
         }
             .subscribeOn(Schedulers.io())
-            .subscribe({ (balance, transactionCount) ->
-                onUpdateAccountState(AccountState(balance, transactionCount.toLong()))
+            .subscribe({ (balance, transactionCount, lockBalance) ->
+                onUpdateAccountState(AccountState(balance, transactionCount.toLong(), timeLockBalance =  lockBalance))
                 syncState = SyncState.Synced()
             }, {
                 it?.printStackTrace()
@@ -434,3 +434,9 @@ class RpcBlockchainSafe4(
         }
     }
 }
+
+data class BalanceInfo(
+    val balance: BigInteger,
+    val transactionCount: BigInteger,
+    val lockBalance: BigInteger
+)

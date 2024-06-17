@@ -7,9 +7,10 @@ import androidx.room.TypeConverters
 import android.content.Context
 import io.horizontalsystems.ethereumkit.api.models.AccountState
 import io.horizontalsystems.ethereumkit.api.models.LastBlockHeight
+import io.horizontalsystems.ethereumkit.api.storage.migration.Migration_3_4
 
 
-@Database(entities = [AccountState::class, LastBlockHeight::class], version = 3, exportSchema = false)
+@Database(entities = [AccountState::class, LastBlockHeight::class], version = 4, exportSchema = false)
 @TypeConverters(RoomTypeConverters::class)
 abstract class ApiDatabase : RoomDatabase() {
 
@@ -22,6 +23,9 @@ abstract class ApiDatabase : RoomDatabase() {
             return Room.databaseBuilder(context, ApiDatabase::class.java, databaseName)
                     .fallbackToDestructiveMigration()
                     .allowMainThreadQueries()
+                    .addMigrations(
+                            Migration_3_4
+                    )
                     .build()
         }
 
