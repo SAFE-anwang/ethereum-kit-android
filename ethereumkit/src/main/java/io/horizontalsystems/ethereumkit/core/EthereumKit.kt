@@ -244,7 +244,7 @@ class EthereumKit(
             nonce: Long? = null,
     ): Single<RawTransaction> {
         return rawTransaction(
-                address = Address(Safe4Contract.AccountManagerContractAddr),
+                address = transactionData.to,
                 value = transactionData.value,
                 transactionInput = Safe4Web3jUtils.getDepositTransactionInput(transactionData.to.hex, lockTime.toBigInteger()).hexStringToByteArray(),
                 gasPrice = gasPrice,

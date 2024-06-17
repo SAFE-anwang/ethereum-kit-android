@@ -36,7 +36,18 @@ public class Safe4Web3jUtils {
 
 
     public static String depositDecode(String input) {
-        String address = DefaultFunctionReturnDecoder.decodeAddress(input);
-        return address;
+        /*List outputParameters = new ArrayList<TypeReference<Type>>();
+        outputParameters.add(new TypeReference<Address>() {});
+        outputParameters.add(new TypeReference<Uint256>() {});
+
+        List<Type> typeList = DefaultFunctionReturnDecoder.decode(input, outputParameters);
+        String address = typeList.isEmpty() ? null : ((Address) typeList.get(0)).getValue();*/
+        try {
+            String address = input.isEmpty() ? null :  "0x" + input.substring(34, 74);
+            return address;
+        } catch (Exception e) {
+            return null;
+        }
+//        return address;
     }
 }
