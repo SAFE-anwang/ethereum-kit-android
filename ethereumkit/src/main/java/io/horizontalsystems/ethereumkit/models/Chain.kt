@@ -21,4 +21,6 @@ enum class Chain(
     SafeFour(6666666, 60, 300000000, 15, false);
 
     val isMainNet = coinType != 1
+
+    val isSafeFourTestNet = id == 6666666
 }
