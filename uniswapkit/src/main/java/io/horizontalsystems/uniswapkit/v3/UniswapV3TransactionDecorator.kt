@@ -14,12 +14,13 @@ import java.math.BigInteger
 class UniswapV3TransactionDecorator(private val wethAddress: Address) : ITransactionDecorator {
 
     override fun decoration(
-        from: Address?,
-        to: Address?,
-        value: BigInteger?,
-        contractMethod: ContractMethod?,
-        internalTransactions: List<InternalTransaction>,
-        eventInstances: List<ContractEventInstance>
+            from: Address?,
+            to: Address?,
+            value: BigInteger?,
+            contractMethod: ContractMethod?,
+            internalTransactions: List<InternalTransaction>,
+            eventInstances: List<ContractEventInstance>,
+            isLock: Boolean
     ): TransactionDecoration? {
         if (from == null || to == null || value == null || contractMethod == null) return null
 

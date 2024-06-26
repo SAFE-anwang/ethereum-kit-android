@@ -2,7 +2,6 @@ package io.horizontalsystems.ethereumkit.decorations
 
 import io.horizontalsystems.ethereumkit.contracts.ContractEventInstance
 import io.horizontalsystems.ethereumkit.contracts.ContractMethod
-import io.horizontalsystems.ethereumkit.contracts.EmptyMethod
 import io.horizontalsystems.ethereumkit.core.ITransactionDecorator
 import io.horizontalsystems.ethereumkit.decorations.safe4.Safe4DepositIncomingDecoration
 import io.horizontalsystems.ethereumkit.decorations.safe4.Safe4DepositOutgoingDecoration
@@ -13,7 +12,7 @@ import java.math.BigInteger
 
 class SafeFourDecorator(private val address: Address) : ITransactionDecorator {
 
-    override fun decoration(from: Address?, to: Address?, value: BigInteger?, contractMethod: ContractMethod?, internalTransactions: List<InternalTransaction>, eventInstances: List<ContractEventInstance>): TransactionDecoration? {
+    override fun decoration(from: Address?, to: Address?, value: BigInteger?, contractMethod: ContractMethod?, internalTransactions: List<InternalTransaction>, eventInstances: List<ContractEventInstance>, isLock: Boolean): TransactionDecoration? {
         if (from == null || value == null) return null
         if (to == null) return ContractCreationDecoration()
 
@@ -25,6 +24,10 @@ class SafeFourDecorator(private val address: Address) : ITransactionDecorator {
             if (to == address) {
                 return Safe4DepositIncomingDecoration(from, value)
             }
+        }
+
+        if (isLock && to == address) {
+            return Safe4DepositIncomingDecoration(from, value)
         }
 
         return null

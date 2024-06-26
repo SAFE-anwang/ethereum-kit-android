@@ -129,6 +129,17 @@ class EtherscanService(
         }.retryWhenError(RequestError.RateLimitExceed::class)
     }
 
+    fun getSafeAccountManagerTransactions(address: Address, startBlock: Long): Single<EtherscanResponse> {
+        return service.accountApi(
+                action = "accountmanager",
+                address = address.hex,
+                startBlock = startBlock,
+                apiKey = apiKey
+        ).map {
+            parseResponse(it)
+        }.retryWhenError(RequestError.RateLimitExceed::class)
+    }
+
     private fun parseResponse(response: JsonElement): EtherscanResponse {
         try {
             val responseObj = response.asJsonObject

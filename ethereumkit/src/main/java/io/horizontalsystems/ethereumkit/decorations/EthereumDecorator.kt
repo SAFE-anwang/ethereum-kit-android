@@ -10,7 +10,7 @@ import java.math.BigInteger
 
 class EthereumDecorator(private val address: Address) : ITransactionDecorator {
 
-    override fun decoration(from: Address?, to: Address?, value: BigInteger?, contractMethod: ContractMethod?, internalTransactions: List<InternalTransaction>, eventInstances: List<ContractEventInstance>): TransactionDecoration? {
+    override fun decoration(from: Address?, to: Address?, value: BigInteger?, contractMethod: ContractMethod?, internalTransactions: List<InternalTransaction>, eventInstances: List<ContractEventInstance>, isLock: Boolean): TransactionDecoration? {
         if (from == null || value == null) return null
         if (to == null) return ContractCreationDecoration()
 

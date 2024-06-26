@@ -7,6 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import io.horizontalsystems.ethereumkit.api.storage.RoomTypeConverters
+import io.horizontalsystems.ethereumkit.api.storage.migration.Migration_13_14
 import io.horizontalsystems.ethereumkit.models.InternalTransaction
 import io.horizontalsystems.ethereumkit.models.Transaction
 import io.horizontalsystems.ethereumkit.models.TransactionSyncerState
@@ -19,7 +20,7 @@ import io.horizontalsystems.ethereumkit.models.TransactionTag
             TransactionTag::class,
             TransactionSyncerState::class
         ],
-        version = 13,
+        version = 14,
         exportSchema = false
 )
 @TypeConverters(RoomTypeConverters::class, TransactionDatabase.TypeConverters::class)
@@ -35,6 +36,9 @@ abstract class TransactionDatabase : RoomDatabase() {
             return Room.databaseBuilder(context, TransactionDatabase::class.java, databaseName)
                     .fallbackToDestructiveMigration()
                     .allowMainThreadQueries()
+                    .addMigrations(
+                        Migration_13_14
+                    )
                     .build()
         }
     }

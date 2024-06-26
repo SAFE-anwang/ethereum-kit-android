@@ -26,7 +26,8 @@ class Transaction(
     val gasLimit: Long? = null,
     val gasUsed: Long? = null,
 
-    var replacedWith: ByteArray? = null
+    var replacedWith: ByteArray? = null,
+    var lockDay: Int? = null
 ) {
 
     @delegate:Ignore

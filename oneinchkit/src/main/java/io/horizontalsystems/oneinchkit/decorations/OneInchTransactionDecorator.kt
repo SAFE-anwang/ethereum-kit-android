@@ -23,12 +23,13 @@ class OneInchTransactionDecorator(
     private val evmTokenAddresses = mutableListOf("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE", "0x0000000000000000000000000000000000000000")
 
     override fun decoration(
-        from: Address?,
-        to: Address?,
-        value: BigInteger?,
-        contractMethod: ContractMethod?,
-        internalTransactions: List<InternalTransaction>,
-        eventInstances: List<ContractEventInstance>
+            from: Address?,
+            to: Address?,
+            value: BigInteger?,
+            contractMethod: ContractMethod?,
+            internalTransactions: List<InternalTransaction>,
+            eventInstances: List<ContractEventInstance>,
+            isLock: Boolean
     ): TransactionDecoration? {
         if (from == null || to == null || value == null || contractMethod == null) return null
 

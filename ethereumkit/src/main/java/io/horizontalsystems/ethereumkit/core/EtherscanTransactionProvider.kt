@@ -1,5 +1,6 @@
 package io.horizontalsystems.ethereumkit.core
 
+import android.util.Log
 import io.horizontalsystems.ethereumkit.models.*
 import io.horizontalsystems.ethereumkit.network.EtherscanService
 import io.reactivex.Single
@@ -221,5 +222,30 @@ class EtherscanTransactionProvider(
 
     private fun getAddressOrNull(addressString: String?): Address? =
         if (!addressString.isNullOrEmpty()) Address(addressString) else null
+
+
+    override fun getSafeAccountManagerTransactions(startBlock: Long): Single<List<Safe4AccountManagerTransaction>> {
+        return etherscanService.getSafeAccountManagerTransactions(address, startBlock)
+                .map { response ->
+                    response.result.mapNotNull { internalTx ->
+                        try {
+                            val hash = internalTx.getValue("hash").hexStringToByteArray()
+                            val blockNumber = internalTx.getValue("blockNumber").toLong()
+                            val timestamp = internalTx.getValue("timeStamp").toLong()
+                            val from = Address(internalTx.getValue("from"))
+                            val to = Address(internalTx.getValue("to"))
+                            val value = internalTx.getValue("amount").toBigInteger()
+                            val action = internalTx.getValue("action")
+                            val lockId = internalTx.getValue("lockId")
+                            val lockDay = internalTx.getValue("lockDay").toInt()
+
+                            Safe4AccountManagerTransaction(hash, blockNumber, timestamp, from, to, value, action, lockId, lockDay)
+                        } catch (throwable: Throwable) {
+                            Log.e("longwen", "error=$throwable")
+                            null
+                        }
+                    }
+                }
+    }
 
 }

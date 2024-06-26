@@ -53,6 +53,7 @@ import io.horizontalsystems.ethereumkit.network.LongTypeAdapter
 import io.horizontalsystems.ethereumkit.network.OptionalTypeAdapter
 import io.horizontalsystems.ethereumkit.transactionsyncers.EthereumTransactionSyncer
 import io.horizontalsystems.ethereumkit.transactionsyncers.InternalTransactionSyncer
+import io.horizontalsystems.ethereumkit.transactionsyncers.Safe4TransactionSyncer
 import io.horizontalsystems.ethereumkit.transactionsyncers.TransactionSyncManager
 import io.horizontalsystems.hdwalletkit.Mnemonic
 import io.reactivex.BackpressureStrategy
@@ -531,6 +532,11 @@ class EthereumKit(
 
             transactionSyncManager.add(internalTransactionsSyncer)
             transactionSyncManager.add(ethereumTransactionSyncer)
+
+            if (chain == Chain.SafeFour) {
+                val safe4TransactionSyncer = Safe4TransactionSyncer(address.hex, transactionProvider, transactionSyncerStateStorage)
+                transactionSyncManager.add(safe4TransactionSyncer)
+            }
 
             val ethereumKit = EthereumKit(
                 blockchain,

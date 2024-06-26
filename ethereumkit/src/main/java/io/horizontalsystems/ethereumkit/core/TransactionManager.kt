@@ -67,12 +67,17 @@ class TransactionManager(
 
         val mergedTransactions = transactions.map { newTx ->
             val existingTx = existingTransactions[newTx.hashString]
-
+            val isLocked = if (newTx.lockDay != null && newTx.lockDay!!.toInt() > 0) {
+                // locked
+                newTx.from!!.hex != address.hex && newTx.to!!.hex == address.hex
+            } else {
+                false
+            }
             if (existingTx != null) {
                 Transaction(
                     hash = existingTx.hash,
                     timestamp = newTx.timestamp,
-                    isFailed = existingTx.isFailed || newTx.isFailed,
+                    isFailed = if (isLocked) false else existingTx.isFailed || newTx.isFailed,
 
                     blockNumber = newTx.blockNumber ?: existingTx.blockNumber,
                     transactionIndex = newTx.transactionIndex ?: existingTx.transactionIndex,

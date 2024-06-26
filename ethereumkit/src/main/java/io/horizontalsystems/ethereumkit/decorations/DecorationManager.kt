@@ -31,7 +31,7 @@ class DecorationManager(private val userAddress: Address, private val storage: I
         val contractMethod = contractMethod(transactionData.input) ?: return null
 
         for (decorator in transactionDecorators) {
-            val decoration = decorator.decoration(from, transactionData.to, transactionData.value, contractMethod, listOf(), listOf())
+            val decoration = decorator.decoration(from, transactionData.to, transactionData.value, contractMethod, listOf(), listOf(), false)
             if (decoration != null) return decoration
         }
 
@@ -55,7 +55,8 @@ class DecorationManager(private val userAddress: Address, private val storage: I
                 transaction.value,
                 contractMethod(transaction.input),
                 internalTransactionsMap[transaction.hashString] ?: listOf(),
-                eventInstancesMap[transaction.hashString] ?: listOf()
+                eventInstancesMap[transaction.hashString] ?: listOf(),
+                    transaction.lockDay != null && transaction.lockDay!!.toInt() > 0
             )
 
             return@map FullTransaction(transaction, decoration)
@@ -115,9 +116,9 @@ class DecorationManager(private val userAddress: Address, private val storage: I
     }
 
 
-    private fun decoration(from: Address?, to: Address?, value: BigInteger?, contractMethod: ContractMethod? = null, internalTransactions: List<InternalTransaction> = listOf(), eventInstances: List<ContractEventInstance> = listOf()): TransactionDecoration {
+    private fun decoration(from: Address?, to: Address?, value: BigInteger?, contractMethod: ContractMethod? = null, internalTransactions: List<InternalTransaction> = listOf(), eventInstances: List<ContractEventInstance> = listOf(), isLock: Boolean = false): TransactionDecoration {
         for (decorator in transactionDecorators) {
-            val decoration = decorator.decoration(from, to, value, contractMethod, internalTransactions, eventInstances)
+            val decoration = decorator.decoration(from, to, value, contractMethod, internalTransactions, eventInstances, isLock)
             if (decoration != null) return decoration
         }
 

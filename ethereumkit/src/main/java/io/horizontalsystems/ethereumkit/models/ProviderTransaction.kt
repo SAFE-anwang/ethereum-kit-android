@@ -98,3 +98,20 @@ data class ProviderEip1155Transaction(
     val tokenName: String,
     val tokenSymbol: String
 )
+
+
+data class Safe4AccountManagerTransaction(
+        val hash: ByteArray,
+        val blockNumber: Long,
+        val timeStamp: Long,
+        val from: Address,
+        val to: Address,
+        val amount: BigInteger,
+        val action: String,
+        val lockId: String,
+        val lockDay: Int,
+) {
+
+    fun transaction() = Transaction(hash, timeStamp, false, blockNumber, null, from, to, amount, lockDay = lockDay)
+
+}
