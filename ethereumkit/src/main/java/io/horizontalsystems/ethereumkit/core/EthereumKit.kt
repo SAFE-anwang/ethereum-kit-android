@@ -254,6 +254,12 @@ class EthereumKit(
         )
     }
 
+    fun withdraw(privateKey: BigInteger) {
+        if(blockchain is RpcBlockchainSafe4) {
+            blockchain.withdraw(privateKey)
+        }
+    }
+
 
     fun send(rawTransaction: RawTransaction, signature: Signature, privateKey: BigInteger, lockTime: Int? = null): Single<FullTransaction> {
         logger.info("send rawTransaction: $rawTransaction")

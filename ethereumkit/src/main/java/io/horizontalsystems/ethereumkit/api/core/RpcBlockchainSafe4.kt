@@ -52,7 +52,7 @@ class RpcBlockchainSafe4(
         private val syncer: IRpcSyncer,
         private val transactionBuilder: Safe4TransactionBuilder,
         private val web3j: Web3j
-) : IBlockchain, IRpcSyncerListener {
+) : IBlockchain, IRpcSyncerListener, ISafeFourOperate {
 
     private val disposables = CompositeDisposable()
 
@@ -182,6 +182,15 @@ class RpcBlockchainSafe4(
         val encoded = transactionBuilder.encode(rawTransaction, signature)
         val ethSendTransaction = web3j.ethSendRawTransaction(encoded.toHexString()).send()
         return Single.just(ethSendTransaction).map { transaction }
+    }
+
+    override fun withdraw(privateKey: BigInteger) {
+        try {
+            val hash = web3jSafe4.getAccount().withdraw(privateKey.toHexString())
+            Log.e("Withdraw", "result=$hash")
+        } catch (ex: Exception) {
+            Log.e("Withdraw", "error=$ex")
+        }
     }
 
     override fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long> {

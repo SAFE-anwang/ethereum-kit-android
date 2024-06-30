@@ -4,6 +4,7 @@ import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
 import io.horizontalsystems.ethereumkit.api.jsonrpc.JsonRpc
 import io.reactivex.Single
+import java.math.BigInteger
 
 class RpcHandler(val onSuccess: (RpcResponse) -> Unit, val onError: (Throwable) -> Unit)
 typealias SubscriptionHandler = (RpcSubscriptionResponse) -> Unit
@@ -64,6 +65,10 @@ interface IRpcSyncer {
 interface IRpcSyncerListener {
     fun didUpdateSyncerState(state: SyncerState)
     fun didUpdateLastBlockHeight(lastBlockHeight: Long)
+}
+
+interface ISafeFourOperate {
+    fun withdraw(privateKey: BigInteger)
 }
 
 sealed class SyncerState {
