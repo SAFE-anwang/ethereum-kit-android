@@ -3,6 +3,15 @@ package io.horizontalsystems.ethereumkit.api.core
 import android.util.Log
 import com.anwang.Safe4
 import com.anwang.types.accountmanager.AccountAmountInfo
+import com.anwang.types.accountmanager.AccountRecord
+import com.anwang.types.accountmanager.RecordUseInfo
+import com.anwang.types.masternode.MasterNodeInfo
+import com.anwang.types.proposal.ProposalInfo
+import com.anwang.types.proposal.ProposalVoteInfo
+import com.anwang.types.safe3.AvailableSafe3Info
+import com.anwang.types.safe3.LockedSafe3Info
+import com.anwang.types.snvote.SNVoteRetInfo
+import com.anwang.types.supernode.SuperNodeInfo
 import com.anwang.utils.Safe4Contract
 import io.horizontalsystems.ethereumkit.api.jsonrpc.CallJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.DataJsonRpc
@@ -31,6 +40,7 @@ import io.horizontalsystems.ethereumkit.models.Signature
 import io.horizontalsystems.ethereumkit.models.Transaction
 import io.horizontalsystems.ethereumkit.models.TransactionLog
 import io.horizontalsystems.ethereumkit.spv.core.toBigInteger
+import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
@@ -173,7 +183,7 @@ class RpcBlockchainSafe4(
     override fun send(rawTransaction: RawTransaction, signature: Signature, privateKey: BigInteger, lockTime: Int?): Single<Transaction> {
         // 锁仓
         if (lockTime != null) {
-            val hash = web3jSafe4.getAccount().deposit(privateKey.toHexString(),
+            val hash = web3jSafe4.account.deposit(privateKey.toHexString(),
                     rawTransaction.value,
                     org.web3j.abi.datatypes.Address(rawTransaction.to.hex), lockTime.toBigInteger())
             return Single.just(transactionBuilder.transactionDeposit(rawTransaction, signature, lockTime.toBigInteger(), hash))
@@ -186,11 +196,314 @@ class RpcBlockchainSafe4(
 
     override fun withdraw(privateKey: BigInteger) {
         try {
-            val hash = web3jSafe4.getAccount().withdraw(privateKey.toHexString())
+            val hash = web3jSafe4.account.withdraw(privateKey.toHexString())
             Log.e("Withdraw", "result=$hash")
         } catch (ex: Exception) {
             Log.e("Withdraw", "error=$ex")
         }
+    }
+
+    override fun superNodeRegister(
+            privateKey: String,
+            value: BigInteger,
+            isUnion: Boolean,
+            addr: String,
+            lockDay: BigInteger,
+            name: String,
+            enode: String,
+            description: String,
+            creatorIncentive: BigInteger,
+            partnerIncentive: BigInteger,
+            voterIncentive: BigInteger
+    ): Single<String> {
+        val hash = web3jSafe4.supernode.register(privateKey, value, isUnion,
+                org.web3j.abi.datatypes.Address(addr), lockDay,
+                name, enode, description, creatorIncentive, partnerIncentive, voterIncentive)
+        return Single.just(hash)
+    }
+
+    override fun masterNodeRegister(
+            privateKey: String,
+            value: BigInteger,
+            isUnion: Boolean,
+            addr: String,
+            lockDay: BigInteger,
+            enode: String,
+            description: String,
+            creatorIncentive: BigInteger,
+            partnerIncentive: BigInteger
+    ): Single<String> {
+        val hash = web3jSafe4.masternode.register(privateKey, value, isUnion,
+                org.web3j.abi.datatypes.Address(addr), lockDay,
+                enode, description, creatorIncentive, partnerIncentive)
+        return Single.just(hash)
+    }
+
+    override fun superAppendRegister(privateKey: String, value: BigInteger, addr: String, lockDay: BigInteger): Single<String> {
+        val hash = web3jSafe4.supernode.appendRegister(privateKey, value,
+                org.web3j.abi.datatypes.Address(addr), lockDay)
+        return Single.just(hash)
+    }
+
+    override fun masterAppendRegister(privateKey: String, value: BigInteger, addr: String, lockDay: BigInteger): Single<String> {
+        val hash = web3jSafe4.masternode.appendRegister(privateKey, value,
+                org.web3j.abi.datatypes.Address(addr), lockDay)
+        return Single.just(hash)
+    }
+
+    override fun voteOrApprovalWithAmount(privateKey: String, value: BigInteger, isVote: Boolean, dstAddr: String): Single<String> {
+        val hash = web3jSafe4.snvote.voteOrApprovalWithAmount(privateKey, value, isVote,
+                org.web3j.abi.datatypes.Address(dstAddr))
+        return Single.just(hash)
+    }
+
+    override fun voteOrApproval(privateKey: String, isVote: Boolean, dstAddr: String, recordIDs: List<BigInteger>): Single<String> {
+        val hash = web3jSafe4.snvote.voteOrApproval(privateKey, isVote,
+                org.web3j.abi.datatypes.Address(dstAddr),
+                recordIDs)
+        return Single.just(hash)
+    }
+
+    override fun superNodeGetAll(start: Int, count: Int): Single<List<String>> {
+        return Single.just(web3jSafe4.supernode.getAll(start.toBigInteger(), count.toBigInteger()).map { it.value })
+    }
+
+    override fun superNodeInfo(address: String): SuperNodeInfo {
+        return web3jSafe4.supernode.getInfo(org.web3j.abi.datatypes.Address(address))
+    }
+
+    override fun superNodeInfoById(id: Int): Single<SuperNodeInfo> {
+        return Single.just(web3jSafe4.supernode.getInfoByID(id.toBigInteger()))
+    }
+
+    override fun masterNodeGetAll(start: Int, count: Int): Single<List<String>> {
+        return Single.just(web3jSafe4.masternode.getAll(start.toBigInteger(), count.toBigInteger()).map { it.value })
+    }
+
+    override fun masterNodeInfo(address: String): MasterNodeInfo {
+        return web3jSafe4.masternode.getInfo(org.web3j.abi.datatypes.Address(address))
+    }
+
+    override fun masterNodeInfoById(id: Int): Single<MasterNodeInfo> {
+        return Single.just(web3jSafe4.masternode.getInfoByID(id.toBigInteger()))
+    }
+
+    override fun getTotalVoteNum(address: String): BigInteger {
+        return web3jSafe4.snvote.getTotalVoteNum(org.web3j.abi.datatypes.Address(address))
+    }
+
+    override fun getTotalAmount(address: String): BigInteger {
+        return web3jSafe4.snvote.getTotalAmount(org.web3j.abi.datatypes.Address(address))
+    }
+
+    override fun getAllVoteNum(): BigInteger {
+        return web3jSafe4.snvote.allVoteNum
+    }
+
+    override fun getLockIds(addr: String, start: Int, count: Int): Single<List<BigInteger>> {
+        return Single.just(web3jSafe4.account.getTotalIDs(org.web3j.abi.datatypes.Address(addr), start.toBigInteger(), count.toBigInteger()))
+    }
+
+    override fun getVotedIDs4Voter(addr: String, start: Int, count: Int): Single<List<BigInteger>> {
+        return Single.just(web3jSafe4.snvote.getVotedIDs4Voter(org.web3j.abi.datatypes.Address(addr), start.toBigInteger(), count.toBigInteger()))
+    }
+
+    override fun getProposalVoteList(id: Int, start: Int, count: Int): Single<List<ProposalVoteInfo>> {
+        return Single.just(web3jSafe4.proposal.getVoteInfo(
+                id.toBigInteger(),
+                start.toBigInteger(),
+                count.toBigInteger()
+        ))
+    }
+
+    override fun getProposalInfo(id: Int): ProposalInfo {
+        return web3jSafe4.proposal.getInfo(id.toBigInteger())
+    }
+
+    override fun getRecordByID(id: Int): AccountRecord {
+        return web3jSafe4.account.getRecordByID(id.toBigInteger())
+    }
+
+    override fun getVoters(address: String, start: Int, count: Int): Single<SNVoteRetInfo> {
+        return Single.just(web3jSafe4.snvote.getVoters(
+                org.web3j.abi.datatypes.Address(address),
+                start.toBigInteger(),
+                count.toBigInteger()
+        ))
+    }
+
+    override fun proposalCreate(privateKey: String, title: String, payAmount: BigInteger, payTimes: BigInteger, startPayTime: BigInteger, endPayTime: BigInteger, description: String): Single<String> {
+        return Single.just(
+                web3jSafe4.proposal.create(
+                        privateKey, title, payAmount, payTimes, startPayTime, endPayTime, description
+                )
+        )
+    }
+
+    override fun getAllProposal(start: Int, count: Int): Single<List<BigInteger>> {
+        return Single.just(
+                web3jSafe4.proposal.getAll(start.toBigInteger(), count.toBigInteger())
+        )
+    }
+
+    override fun getMineProposal(privateKey: String, start: Int, count: Int): Single<List<BigInteger>> {
+        return Single.just(
+                web3jSafe4.proposal.getMines(privateKey, start.toBigInteger(), count.toBigInteger())
+        )
+    }
+
+    override fun getVoteInfo(id: Int, start: Int, count: Int): Single<List<ProposalVoteInfo>> {
+        return Single.just(
+                web3jSafe4.proposal.getVoteInfo(id.toBigInteger(), start.toBigInteger(), count.toBigInteger())
+        )
+    }
+
+    override fun getVoterNum(id: Int): Single<BigInteger> {
+        return Single.just(
+                web3jSafe4.proposal.getVoterNum(id.toBigInteger())
+        )
+    }
+
+    override fun getProposalNum(): Single<BigInteger> {
+        return Single.just(
+                web3jSafe4.proposal.getNum()
+        )
+    }
+
+    override fun getMineNum(privateKey: String): Single<BigInteger> {
+        return Single.just(
+                web3jSafe4.proposal.getMineNum(privateKey)
+        )
+    }
+
+    override fun getTops(): Single<List<org.web3j.abi.datatypes.Address>> {
+        return Single.just(
+                web3jSafe4.supernode.tops
+        )
+    }
+
+    override fun proposalVote(privateKey: String, id: Int, voteResult: Int): Single<String> {
+        return Single.just(
+                web3jSafe4.proposal.vote(privateKey, id.toBigInteger(), voteResult.toBigInteger())
+        )
+    }
+
+    override fun getProposalBalance(): Single<BigInteger> {
+        return Single.just(
+                web3jSafe4.proposal.balance
+        )
+    }
+
+    override fun getAddrs4Creator(isSuperNode: Boolean, address: String, start: Int, count: Int): Single<List<org.web3j.abi.datatypes.Address>> {
+        return if (isSuperNode) {
+                Single.just(
+                        web3jSafe4.supernode.getAddrs4Creator(
+                            org.web3j.abi.datatypes.Address(address),
+                            start.toBigInteger(), count.toBigInteger())
+                )
+            } else {
+                Single.just(
+                        web3jSafe4.masternode.getAddrs4Creator(
+                            org.web3j.abi.datatypes.Address(address),
+                            start.toBigInteger(), count.toBigInteger())
+                )
+            }
+
+    }
+
+    override fun getAddrNum4Creator(isSuperNode: Boolean, address: String): Single<BigInteger> {
+        return if (isSuperNode) {
+                Single.just(
+                        web3jSafe4.supernode.getAddrNum4Creator(
+                            org.web3j.abi.datatypes.Address(address))
+                )
+            } else {
+                Single.just(
+                        web3jSafe4.masternode.getAddrNum4Creator(
+                            org.web3j.abi.datatypes.Address(address))
+                )
+            }
+
+    }
+
+    override fun getVotedIDNum4Voter(address: String): Single<BigInteger> {
+        return Single.just((web3jSafe4.snvote.getVotedIDNum4Voter(org.web3j.abi.datatypes.Address(address))))
+    }
+
+    override fun getRecordUseInfo(recordId: Int): RecordUseInfo {
+        return web3jSafe4.account.getRecordUseInfo(recordId.toBigInteger())
+    }
+
+    override fun superAddressExist(address: String): Boolean {
+        return web3jSafe4.supernode.exist(org.web3j.abi.datatypes.Address(address))
+    }
+
+    override fun getNodeNum(isSuperNode: Boolean): BigInteger {
+        return if (isSuperNode) {
+            web3jSafe4.supernode.num
+        } else {
+            web3jSafe4.masternode.num
+        }
+    }
+
+    override fun changeName(privateKey: String, addr: String, name: String): String {
+        return web3jSafe4.supernode.changeName(privateKey, org.web3j.abi.datatypes.Address(addr), name)
+    }
+
+    override fun changeAddress(isSuperNode: Boolean, privateKey: String, addr: String, newAddr: String): String {
+        return if (isSuperNode) {
+            web3jSafe4.supernode.changeAddress(privateKey, org.web3j.abi.datatypes.Address(addr), org.web3j.abi.datatypes.Address(newAddr))
+        } else {
+            web3jSafe4.masternode.changeAddress(privateKey, org.web3j.abi.datatypes.Address(addr), org.web3j.abi.datatypes.Address(newAddr))
+        }
+    }
+
+    override fun changeEnode(isSuperNode: Boolean, privateKey: String, addr: String, enode: String): String {
+        return if (isSuperNode) {
+            web3jSafe4.supernode.changeEnode(privateKey, org.web3j.abi.datatypes.Address(addr), enode)
+        } else {
+            web3jSafe4.masternode.changeEnode(privateKey, org.web3j.abi.datatypes.Address(addr), enode)
+        }
+    }
+
+    override fun changeDescription(isSuperNode: Boolean, privateKey: String, addr: String, desc: String): String {
+        return if (isSuperNode) {
+            web3jSafe4.supernode.changeDescription(privateKey, org.web3j.abi.datatypes.Address(addr), desc)
+        } else {
+            web3jSafe4.masternode.changeDescription(privateKey, org.web3j.abi.datatypes.Address(addr), desc)
+        }
+    }
+
+    override fun safe3GetAvailableInfo(safe3Addr: String): Single<AvailableSafe3Info> {
+        return Single.just(web3jSafe4.safe3.getAvailableInfo(safe3Addr))
+    }
+
+    override fun safe3GetLockedNum(safe3Addr: String): Single<BigInteger> {
+        return Single.just(web3jSafe4.safe3.getLockedNum(safe3Addr))
+    }
+
+    override fun safe3GetLockedInfo(safe3Addr: String, start: Int, count: Int): Single<List<LockedSafe3Info>> {
+        return Single.just(web3jSafe4.safe3.getLockedInfo(safe3Addr, start.toBigInteger(), count.toBigInteger()))
+    }
+
+    override fun existAvailableNeedToRedeem(safe3Addr: String): Boolean {
+        return web3jSafe4.safe3.existAvailableNeedToRedeem(safe3Addr)
+    }
+
+    override fun existLockedNeedToRedeem(safe3Addr: String): Boolean {
+        return web3jSafe4.safe3.existLockedNeedToRedeem(safe3Addr)
+    }
+
+    override fun existMasterNodeNeedToRedeem(safe3Addr: String): Boolean {
+        return web3jSafe4.safe3.existMasterNodeNeedToRedeem(safe3Addr)
+    }
+
+    override fun redeemSafe3(privateKey: String): Single<Map<String, List<String>>> {
+        return Single.just(web3jSafe4.safe3.redeemSafe3(privateKey))
+    }
+
+    override fun redeemMasterNode(privateKey: String, enode: String?): Single<List<String>> {
+        return Single.just(web3jSafe4.safe3.redeemMasterNode(privateKey, enode))
     }
 
     override fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long> {

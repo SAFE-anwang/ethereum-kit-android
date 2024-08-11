@@ -2,6 +2,7 @@ package io.horizontalsystems.ethereumkit.core
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import com.anwang.utils.Safe4Contract
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
@@ -73,7 +74,7 @@ import java.util.Random
 import java.util.logging.Logger
 
 class EthereumKit(
-    private val blockchain: IBlockchain,
+    val blockchain: IBlockchain,
     private val transactionManager: TransactionManager,
     private val transactionSyncManager: TransactionSyncManager,
     private val connectionManager: ConnectionManager,
@@ -365,6 +366,75 @@ class EthereumKit(
         }
     }
 
+
+    fun superNodeRegister(
+            privateKey: BigInteger,
+            value: BigInteger,
+            isUnion: Boolean,
+            addr: String,
+            lockDay: BigInteger,
+            name: String,
+            enode: String,
+            description: String,
+            creatorIncentive: BigInteger,
+            partnerIncentive: BigInteger,
+            voterIncentive: BigInteger
+    ): Single<String> {
+        return  if (blockchain is RpcBlockchainSafe4) {
+            blockchain.superNodeRegister(privateKey.toHexString(), value, isUnion,
+                    addr, lockDay,
+                    name, enode, description, creatorIncentive, partnerIncentive, voterIncentive)
+        } else {
+            Single.just("")
+        }
+    }
+
+    fun masterNodeRegister(
+            privateKey: BigInteger,
+            value: BigInteger,
+            isUnion: Boolean,
+            addr: String,
+            lockDay: BigInteger,
+            enode: String,
+            description: String,
+            creatorIncentive: BigInteger,
+            partnerIncentive: BigInteger
+    ): Single<String> {
+        return  if (blockchain is RpcBlockchainSafe4) {
+            blockchain.masterNodeRegister(privateKey.toHexString(), value, isUnion,
+                    addr, lockDay,
+                    enode, description, creatorIncentive, partnerIncentive)
+        } else {
+            Single.just("")
+        }
+    }
+
+    fun voteOrApprovalWithAmount(
+            privateKey: BigInteger,
+            value: BigInteger,
+            isVote: Boolean,
+            dstAddr: String
+    ): Single<String> {
+        return  if (blockchain is RpcBlockchainSafe4) {
+            blockchain.voteOrApprovalWithAmount(privateKey.toHexString(), value, isVote, dstAddr)
+        } else {
+            Single.just("")
+        }
+    }
+
+    fun voteOrApproval(
+            privateKey: BigInteger,
+            isVote: Boolean,
+            dstAddr: String,
+            recordIDs: List<BigInteger>
+    ): Single<String> {
+        return  if (blockchain is RpcBlockchainSafe4) {
+            blockchain.voteOrApproval(privateKey.toHexString(), isVote, dstAddr, recordIDs)
+        } else {
+            Single.just("")
+        }
+    }
+
     sealed class SyncState {
         class Synced : SyncState()
         class NotSynced(val error: Throwable) : SyncState()
@@ -580,7 +650,7 @@ class EthereumKit(
             }
         }
 
-        private fun ethereumAddress(privateKey: BigInteger): Address {
+        fun ethereumAddress(privateKey: BigInteger): Address {
             val publicKey = CryptoUtils.ecKeyFromPrivate(privateKey).publicKeyPoint.getEncoded(false).drop(1).toByteArray()
             return Address(CryptoUtils.sha3(publicKey).takeLast(20).toByteArray())
         }

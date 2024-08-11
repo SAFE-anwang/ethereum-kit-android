@@ -241,7 +241,6 @@ class EtherscanTransactionProvider(
 
                             Safe4AccountManagerTransaction(hash, blockNumber, timestamp, from, to, value, action, lockId, lockDay)
                         } catch (throwable: Throwable) {
-                            Log.e("longwen", "error=$throwable")
                             null
                         }
                     }

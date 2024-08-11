@@ -35,4 +35,8 @@ class Transaction(
         hash.toHexString()
     }
 
+    fun isWithdraw(): Boolean {
+        if (input == null)  return false
+        return "0x3ccfd60b".equals(input.toHexString(), true)
+    }
 }

@@ -1,10 +1,22 @@
 package io.horizontalsystems.ethereumkit.api.core
 
+import com.anwang.types.masternode.MasterNodeInfo
+import com.anwang.types.proposal.ProposalInfo
+import com.anwang.types.proposal.ProposalVoteInfo
+import com.anwang.types.snvote.SNVoteRetInfo
+import com.anwang.types.supernode.SuperNodeInfo
 import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
 import io.horizontalsystems.ethereumkit.api.jsonrpc.JsonRpc
 import io.reactivex.Single
+import org.web3j.abi.datatypes.Address
+import org.web3j.abi.datatypes.Bool
+import org.web3j.abi.datatypes.Function
+import org.web3j.abi.datatypes.Type
+import org.web3j.abi.datatypes.Utf8String
+import org.web3j.abi.datatypes.generated.Uint256
 import java.math.BigInteger
+import java.util.Arrays
 
 class RpcHandler(val onSuccess: (RpcResponse) -> Unit, val onError: (Throwable) -> Unit)
 typealias SubscriptionHandler = (RpcSubscriptionResponse) -> Unit
@@ -65,10 +77,6 @@ interface IRpcSyncer {
 interface IRpcSyncerListener {
     fun didUpdateSyncerState(state: SyncerState)
     fun didUpdateLastBlockHeight(lastBlockHeight: Long)
-}
-
-interface ISafeFourOperate {
-    fun withdraw(privateKey: BigInteger)
 }
 
 sealed class SyncerState {
