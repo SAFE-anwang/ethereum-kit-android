@@ -93,11 +93,12 @@ class RpcBlockchainSafe4(
 
     override fun syncAccountState() {
         // lock amount
-        val outputParameters = mutableListOf<TypeReference<*>>()
-        val typeReference: TypeReference<AccountAmountInfo> = object : TypeReference<AccountAmountInfo>() {}
-        outputParameters.add(typeReference)
-        val function = Function("getTotalAmount", listOf(org.web3j.abi.datatypes.Address(address.hex)), outputParameters)
-        val safe4Account = Single.just(query(function))
+//        val outputParameters = mutableListOf<TypeReference<*>>()
+//        val typeReference: TypeReference<AccountAmountInfo> = object : TypeReference<AccountAmountInfo>() {}
+//        outputParameters.add(typeReference)
+//        val function = Function("getTotalAmount", listOf(org.web3j.abi.datatypes.Address(address.hex)), outputParameters)
+//        val safe4Account = Single.just(query(function))
+        val safe4Account = Single.just(web3jSafe4.account.getTotalAmount(org.web3j.abi.datatypes.Address(address.hex)))
 
         val singleBalance = Single.just(web3j.ethGetBalance(address.hex, DefaultBlockParameterName.LATEST))
         val singleTransactionCount = Single.just(web3j.ethGetTransactionCount(address.hex, DefaultBlockParameterName.LATEST))
@@ -106,9 +107,10 @@ class RpcBlockchainSafe4(
                 singleTransactionCount,
                 safe4Account
         ) { t1, t2, t3 ->
-            val value = t3.send().value
-            val input = value.substring(IntRange(0, 65))
-            val lockAmount = Numeric.hexStringToByteArray(input).toBigInteger()
+//            val value = t3.send().value
+//            val input = value.substring(IntRange(0, 65))
+//            val lockAmount = Numeric.hexStringToByteArray(input).toBigInteger()
+            val lockAmount = t3.amount
             val balance = t1.send().balance
             val transactionCount = t2.send().transactionCount
             BalanceInfo(balance, transactionCount, lockAmount)

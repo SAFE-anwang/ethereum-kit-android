@@ -37,6 +37,6 @@ class Transaction(
 
     fun isWithdraw(): Boolean {
         if (input == null)  return false
-        return "0x3ccfd60b".equals(input.toHexString(), true)
+        return input.toHexString().startsWith("0xcd9d6fca", true)
     }
 }
