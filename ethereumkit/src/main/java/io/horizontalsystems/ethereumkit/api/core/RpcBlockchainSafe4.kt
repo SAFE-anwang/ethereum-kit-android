@@ -360,9 +360,15 @@ class RpcBlockchainSafe4(
         )
     }
 
-    override fun getVoterNum(id: Int): Single<BigInteger> {
+    override fun getProposalVoterNum(id: Int): Single<BigInteger> {
         return Single.just(
                 web3jSafe4.proposal.getVoterNum(id.toBigInteger())
+        )
+    }
+
+    override fun getVoterNum(address: String): Single<BigInteger> {
+        return Single.just(
+                web3jSafe4.snvote.getVoterNum(org.web3j.abi.datatypes.Address(address))
         )
     }
 

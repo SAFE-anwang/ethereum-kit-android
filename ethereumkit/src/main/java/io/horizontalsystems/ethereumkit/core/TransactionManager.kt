@@ -13,6 +13,7 @@ import io.reactivex.Flowable
 import io.reactivex.Single
 import io.reactivex.subjects.PublishSubject
 import java.math.BigInteger
+import kotlin.math.max
 
 class TransactionManager(
     private val address: Address,
@@ -92,7 +93,9 @@ class TransactionManager(
                     gasLimit = newTx.gasLimit ?: existingTx.gasLimit,
                     gasUsed = newTx.gasUsed ?: existingTx.gasUsed,
 
-                    replacedWith = newTx.replacedWith ?: existingTx.replacedWith
+                    replacedWith = newTx.replacedWith ?: existingTx.replacedWith,
+                        lockDay = newTx.lockDay ?: existingTx.lockDay,
+                        eventLogIndex = max(existingTx.eventLogIndex, newTx.eventLogIndex)
                 )
             } else {
                 newTx

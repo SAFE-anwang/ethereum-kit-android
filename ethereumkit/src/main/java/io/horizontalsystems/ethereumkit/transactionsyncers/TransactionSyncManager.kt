@@ -13,6 +13,7 @@ import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.logging.Logger
+import kotlin.math.max
 
 class TransactionSyncManager(
         private val transactionManager: TransactionManager
@@ -76,7 +77,10 @@ class TransactionSyncManager(
                     tx1.maxFeePerGas ?: tx2.maxFeePerGas,
                     tx1.maxPriorityFeePerGas ?: tx2.maxPriorityFeePerGas,
                     tx1.gasLimit ?: tx2.gasLimit,
-                    tx1.gasUsed ?: tx2.gasUsed
+                    tx1.gasUsed ?: tx2.gasUsed,
+                    replacedWith = tx1.replacedWith ?: tx2.replacedWith,
+                    lockDay = tx1.lockDay ?: tx2.lockDay,
+                    eventLogIndex = max(tx1.eventLogIndex, tx2.eventLogIndex)
             )
 
     private fun handle(result: Pair<List<Transaction>, Boolean>) {

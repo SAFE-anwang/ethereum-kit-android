@@ -107,7 +107,8 @@ interface ISafeFourOperate {
 	fun getMineProposal(privateKey: String, start: Int, count: Int): Single<List<BigInteger>>
 	fun getVoteInfo(id: Int, start: Int, count: Int): Single<List<ProposalVoteInfo>>
 
-	fun getVoterNum(id: Int): Single<BigInteger>
+	fun getVoterNum(address: String): Single<BigInteger>
+	fun getProposalVoterNum(id: Int): Single<BigInteger>
 	fun getProposalNum(): Single<BigInteger>
 	fun getMineNum(privateKey: String): Single<BigInteger>
 

@@ -238,8 +238,9 @@ class EtherscanTransactionProvider(
                             val action = internalTx.getValue("action")
                             val lockId = internalTx.getValue("lockId")
                             val lockDay = internalTx.getValue("lockDay").toInt()
+                            val eventLogIndex = internalTx.getValue("eventLogIndex").toInt()
 
-                            Safe4AccountManagerTransaction(hash, blockNumber, timestamp, from, to, value, action, lockId, lockDay)
+                            Safe4AccountManagerTransaction(hash, blockNumber, timestamp, from, to, value, action, lockId, lockDay, eventLogIndex)
                         } catch (throwable: Throwable) {
                             null
                         }
