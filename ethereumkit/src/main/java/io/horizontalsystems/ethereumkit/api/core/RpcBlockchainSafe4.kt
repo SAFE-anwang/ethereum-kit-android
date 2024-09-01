@@ -79,11 +79,20 @@ class RpcBlockchainSafe4(
     }
 
     private fun syncLastBlockHeight() {
-        Single.fromFuture(web3j.ethBlockNumber().sendAsync())
-                .subscribeOn(Schedulers.io())
+        Single.create { emitter ->
+            var error: Throwable
+            try {
+                val blockNumber = web3j.ethBlockNumber().send().blockNumber
+                emitter.onSuccess(blockNumber)
+                return@create
+            } catch (throwable: Throwable) {
+                error = throwable
+            }
+            emitter.onError(error)
+        }.subscribeOn(Schedulers.io())
                 .observeOn(Schedulers.io())
                 .subscribe({ lastBlockNumber ->
-                    onUpdateLastBlockHeight(lastBlockNumber.blockNumber.toLong())
+                    onUpdateLastBlockHeight(lastBlockNumber.toLong())
                 }, {
                     syncState = SyncState.NotSynced(it)
                 }).let {
@@ -92,39 +101,28 @@ class RpcBlockchainSafe4(
     }
 
     override fun syncAccountState() {
-        // lock amount
-//        val outputParameters = mutableListOf<TypeReference<*>>()
-//        val typeReference: TypeReference<AccountAmountInfo> = object : TypeReference<AccountAmountInfo>() {}
-//        outputParameters.add(typeReference)
-//        val function = Function("getTotalAmount", listOf(org.web3j.abi.datatypes.Address(address.hex)), outputParameters)
-//        val safe4Account = Single.just(query(function))
-        val safe4Account = Single.just(web3jSafe4.account.getTotalAmount(org.web3j.abi.datatypes.Address(address.hex)))
-
-        val singleBalance = Single.just(web3j.ethGetBalance(address.hex, DefaultBlockParameterName.LATEST))
-        val singleTransactionCount = Single.just(web3j.ethGetTransactionCount(address.hex, DefaultBlockParameterName.LATEST))
-        Single.zip(
-                singleBalance,
-                singleTransactionCount,
-                safe4Account
-        ) { t1, t2, t3 ->
-//            val value = t3.send().value
-//            val input = value.substring(IntRange(0, 65))
-//            val lockAmount = Numeric.hexStringToByteArray(input).toBigInteger()
-            val lockAmount = t3.amount
-            val balance = t1.send().balance
-            val transactionCount = t2.send().transactionCount
-            BalanceInfo(balance, transactionCount, lockAmount)
-        }
-            .subscribeOn(Schedulers.io())
-            .subscribe({ (balance, transactionCount, lockBalance) ->
-                onUpdateAccountState(AccountState(balance, transactionCount.toLong(), timeLockBalance =  lockBalance))
-                syncState = SyncState.Synced()
-            }, {
-                it?.printStackTrace()
-                syncState = SyncState.NotSynced(it)
-            }).let {
-                disposables.add(it)
+        Single.create { emitter ->
+            var error: Throwable
+            try {
+                val safe4Account = web3jSafe4.account.getTotalAmount(org.web3j.abi.datatypes.Address(address.hex)).amount
+                val balance = web3j.ethGetBalance(address.hex, DefaultBlockParameterName.LATEST).send().balance
+                val transactionCount = web3j.ethGetTransactionCount(address.hex, DefaultBlockParameterName.LATEST).send().transactionCount
+                emitter.onSuccess(BalanceInfo(balance, transactionCount, safe4Account))
+                return@create
+            } catch (throwable: Throwable) {
+                error = throwable
             }
+            emitter.onError(error)
+        }.subscribeOn(Schedulers.io())
+                .subscribe({ (balance, transactionCount, lockBalance) ->
+                    onUpdateAccountState(AccountState(balance, transactionCount.toLong(), timeLockBalance =  lockBalance))
+                    syncState = SyncState.Synced()
+                }, {
+                    Log.e("longwen", "error=$it")
+                    syncState = SyncState.NotSynced(it)
+                }).let {
+                    disposables.add(it)
+                }
     }
 
     private fun query(function: Function): Request<*, EthCall> {
@@ -267,7 +265,16 @@ class RpcBlockchainSafe4(
     }
 
     override fun superNodeGetAll(start: Int, count: Int): Single<List<String>> {
-        return Single.just(web3jSafe4.supernode.getAll(start.toBigInteger(), count.toBigInteger()).map { it.value })
+        return Single.create<List<String>?> { emitter ->
+            try {
+                val list = web3jSafe4.supernode.getAll(start.toBigInteger(), count.toBigInteger()).map { it.value }
+                emitter.onSuccess(list)
+                return@create
+            } catch (e: Throwable) {
+                emitter.onError(e)
+            }
+        }.onErrorReturnItem(listOf())
+//        return Single.just(web3jSafe4.supernode.getAll(start.toBigInteger(), count.toBigInteger()).map { it.value })
     }
 
     override fun superNodeInfo(address: String): SuperNodeInfo {

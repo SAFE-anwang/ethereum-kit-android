@@ -85,22 +85,20 @@ class ApiRpcSyncerSafe4(
     }
 
     private fun onFireTimer() {
-        /*rpcApiProvider.single(BlockNumberJsonRpc())
-                .subscribeOn(Schedulers.io())
+        Single.create { emitter ->
+            var error: Throwable = NodeApiProvider.ApiProviderError.ApiUrlNotFound
+            try {
+                val blockNumber = web3j.ethBlockNumber().send().blockNumber
+                emitter.onSuccess(blockNumber)
+                return@create
+            } catch (throwable: Throwable) {
+                error = throwable
+            }
+            emitter.onError(error)
+        }.subscribeOn(Schedulers.io())
                 .observeOn(Schedulers.io())
                 .subscribe({ lastBlockNumber ->
-                    listener?.didUpdateLastBlockHeight(lastBlockNumber)
-                }, {
-                    state = SyncerState.NotReady(it)
-                }).let {
-                    disposables.add(it)
-                }*/
-
-        Single.fromFuture(web3j.ethBlockNumber().sendAsync())
-                .subscribeOn(Schedulers.io())
-                .observeOn(Schedulers.io())
-                .subscribe({ lastBlockNumber ->
-                    listener?.didUpdateLastBlockHeight(lastBlockNumber.blockNumber.toLong())
+                    listener?.didUpdateLastBlockHeight(lastBlockNumber.toLong())
                 }, {
                     state = SyncerState.NotReady(it)
                 }).let {
