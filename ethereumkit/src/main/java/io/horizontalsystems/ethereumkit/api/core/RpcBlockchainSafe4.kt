@@ -118,7 +118,6 @@ class RpcBlockchainSafe4(
                     onUpdateAccountState(AccountState(balance, transactionCount.toLong(), timeLockBalance =  lockBalance))
                     syncState = SyncState.Synced()
                 }, {
-                    Log.e("longwen", "error=$it")
                     syncState = SyncState.NotSynced(it)
                 }).let {
                     disposables.add(it)
@@ -310,7 +309,7 @@ class RpcBlockchainSafe4(
     }
 
     override fun getLockIds(addr: String, start: Int, count: Int): Single<List<BigInteger>> {
-        return Single.just(web3jSafe4.account.getTotalIDs(org.web3j.abi.datatypes.Address(addr), start.toBigInteger(), count.toBigInteger()))
+        return Single.just(web3jSafe4.account.getLockedIDs(org.web3j.abi.datatypes.Address(addr), start.toBigInteger(), count.toBigInteger()))
     }
 
     override fun getVotedIDs4Voter(addr: String, start: Int, count: Int): Single<List<BigInteger>> {
