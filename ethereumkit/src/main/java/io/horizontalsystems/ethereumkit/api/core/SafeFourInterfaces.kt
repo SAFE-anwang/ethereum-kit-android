@@ -131,6 +131,8 @@ interface ISafeFourOperate {
 	fun changeName(privateKey: String, addr: String, name: String): String
 	fun changeAddress(isSuperNode: Boolean, privateKey: String, addr: String, newAddr: String): String
 	fun changeEnode(isSuperNode: Boolean, privateKey: String, addr: String, enode: String): String
+
+	fun existEnode(isSuperNode: Boolean, enode: String): Boolean
 	fun changeDescription(isSuperNode: Boolean, privateKey: String, addr: String, desc: String): String
 
 	fun safe3GetAvailableInfo(safe3Addr: String): Single<AvailableSafe3Info>
@@ -143,7 +145,7 @@ interface ISafeFourOperate {
 
 	fun existMasterNodeNeedToRedeem(safe3Addr: String): Boolean
 
-	fun redeemSafe3(privateKey: String): Single<Map<String, List<String>>>
+	fun redeemSafe3(callerAddress: String, privateKey: List<String>): Single<List<String>>
 
-	fun redeemMasterNode(privateKey: String, enode: String?): Single<List<String>>
+	fun redeemMasterNode(callerAddress: String, privateKey: List<String>): Single<String>
 }

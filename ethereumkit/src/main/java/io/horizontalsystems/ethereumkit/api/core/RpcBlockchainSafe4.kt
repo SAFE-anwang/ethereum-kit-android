@@ -309,7 +309,12 @@ class RpcBlockchainSafe4(
     }
 
     override fun getLockIds(addr: String, start: Int, count: Int): Single<List<BigInteger>> {
-        return Single.just(web3jSafe4.account.getLockedIDs(org.web3j.abi.datatypes.Address(addr), start.toBigInteger(), count.toBigInteger()))
+        try {
+            return Single.just(web3jSafe4.account.getLockedIDs(org.web3j.abi.datatypes.Address(addr), start.toBigInteger(), count.toBigInteger()))
+        } catch (e: Exception) {
+
+        }
+        return Single.just(emptyList())
     }
 
     override fun getVotedIDs4Voter(addr: String, start: Int, count: Int): Single<List<BigInteger>> {
@@ -480,6 +485,14 @@ class RpcBlockchainSafe4(
         }
     }
 
+    override fun existEnode(isSuperNode: Boolean, enode: String): Boolean {
+        return if (isSuperNode) {
+            web3jSafe4.supernode.existEnode(enode)
+        } else {
+            web3jSafe4.masternode.existEnode(enode)
+        }
+    }
+
     override fun changeDescription(isSuperNode: Boolean, privateKey: String, addr: String, desc: String): String {
         return if (isSuperNode) {
             web3jSafe4.supernode.changeDescription(privateKey, org.web3j.abi.datatypes.Address(addr), desc)
@@ -512,12 +525,12 @@ class RpcBlockchainSafe4(
         return web3jSafe4.safe3.existMasterNodeNeedToRedeem(safe3Addr)
     }
 
-    override fun redeemSafe3(privateKey: String): Single<Map<String, List<String>>> {
-        return Single.just(web3jSafe4.safe3.redeemSafe3(privateKey))
+    override fun redeemSafe3(callerAddress: String, privateKey: List<String>): Single<List<String>> {
+        return Single.just(web3jSafe4.safe3.batchRedeemSafe3(callerAddress, privateKey))
     }
 
-    override fun redeemMasterNode(privateKey: String, enode: String?): Single<List<String>> {
-        return Single.just(web3jSafe4.safe3.redeemMasterNode(privateKey, enode))
+    override fun redeemMasterNode(callerAddress: String, privateKey: List<String>): Single<String> {
+        return Single.just(web3jSafe4.safe3.batchRedeemMasterNode(callerAddress, privateKey, privateKey.map { "" }))
     }
 
     override fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long> {
