@@ -4,6 +4,7 @@ import android.util.Log
 import io.horizontalsystems.ethereumkit.core.ITransactionProvider
 import io.horizontalsystems.ethereumkit.core.ITransactionSyncer
 import io.horizontalsystems.ethereumkit.core.storage.TransactionSyncerStateStorage
+import io.horizontalsystems.ethereumkit.core.toHexString
 import io.horizontalsystems.ethereumkit.models.ProviderTransaction
 import io.horizontalsystems.ethereumkit.models.Safe4AccountManagerTransaction
 import io.horizontalsystems.ethereumkit.models.Transaction
@@ -28,8 +29,9 @@ class Safe4TransactionSyncer(
                 .doOnSuccess { providerTransactions -> handle(providerTransactions) }
                 .map { providerTransactions ->
                     val array = providerTransactions.map { transaction ->
-                        transaction.transaction()
-                    }.filter { it.from!!.hex != address && it.to!!.hex == address }
+                        val transactionSize = providerTransactions.filter { it.hash.toHexString() == transaction.hash.toHexString() }
+                        transaction.transaction(transactionSize.size)
+                    }.filter { it.from!!.hex != address && it.to!!.hex == address }.distinctBy { it.hashString }
 
                     Log.e("EtherscanService", "TransactionSize=${array.size}")
                     Pair(array, initial)

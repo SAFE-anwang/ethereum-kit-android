@@ -29,6 +29,8 @@ interface ISafeFourOperate {
 			partnerIncentive: BigInteger,
 			voterIncentive: BigInteger
 	): Single<String>
+	
+	fun nodeExist(isSuper: Boolean, address: String): Single<Boolean>
 
 	fun masterNodeRegister(
 			privateKey: String,

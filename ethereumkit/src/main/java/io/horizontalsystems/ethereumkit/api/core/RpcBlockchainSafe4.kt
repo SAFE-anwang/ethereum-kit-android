@@ -221,6 +221,21 @@ class RpcBlockchainSafe4(
         return Single.just(hash)
     }
 
+    override fun nodeExist(isSuper: Boolean, address: String): Single<Boolean> {
+        return Single.create<Boolean> { emitter ->
+            try {
+                val result = if (isSuper)
+                        web3jSafe4.supernode.exist(org.web3j.abi.datatypes.Address(address))
+                    else
+                        web3jSafe4.masternode.exist(org.web3j.abi.datatypes.Address(address))
+                emitter.onSuccess(result)
+                return@create
+            } catch (e: Throwable) {
+                emitter.onError(e)
+            }
+        }.onErrorReturnItem(false)
+    }
+
     override fun masterNodeRegister(
             privateKey: String,
             value: BigInteger,

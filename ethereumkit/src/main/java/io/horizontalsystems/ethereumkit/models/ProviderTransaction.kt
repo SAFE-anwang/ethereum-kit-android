@@ -113,6 +113,6 @@ data class Safe4AccountManagerTransaction(
         val eventLogIndex: Int
 ) {
 
-    fun transaction() = Transaction(hash, timeStamp, false, blockNumber, null, from, to, amount, lockDay = lockDay, eventLogIndex = eventLogIndex)
+    fun transaction(size: Int) = Transaction(hash, timeStamp, false, blockNumber, null, from, to, amount.multiply(size.toBigInteger()), lockDay = lockDay, eventLogIndex = eventLogIndex)
 
 }
