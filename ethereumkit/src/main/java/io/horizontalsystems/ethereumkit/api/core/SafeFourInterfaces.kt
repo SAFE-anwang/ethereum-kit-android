@@ -147,7 +147,14 @@ interface ISafeFourOperate {
 
 	fun existMasterNodeNeedToRedeem(safe3Addr: String): Boolean
 
-	fun redeemSafe3(callerAddress: String, privateKey: List<String>): Single<List<String>>
+	fun redeemSafe3(callerAddress: String, privateKey: List<String>, targetAddress: String): Single<List<String>>
 
-	fun redeemMasterNode(callerAddress: String, privateKey: List<String>): Single<String>
+	fun redeemMasterNode(callerAddress: String, privateKey: List<String>, targetAddress: String): Single<String>
+
+	fun existFounder(superAddress: String, founder: String): Single<Boolean>
+	fun getTops4Creator(address: String): Single<List<String>>
+
+	fun existNodeAddress(address: String): Single<Boolean>
+	fun existNodeEnode(enode: String): Single<Boolean>
+	fun existNodeFounder(address: String): Single<Boolean>
 }

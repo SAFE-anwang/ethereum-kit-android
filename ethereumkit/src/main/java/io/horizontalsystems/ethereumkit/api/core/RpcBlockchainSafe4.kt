@@ -288,7 +288,6 @@ class RpcBlockchainSafe4(
                 emitter.onError(e)
             }
         }.onErrorReturnItem(listOf())
-//        return Single.just(web3jSafe4.supernode.getAll(start.toBigInteger(), count.toBigInteger()).map { it.value })
     }
 
     override fun superNodeInfo(address: String): SuperNodeInfo {
@@ -540,12 +539,72 @@ class RpcBlockchainSafe4(
         return web3jSafe4.safe3.existMasterNodeNeedToRedeem(safe3Addr)
     }
 
-    override fun redeemSafe3(callerAddress: String, privateKey: List<String>): Single<List<String>> {
-        return Single.just(web3jSafe4.safe3.batchRedeemSafe3(callerAddress, privateKey))
+    override fun redeemSafe3(callerAddress: String, privateKey: List<String>, targetAddress: String): Single<List<String>> {
+        return Single.just(web3jSafe4.safe3.batchRedeemSafe3(callerAddress, privateKey, org.web3j.abi.datatypes.Address(targetAddress)))
     }
 
-    override fun redeemMasterNode(callerAddress: String, privateKey: List<String>): Single<String> {
-        return Single.just(web3jSafe4.safe3.batchRedeemMasterNode(callerAddress, privateKey, privateKey.map { "" }))
+    override fun redeemMasterNode(callerAddress: String, privateKey: List<String>, targetAddress: String): Single<String> {
+        return Single.just(web3jSafe4.safe3.batchRedeemMasterNode(callerAddress, privateKey, privateKey.map { "" }, org.web3j.abi.datatypes.Address(targetAddress)))
+    }
+
+    override fun existFounder(superAddress: String, founder: String): Single<Boolean> {
+        return Single.create<Boolean> { emitter ->
+            try {
+                val list = web3jSafe4.supernode.existFounder(org.web3j.abi.datatypes.Address(superAddress), org.web3j.abi.datatypes.Address(founder))
+                emitter.onSuccess(list)
+                return@create
+            } catch (e: Throwable) {
+                emitter.onError(e)
+            }
+        }.onErrorReturnItem(false)
+    }
+
+    override fun getTops4Creator(address: String): Single<List<String>> {
+        return Single.create<List<String>?> { emitter ->
+            try {
+                val list = web3jSafe4.supernode.getTops4Creator(org.web3j.abi.datatypes.Address(address)).map { it.value }
+                emitter.onSuccess(list)
+                return@create
+            } catch (e: Throwable) {
+                emitter.onError(e)
+            }
+        }.onErrorReturnItem(listOf())
+    }
+
+    override fun existNodeAddress(address: String): Single<Boolean> {
+        return Single.create<Boolean> { emitter ->
+            try {
+                val list = web3jSafe4.supernode.existNodeAddress(org.web3j.abi.datatypes.Address(address))
+                emitter.onSuccess(list)
+                return@create
+            } catch (e: Throwable) {
+                emitter.onError(e)
+            }
+        }.onErrorReturnItem(false)
+    }
+
+    override fun existNodeEnode(enode: String): Single<Boolean> {
+        return Single.create<Boolean> { emitter ->
+            try {
+                val list = web3jSafe4.supernode.existNodeEnode(enode)
+                emitter.onSuccess(list)
+                return@create
+            } catch (e: Throwable) {
+                emitter.onError(e)
+            }
+        }.onErrorReturnItem(false)
+    }
+
+    override fun existNodeFounder(address: String): Single<Boolean> {
+        return Single.create<Boolean> { emitter ->
+            try {
+                val list = web3jSafe4.supernode.existNodeFounder(org.web3j.abi.datatypes.Address(address))
+                emitter.onSuccess(list)
+                return@create
+            } catch (e: Throwable) {
+                emitter.onError(e)
+            }
+        }.onErrorReturnItem(false)
     }
 
     override fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long> {
