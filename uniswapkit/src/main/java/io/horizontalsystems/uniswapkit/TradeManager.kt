@@ -159,7 +159,6 @@ class TradeManager {
         } else {
             "5"
         }
-        Log.e("longwen", "slippage=$slippage")
         val amount0Min: BigInteger = trade.tokenAmountIn.rawAmount.multiply(
             BigInteger(
                 slippage
@@ -182,8 +181,6 @@ class TradeManager {
                                            tradeData: TradeData, trade: Trade,
                                            amount0Min: BigInteger,
                                            amount1Min: BigInteger): ContractMethod {
-        Log.d("longwen", "A: ${tokenIn.address}=${trade.tokenAmountIn.rawAmount}")
-        Log.d("longwen", "B: ${tokenOut.address}=${trade.tokenAmountOut.rawAmount}")
         return AddLiquidityMethod(
             tokenIn.address,
             tokenOut.address,
@@ -341,7 +338,6 @@ class TradeManager {
                     trades.addAll(tradesRecursion)
                 }
             }
-            Log.e("longwen", "trades size=${trades.size}")
             return trades
         }
 
