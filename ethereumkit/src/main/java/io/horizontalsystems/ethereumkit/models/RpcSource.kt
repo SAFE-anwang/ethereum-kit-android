@@ -8,11 +8,7 @@ sealed class RpcSource {
 
     companion object {
         fun bscRpcHttp(): Http {
-            return Http(listOf(URI("https://bsc-mainnet.core.chainstack.com/67f0d109c5c0b7f0aa251a89f12c0b7b")), null)
-        }
-
-        fun p2pifyRpcHttp(): Http {
-            return Http(listOf(URI("https://nd-981-064-010.p2pify.com/3abdd3b90f012f4427380b632deb4180")), null)
+            return Http(listOf(URI("https://bscrpc.com")), null)
         }
 
         fun binanceSmartChainHttp(): Http {
