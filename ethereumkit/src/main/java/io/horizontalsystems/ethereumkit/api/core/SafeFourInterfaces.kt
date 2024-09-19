@@ -122,6 +122,9 @@ interface ISafeFourOperate {
 	fun getAddrs4Creator(isSuperNode: Boolean, address: String, start: Int, count: Int): Single<List<Address>>
 	fun getAddrNum4Creator(isSuperNode: Boolean, address: String): Single<BigInteger>
 
+	fun getAddrs4Partner(isSuperNode: Boolean, address: String, start: Int, count: Int): Single<List<Address>>
+	fun getAddrNum4Partner(isSuperNode: Boolean, address: String): Single<BigInteger>
+
 	fun getVotedIDNum4Voter(address: String): Single<BigInteger>
 
 	fun getRecordUseInfo(recordId: Int): RecordUseInfo
@@ -151,7 +154,7 @@ interface ISafeFourOperate {
 
 	fun redeemMasterNode(callerAddress: String, privateKey: List<String>, targetAddress: String): Single<String>
 
-	fun existFounder(superAddress: String, founder: String): Single<Boolean>
+	fun existFounder(isSuperNode: Boolean, founder: String): Single<Boolean>
 	fun getTops4Creator(address: String): Single<List<String>>
 
 	fun existNodeAddress(address: String): Single<Boolean>

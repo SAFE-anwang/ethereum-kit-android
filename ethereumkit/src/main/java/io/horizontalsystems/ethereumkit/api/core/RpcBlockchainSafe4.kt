@@ -444,6 +444,23 @@ class RpcBlockchainSafe4(
 
     }
 
+    override fun getAddrs4Partner(isSuperNode: Boolean, address: String, start: Int, count: Int): Single<List<org.web3j.abi.datatypes.Address>> {
+        return if (isSuperNode) {
+                Single.just(
+                        web3jSafe4.supernode.getAddrs4Partner(
+                            org.web3j.abi.datatypes.Address(address),
+                            start.toBigInteger(), count.toBigInteger())
+                )
+            } else {
+                Single.just(
+                        web3jSafe4.masternode.getAddrs4Partner(
+                            org.web3j.abi.datatypes.Address(address),
+                            start.toBigInteger(), count.toBigInteger())
+                )
+            }
+
+    }
+
     override fun getAddrNum4Creator(isSuperNode: Boolean, address: String): Single<BigInteger> {
         return if (isSuperNode) {
                 Single.just(
@@ -453,6 +470,21 @@ class RpcBlockchainSafe4(
             } else {
                 Single.just(
                         web3jSafe4.masternode.getAddrNum4Creator(
+                            org.web3j.abi.datatypes.Address(address))
+                )
+            }
+
+    }
+
+    override fun getAddrNum4Partner(isSuperNode: Boolean, address: String): Single<BigInteger> {
+        return if (isSuperNode) {
+                Single.just(
+                        web3jSafe4.supernode.getAddrNum4Partner(
+                            org.web3j.abi.datatypes.Address(address))
+                )
+            } else {
+                Single.just(
+                        web3jSafe4.masternode.getAddrNum4Partner(
                             org.web3j.abi.datatypes.Address(address))
                 )
             }
@@ -547,10 +579,13 @@ class RpcBlockchainSafe4(
         return Single.just(web3jSafe4.safe3.batchRedeemMasterNode(callerAddress, privateKey, privateKey.map { "" }, org.web3j.abi.datatypes.Address(targetAddress)))
     }
 
-    override fun existFounder(superAddress: String, founder: String): Single<Boolean> {
+    override fun existFounder(isSuperNode: Boolean, founder: String): Single<Boolean> {
         return Single.create<Boolean> { emitter ->
             try {
-                val list = web3jSafe4.supernode.existFounder(org.web3j.abi.datatypes.Address(superAddress), org.web3j.abi.datatypes.Address(founder))
+                val list = if (isSuperNode)
+                    web3jSafe4.supernode.existFounder(org.web3j.abi.datatypes.Address(founder))
+                else
+                    web3jSafe4.masternode.existFounder(org.web3j.abi.datatypes.Address(founder))
                 emitter.onSuccess(list)
                 return@create
             } catch (e: Throwable) {
