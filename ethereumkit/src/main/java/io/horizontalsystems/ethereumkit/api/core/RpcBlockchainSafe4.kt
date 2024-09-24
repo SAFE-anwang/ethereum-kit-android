@@ -373,9 +373,9 @@ class RpcBlockchainSafe4(
         )
     }
 
-    override fun getMineProposal(privateKey: String, start: Int, count: Int): Single<List<BigInteger>> {
+    override fun getMineProposal(address: String, start: Int, count: Int): Single<List<BigInteger>> {
         return Single.just(
-                web3jSafe4.proposal.getMines(privateKey, start.toBigInteger(), count.toBigInteger())
+                web3jSafe4.proposal.getMines(org.web3j.abi.datatypes.Address(address), start.toBigInteger(), count.toBigInteger())
         )
     }
 
@@ -403,9 +403,9 @@ class RpcBlockchainSafe4(
         )
     }
 
-    override fun getMineNum(privateKey: String): Single<BigInteger> {
+    override fun getMineNum(address: String): Single<BigInteger> {
         return Single.just(
-                web3jSafe4.proposal.getMineNum(privateKey)
+                web3jSafe4.proposal.getMineNum(org.web3j.abi.datatypes.Address(address))
         )
     }
 
