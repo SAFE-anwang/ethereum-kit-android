@@ -40,4 +40,9 @@ class Transaction(
         if (input == null)  return false
         return input.toHexString().startsWith("0xcd9d6fca", true)
     }
+
+    fun isUploadTransaction(): Boolean {
+        if (input == null)  return false
+        return input.toHexString().startsWith("0xa6aa19d2", true)
+    }
 }
