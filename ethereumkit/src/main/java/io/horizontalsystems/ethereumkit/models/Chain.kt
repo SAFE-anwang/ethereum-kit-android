@@ -18,9 +18,10 @@ enum class Chain(
     EthereumGoerli(5, 1, 10_000_000, 15, true),
     EthereumRopsten(3, 1, 2_000_000, 15, true),
 //    SafeFour(6666665, 60, 300000000, 15, false),
-    SafeFour(6666666, 60, 300000000, 15, false);
+    SafeFour(6666666, 60, 300000000, 15, false); // Test
 
     val isMainNet = coinType != 1
 
-    val isSafeFourTestNet = id == 6666666
+//    val isSafeFourTestNet = id == 6666666
+    val isSafeFourTestNet = false
 }
