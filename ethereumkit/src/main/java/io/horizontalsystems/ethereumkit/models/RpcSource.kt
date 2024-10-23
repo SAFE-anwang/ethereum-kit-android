@@ -71,7 +71,8 @@ sealed class RpcSource {
         fun safeFourHttp(): Http {
             return Http(
                     listOf(
-                            URI("http://172.104.162.94:8545")
+//                            URI("https://safe4-testnet.anwang.com/rpc")
+                            URI("https://safe4.anwang.com/rpc")
                     ),
                     null
             )
