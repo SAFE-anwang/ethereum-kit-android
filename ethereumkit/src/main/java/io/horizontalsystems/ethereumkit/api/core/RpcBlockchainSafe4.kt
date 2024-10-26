@@ -642,6 +642,10 @@ class RpcBlockchainSafe4(
         }.onErrorReturnItem(false)
     }
 
+    override fun addLockDay(privateKey: String, id: Int, day: Int): Single<String> {
+        return Single.just(web3jSafe4.account.addLockDay(privateKey, id.toBigInteger(), day.toBigInteger()))
+    }
+
     override fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long> {
         return Single.just(web3j.ethGetTransactionCount(address.hex, org.web3j.protocol.core.DefaultBlockParameter.valueOf(defaultBlockParameter.raw)).send().transactionCount.toLong())
     }

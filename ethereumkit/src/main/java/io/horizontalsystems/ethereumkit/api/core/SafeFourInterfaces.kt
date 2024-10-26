@@ -160,4 +160,5 @@ interface ISafeFourOperate {
 	fun existNodeAddress(address: String): Single<Boolean>
 	fun existNodeEnode(enode: String): Single<Boolean>
 	fun existNodeFounder(address: String): Single<Boolean>
+	fun addLockDay(privateKey: String, id: Int, day: Int): Single<String>
 }
