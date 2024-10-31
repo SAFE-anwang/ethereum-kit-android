@@ -45,6 +45,7 @@ import io.reactivex.Single
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 import org.web3j.abi.FunctionEncoder
+import org.web3j.abi.FunctionReturnDecoder
 import org.web3j.abi.TypeReference
 import org.web3j.abi.datatypes.Function
 import org.web3j.protocol.Web3j
@@ -642,7 +643,7 @@ class RpcBlockchainSafe4(
         }.onErrorReturnItem(false)
     }
 
-    override fun addLockDay(privateKey: String, id: Int, day: Int): Single<String> {
+    override fun addLockDay(privateKey: String, id: Long, day: Int): Single<String> {
         return Single.just(web3jSafe4.account.addLockDay(privateKey, id.toBigInteger(), day.toBigInteger()))
     }
 
