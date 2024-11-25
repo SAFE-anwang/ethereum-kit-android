@@ -35,12 +35,12 @@ abstract class TransactionDatabase : RoomDatabase() {
 
         fun getInstance(context: Context, databaseName: String): TransactionDatabase {
             return Room.databaseBuilder(context, TransactionDatabase::class.java, databaseName)
-//                    .fallbackToDestructiveMigration()
                     .allowMainThreadQueries()
                     .addMigrations(
                         Migration_13_14,
                         Migration_14_15
                     )
+                    .fallbackToDestructiveMigration()
                     .build()
         }
     }
