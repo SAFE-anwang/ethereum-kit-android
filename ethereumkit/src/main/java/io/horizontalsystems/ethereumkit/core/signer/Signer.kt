@@ -1,5 +1,6 @@
 package io.horizontalsystems.ethereumkit.core.signer
 
+import io.horizontalsystems.ethereumkit.core.HDWalletDelegate
 import io.horizontalsystems.ethereumkit.core.TransactionBuilder
 import io.horizontalsystems.ethereumkit.core.TransactionSigner
 import io.horizontalsystems.ethereumkit.core.hexStringToByteArrayOrNull
@@ -108,7 +109,8 @@ class Signer(
         }
 
         fun privateKey(seed: ByteArray, chain: Chain): BigInteger {
-            val hdWallet = HDWallet(seed, chain.coinType, HDWallet.Purpose.BIP44)
+//            val hdWallet = HDWallet(seed, chain.coinType, HDWallet.Purpose.BIP44)
+            val hdWallet = HDWalletDelegate(seed, chain.coinType, HDWallet.Purpose.BIP44, chain.isAnBaoWallet, anBaoCoinType = chain.anBaoCoinType)
             return hdWallet.privateKey(0, 0, true).privKey
         }
 
@@ -117,6 +119,16 @@ class Signer(
                 CryptoUtils.ecKeyFromPrivate(privateKey).publicKeyPoint.getEncoded(false).drop(1)
                     .toByteArray()
             return Address(CryptoUtils.sha3(publicKey).takeLast(20).toByteArray())
+        }
+
+        fun getAnBaoPrivateKeys(seed: ByteArray, chain: Chain): List<BigInteger> {
+            if (!chain.isAnBaoWallet) return emptyList()
+            val hdWallet = HDWalletDelegate(seed, chain.coinType, HDWallet.Purpose.BIP44, chain.isAnBaoWallet, anBaoCoinType = chain.anBaoCoinType)
+            val privateKeys = mutableListOf<BigInteger>()
+            repeat(5) {
+                privateKeys.add(hdWallet.privateKey(0, it, true).privKey)
+            }
+            return privateKeys
         }
     }
 

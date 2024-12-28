@@ -13,11 +13,14 @@ import io.horizontalsystems.ethereumkit.api.core.NodeWebSocket
 import io.horizontalsystems.ethereumkit.api.core.RpcBlockchain
 import io.horizontalsystems.ethereumkit.api.core.RpcBlockchainSafe4
 import io.horizontalsystems.ethereumkit.api.core.WebSocketRpcSyncer
+import io.horizontalsystems.ethereumkit.api.jsonrpc.GetBalanceJsonRpc
+import io.horizontalsystems.ethereumkit.api.jsonrpc.GetTransactionCountJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.JsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcBlock
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransaction
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransactionReceipt
 import io.horizontalsystems.ethereumkit.api.models.AccountState
+import io.horizontalsystems.ethereumkit.api.models.AnBaoAddress
 import io.horizontalsystems.ethereumkit.api.models.EthereumKitState
 import io.horizontalsystems.ethereumkit.api.storage.ApiStorage
 import io.horizontalsystems.ethereumkit.core.signer.Signer
@@ -52,6 +55,7 @@ import io.horizontalsystems.ethereumkit.network.EtherscanService
 import io.horizontalsystems.ethereumkit.network.IntTypeAdapter
 import io.horizontalsystems.ethereumkit.network.LongTypeAdapter
 import io.horizontalsystems.ethereumkit.network.OptionalTypeAdapter
+import io.horizontalsystems.ethereumkit.spv.core.toBigInteger
 import io.horizontalsystems.ethereumkit.transactionsyncers.EthereumTransactionSyncer
 import io.horizontalsystems.ethereumkit.transactionsyncers.InternalTransactionSyncer
 import io.horizontalsystems.ethereumkit.transactionsyncers.Safe4TransactionSyncer
@@ -93,6 +97,8 @@ class EthereumKit(
     private val lastBlockHeightSubject = PublishSubject.create<Long>()
     private val syncStateSubject = PublishSubject.create<SyncState>()
     private val accountStateSubject = PublishSubject.create<AccountState>()
+    var anBaoAddressList = listOf<AnBaoAddress>()
+    private val anBaoAllAddressSubject = PublishSubject.create<List<AnBaoAddress>>()
 
     val defaultGasLimit: Long = 21_000
     private val defaultMinAmount: BigInteger = BigInteger.ONE
@@ -139,6 +145,9 @@ class EthereumKit(
     val accountStateFlowable: Flowable<AccountState>
         get() = accountStateSubject.toFlowable(BackpressureStrategy.BUFFER)
 
+    val anBaoAddressFlowable: Flowable<List<AnBaoAddress>>
+        get() = anBaoAllAddressSubject.toFlowable(BackpressureStrategy.BUFFER)
+
     val allTransactionsFlowable: Flowable<Pair<List<FullTransaction>, Boolean>>
         get() = transactionManager.fullTransactionsAsync
 
@@ -156,6 +165,27 @@ class EthereumKit(
         blockchain.stop()
         state.clear()
         connectionManager.stop()
+    }
+
+    fun getAnBaoAllAddressInfo(seed: ByteArray) {
+        if (!chain.isAnBaoWallet)    return
+        val privateKeys = Signer.getAnBaoPrivateKeys(seed, chain)
+        val addressInfo = mutableListOf<AnBaoAddress>()
+        privateKeys.map { privateKey ->
+            val address = Signer.address(privateKey)
+            blockchain.getBalance(address)
+                    .subscribeOn(Schedulers.io())
+                    .subscribe({ balance ->
+                        addressInfo.add(AnBaoAddress(address, privateKey, balance))
+                        anBaoAddressList = addressInfo
+                        anBaoAllAddressSubject.onNext(addressInfo)
+                    }, {
+                        it?.printStackTrace()
+
+                    }).let {
+                        disposables.add(it)
+                    }
+        }
     }
 
     fun refresh() {

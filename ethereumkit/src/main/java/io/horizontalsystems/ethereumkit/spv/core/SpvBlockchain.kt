@@ -126,6 +126,10 @@ class SpvBlockchain(
         TODO("not implemented")
     }
 
+    override fun getBalance(address: Address): Single<BigInteger> {
+        TODO("Not yet implemented")
+    }
+
     //-------------IPeerListener--------------------
 
     override fun didConnect(peer: IPeer) {

@@ -227,6 +227,10 @@ class RpcBlockchain(
         return syncer.single(rpc)
     }
 
+    override fun getBalance(address: Address): Single<BigInteger> {
+        return syncer.single(GetBalanceJsonRpc(address, DefaultBlockParameter.Latest))
+    }
+
     //endregion
 
     //region IRpcSyncerListener
