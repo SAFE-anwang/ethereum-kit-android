@@ -16,6 +16,7 @@ import com.anwang.utils.Safe4Contract
 import io.horizontalsystems.ethereumkit.api.jsonrpc.CallJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.DataJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.EstimateGasJsonRpc
+import io.horizontalsystems.ethereumkit.api.jsonrpc.GetBalanceJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.JsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcBlock
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransaction
@@ -812,6 +813,10 @@ class RpcBlockchainSafe4(
 
     override fun <T> rpcSingle(rpc: JsonRpc<T>): Single<T> {
         return syncer.single(rpc)
+    }
+
+    override fun getBalance(address: Address): Single<BigInteger> {
+        return syncer.single(GetBalanceJsonRpc(address, DefaultBlockParameter.Latest))
     }
 
     //endregion

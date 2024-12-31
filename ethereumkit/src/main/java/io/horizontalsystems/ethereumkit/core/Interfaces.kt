@@ -57,6 +57,8 @@ interface IBlockchain {
     fun call(contractAddress: Address, data: ByteArray, defaultBlockParameter: DefaultBlockParameter): Single<ByteArray>
 
     fun <T> rpcSingle(rpc: JsonRpc<T>): Single<T>
+
+    fun getBalance(address: Address): Single<BigInteger>
 }
 
 interface IBlockchainListener {
