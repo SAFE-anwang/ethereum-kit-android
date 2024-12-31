@@ -10,7 +10,7 @@ enum class Chain(
     val anBaoCoinType: Int = -1
 ) {
     Ethereum(1, 60, 2_000_000, 15, true, true, 7),
-    BinanceSmartChain(56, 60, 10_000_000, 15, false),
+    BinanceSmartChain(56, 60, 10_000_000, 15, false, true, 7),
     Polygon(137, 60, 10_000_000, 15, true),
     Optimism(10, 60, 10_000_000, 15, false),
     ArbitrumOne(42161, 60, 10_000_000, 15, false),
