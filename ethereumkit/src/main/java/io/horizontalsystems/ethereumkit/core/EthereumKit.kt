@@ -88,7 +88,8 @@ class EthereumKit(
     val transactionProvider: ITransactionProvider,
     val eip20Storage: IEip20Storage,
     private val decorationManager: DecorationManager,
-    private val state: EthereumKitState = EthereumKitState()
+    private val state: EthereumKitState = EthereumKitState(),
+    private val isAnBaoWallet: Boolean = false
 ) : IBlockchainListener {
 
     private val logger = Logger.getLogger("EthereumKit")
@@ -168,7 +169,7 @@ class EthereumKit(
     }
 
     fun getAnBaoAllAddressInfo(seed: ByteArray) {
-        if (!chain.isAnBaoWallet)    return
+        if (!isAnBaoWallet)    return
         val privateKeys = Signer.getAnBaoPrivateKeys(seed, chain)
         val addressInfo = mutableListOf<AnBaoAddress>()
         privateKeys.map { privateKey ->
@@ -570,12 +571,13 @@ class EthereumKit(
             chain: Chain,
             rpcSource: RpcSource,
             transactionSource: TransactionSource,
-            walletId: String
+            walletId: String,
+            isAnBaoWallet: Boolean
         ): EthereumKit {
             val seed = Mnemonic().toSeed(words, passphrase)
-            val privateKey = Signer.privateKey(seed, chain)
+            val privateKey = Signer.privateKey(seed, chain, isAnBaoWallet)
             val address = ethereumAddress(privateKey)
-            return getInstance(application, address, chain, rpcSource, transactionSource, walletId)
+            return getInstance(application, address, chain, rpcSource, transactionSource, walletId, isAnBaoWallet)
         }
 
         fun getInstance(
@@ -584,7 +586,8 @@ class EthereumKit(
             chain: Chain,
             rpcSource: RpcSource,
             transactionSource: TransactionSource,
-            walletId: String
+            walletId: String,
+            isAnBaoWallet: Boolean
         ): EthereumKit {
 
             val connectionManager = ConnectionManager(application)
@@ -654,7 +657,8 @@ class EthereumKit(
                 walletId,
                 transactionProvider,
                 erc20Storage,
-                decorationManager
+                decorationManager,
+                isAnBaoWallet = isAnBaoWallet
             )
 
             blockchain.listener = ethereumKit
