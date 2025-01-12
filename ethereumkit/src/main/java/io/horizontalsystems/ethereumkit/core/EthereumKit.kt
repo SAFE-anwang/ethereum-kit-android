@@ -230,11 +230,11 @@ class EthereumKit(
         return blockchain.estimateGas(to, resolvedAmount, chain.gasLimit, gasPrice, null)
     }
 
-    fun estimateGas(to: Address?, value: BigInteger?, gasPrice: GasPrice, data: ByteArray?): Single<Long> {
+    fun estimateGas(to: Address?, value: BigInteger?, gasPrice: GasPrice?, data: ByteArray?): Single<Long> {
         return blockchain.estimateGas(to, value, chain.gasLimit, gasPrice, data)
     }
 
-    fun estimateGas(transactionData: TransactionData, gasPrice: GasPrice): Single<Long> {
+    fun estimateGas(transactionData: TransactionData, gasPrice: GasPrice? = null): Single<Long> {
         return estimateGas(transactionData.to, transactionData.value, gasPrice, transactionData.input)
     }
 
@@ -678,7 +678,7 @@ class EthereumKit(
         private fun transactionProvider(transactionSource: TransactionSource, address: Address): ITransactionProvider {
             when (transactionSource.type) {
                 is TransactionSource.SourceType.Etherscan -> {
-                    val service = EtherscanService(transactionSource.type.apiBaseUrl, transactionSource.type.apiKey)
+                    val service = EtherscanService(transactionSource.type.apiBaseUrl, transactionSource.type.apiKeys)
                     return EtherscanTransactionProvider(service, address)
                 }
             }

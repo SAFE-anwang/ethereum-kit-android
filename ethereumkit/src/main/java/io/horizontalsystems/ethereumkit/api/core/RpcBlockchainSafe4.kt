@@ -652,13 +652,16 @@ class RpcBlockchainSafe4(
         return Single.just(web3j.ethGetTransactionCount(address.hex, org.web3j.protocol.core.DefaultBlockParameter.valueOf(defaultBlockParameter.raw)).send().transactionCount.toLong())
     }
 
-    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice, data: ByteArray?): Single<Long> {
+    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice?, data: ByteArray?): Single<Long> {
         val price = when (gasPrice) {
             is GasPrice.Eip1559 -> {
                 gasPrice.maxFeePerGas
             }
             is GasPrice.Legacy -> {
                 gasPrice.legacyGasPrice
+            }
+            null -> {
+                0L
             }
         }
         val estimateGas = web3j.ethEstimateGas(org.web3j.protocol.core.methods.request.Transaction.createFunctionCallTransaction(

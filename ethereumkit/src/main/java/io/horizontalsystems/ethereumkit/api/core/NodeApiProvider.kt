@@ -15,8 +15,6 @@ import retrofit2.http.Body
 import retrofit2.http.Headers
 import retrofit2.http.POST
 import retrofit2.http.Url
-import java.net.InetSocketAddress
-import java.net.Proxy
 import java.net.URI
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.logging.Logger
@@ -44,7 +42,6 @@ class NodeApiProvider(
         }
 
         val httpClient = OkHttpClient.Builder()
-//            .proxy(Proxy( Proxy.Type.HTTP , InetSocketAddress("47.89.208.160", 58972) ))
                 .addInterceptor(loggingInterceptor)
                 .addInterceptor(headersInterceptor)
 

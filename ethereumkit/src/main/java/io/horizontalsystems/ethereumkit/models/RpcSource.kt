@@ -78,5 +78,9 @@ sealed class RpcSource {
             )
         }
 
+        fun baseRpcHttp(): Http {
+            return Http(listOf(URI("https://mainnet.base.org")), null)
+        }
+
     }
 }
