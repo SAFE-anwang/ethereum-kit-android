@@ -69,7 +69,7 @@ class NodeApiProvider(
                     val rpcResponse = service.single(uri, gson.toJson(rpc)).blockingGet()
                     val response = rpc.parseResponse(rpcResponse, gson)
 
-                    emitter.onSuccess(response)
+                    emitter.onSuccess(response!!)
                     return@create
                 } catch (throwable: Throwable) {
                     error = throwable

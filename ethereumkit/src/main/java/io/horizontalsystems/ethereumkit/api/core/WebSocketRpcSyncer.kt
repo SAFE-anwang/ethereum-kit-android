@@ -51,7 +51,7 @@ class WebSocketRpcSyncer(
             send(
                     rpc = rpc,
                     onSuccess = {
-                        emitter.onSuccess(it)
+                        emitter.onSuccess(it!!)
                     },
                     onError = {
                         emitter.onError(it)
