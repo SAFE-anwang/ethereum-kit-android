@@ -80,10 +80,15 @@ sealed class RpcSource {
 
         fun safeFourHttp(): Http {
             return Http(
+                if (Chain.SafeFour.isSafeFourTestNet) {
                     listOf(
-                            URI(getCacheRpc("safe4") ?: "https://safe4testnet.anwang.com/rpc")
-//                            URI(getCacheRpc("safe4") ?: "https://safe4.anwang.com/rpc")
-                    ),
+                        URI("https://safe4testnet.anwang.com/rpc")
+                    )
+                } else {
+                    listOf(
+                        URI (getCacheRpc("safe4") ?: "https://safe4.anwang.com/rpc")
+                    )
+                },
                     null
             )
         }
