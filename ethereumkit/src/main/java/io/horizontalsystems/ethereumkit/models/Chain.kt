@@ -23,7 +23,8 @@ enum class Chain(
 
     val isMainNet = coinType != 1
 
-    val isSafeFourTestNet = id == 6666666
+//    val isSafeFourTestNet = id == 6666666
+    val isSafeFourTestNet = false
 
     val isSafe4TestNetId = id == 6666666
 }
