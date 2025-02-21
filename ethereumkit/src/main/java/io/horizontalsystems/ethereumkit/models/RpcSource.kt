@@ -80,7 +80,7 @@ sealed class RpcSource {
 
         fun safeFourHttp(): Http {
             return Http(
-                if (Chain.SafeFour.isSafeFourTestNet) {
+                if (Chain.SafeFour.isSafe4TestNetId) {
                     listOf(
                         URI("https://safe4testnet.anwang.com/rpc")
                     )
