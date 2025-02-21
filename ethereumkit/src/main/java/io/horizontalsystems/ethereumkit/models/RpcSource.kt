@@ -82,11 +82,11 @@ sealed class RpcSource {
             return Http(
                 if (Chain.SafeFour.isSafe4TestNetId) {
                     listOf(
-                        URI("https://safe4testnet.anwang.com/rpc")
+                        URI(getCacheRpc("safe4-testnet") ?: "https://safe4testnet.anwang.com/rpc")
                     )
                 } else {
                     listOf(
-                        URI (getCacheRpc("safe4") ?: "https://safe4.anwang.com/rpc")
+                        URI ( getCacheRpc("safe4") ?: "https://safe4.anwang.com/rpc")
                     )
                 },
                     null

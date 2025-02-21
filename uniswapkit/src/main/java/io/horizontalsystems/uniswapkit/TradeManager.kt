@@ -219,6 +219,10 @@ class TradeManager {
 
     companion object {
 
+        var safeSwapv2Safe4Router = "0x1Ef5BC9eCac0E1dd69497506A977Cc3f002DB034"
+        var safeSwapv2Safe4CodeHash = "ad0e51aa7a058efb9eb40fd6385473f0175ee7419e8d4f91a4e0294ec12b2d13"
+        var safeSwapv2Safe4Factory = "0xc394953741CA409426Bf6C3489294375BaE1629D"
+
         fun getRouterAddress(chain: Chain, isSafeSwap: Boolean) =
             if (isSafeSwap) {
                 when (chain) {
@@ -226,6 +230,7 @@ class TradeManager {
                         "0x6476008C612dF9F8Db166844fFE39D24aEa12271"
                     )
                     Chain.BinanceSmartChain -> Address("0x6476008C612dF9F8Db166844fFE39D24aEa12271")
+                    Chain.SafeFour -> Address(safeSwapv2Safe4Router)
                     Chain.Polygon -> Address("0x8cFe327CEc66d1C090Dd72bd0FF11d690C33a2Eb")
                     Chain.Avalanche -> Address("0x60aE616a2155Ee3d9A68541Ba4544862310933d4")
                     else -> throw UnsupportedChainError.NoRouterAddress
@@ -246,6 +251,7 @@ class TradeManager {
             if (isSafeSwap) {
                 when (chain) {
                     Chain.Ethereum, Chain.EthereumGoerli -> "0xB3c827077312163c53E3822defE32cAffE574B42"
+                    Chain.SafeFour -> safeSwapv2Safe4Factory
                     Chain.BinanceSmartChain -> "0xB3c827077312163c53E3822defE32cAffE574B42"
                     Chain.Polygon -> "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32"
                     Chain.Avalanche -> "0x9Ad6C38BE94206cA50bb0d90783181662f0Cfa10"
@@ -253,7 +259,9 @@ class TradeManager {
                 }
             } else {
                 when (chain) {
-                    Chain.Ethereum, Chain.EthereumGoerli -> "0x5c69bee701ef814a2b6a3edd4b1652cb9cc5aa6f"
+                    Chain.Ethereum,
+                    Chain.SafeFour,
+                    Chain.EthereumGoerli -> "0x5c69bee701ef814a2b6a3edd4b1652cb9cc5aa6f"
                     Chain.BinanceSmartChain -> "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73"
                     Chain.Polygon -> "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32"
                     Chain.Avalanche -> "0x9Ad6C38BE94206cA50bb0d90783181662f0Cfa10"
@@ -266,11 +274,16 @@ class TradeManager {
                 when (chain) {
                     Chain.Ethereum, Chain.EthereumGoerli, Chain.Polygon, Chain.Avalanche -> "0xad0e51aa7a058efb9eb40fd6385473f0175ee7419e8d4f91a4e0294ec12b2d13"
                     Chain.BinanceSmartChain -> "0xad0e51aa7a058efb9eb40fd6385473f0175ee7419e8d4f91a4e0294ec12b2d13"
+                    Chain.SafeFour -> safeSwapv2Safe4CodeHash
                     else -> throw UnsupportedChainError.NoInitCodeHash
                 }
             } else {
                 when (chain) {
-                    Chain.Ethereum, Chain.EthereumGoerli, Chain.Polygon, Chain.Avalanche -> "0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f"
+                    Chain.Ethereum,
+                    Chain.EthereumGoerli,
+                    Chain.Polygon,
+                    Chain.Avalanche,
+                    Chain.SafeFour -> "0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f"
                     Chain.BinanceSmartChain -> "0x00fb7f630766e6a796048ea87d01acd3068e8ff67d078148a3fa3f4a84f69bd5"
                     else -> throw UnsupportedChainError.NoInitCodeHash
                 }
