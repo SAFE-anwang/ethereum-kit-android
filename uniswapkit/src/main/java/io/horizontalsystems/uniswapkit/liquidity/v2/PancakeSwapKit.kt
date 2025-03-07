@@ -1,5 +1,6 @@
 package io.horizontalsystems.uniswapkit.liquidity
 
+import android.util.Log
 import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.Chain
@@ -36,11 +37,13 @@ class PancakeSwapKit(
     fun swapData(rpcSource: RpcSource, chain: Chain, tokenIn: Token, tokenOut: Token): Single<SwapData> {
         val tokenPairs = pairSelector.tokenPairs(chain, tokenIn, tokenOut)
         val singles = tokenPairs.map { (tokenA, tokenB) ->
+            Log.d("TradeManager", "-----")
             tradeManager.liquidityPair(rpcSource, chain, tokenA, tokenB)
         }
 
         return Single.zip(singles) { array ->
             val pairs = array.map { it as Pair }
+            Log.d("TradeManager", "pairs=$pairs")
             SwapData(pairs, tokenIn, tokenOut)
         }
     }

@@ -2,7 +2,6 @@ package io.horizontalsystems.ethereumkit.api.core
 
 import android.util.Log
 import com.anwang.Safe4
-import com.anwang.types.accountmanager.AccountAmountInfo
 import com.anwang.types.accountmanager.AccountRecord
 import com.anwang.types.accountmanager.RecordUseInfo
 import com.anwang.types.masternode.MasterNodeInfo
@@ -13,15 +12,19 @@ import com.anwang.types.safe3.LockedSafe3Info
 import com.anwang.types.snvote.SNVoteRetInfo
 import com.anwang.types.supernode.SuperNodeInfo
 import com.anwang.utils.Safe4Contract
+import io.horizontalsystems.ethereumkit.api.core.RpcBlockchain.Companion
 import io.horizontalsystems.ethereumkit.api.jsonrpc.CallJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.DataJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.EstimateGasJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.GetBalanceJsonRpc
+import io.horizontalsystems.ethereumkit.api.jsonrpc.GetStorageAtJsonRpc
+import io.horizontalsystems.ethereumkit.api.jsonrpc.GetTransactionReceiptJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.JsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcBlock
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransaction
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransactionReceipt
 import io.horizontalsystems.ethereumkit.api.models.AccountState
+import io.horizontalsystems.ethereumkit.contracts.ContractMethodHelper
 import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.core.EthereumKit.SyncState
 import io.horizontalsystems.ethereumkit.core.IApiStorage
@@ -41,13 +44,10 @@ import io.horizontalsystems.ethereumkit.models.Signature
 import io.horizontalsystems.ethereumkit.models.Transaction
 import io.horizontalsystems.ethereumkit.models.TransactionLog
 import io.horizontalsystems.ethereumkit.spv.core.toBigInteger
-import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 import org.web3j.abi.FunctionEncoder
-import org.web3j.abi.FunctionReturnDecoder
-import org.web3j.abi.TypeReference
 import org.web3j.abi.datatypes.Function
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.DefaultBlockParameterName
@@ -110,11 +110,11 @@ class RpcBlockchainSafe4(
                 val balance = web3j.ethGetBalance(address.hex, DefaultBlockParameterName.LATEST).send().balance
                 val transactionCount = web3j.ethGetTransactionCount(address.hex, DefaultBlockParameterName.LATEST).send().transactionCount
                 emitter.onSuccess(BalanceInfo(balance, transactionCount, safe4Account))
-                return@create
+//                return@create
             } catch (throwable: Throwable) {
                 error = throwable
+                emitter.onError(error)
             }
-            emitter.onError(error)
         }.subscribeOn(Schedulers.io())
                 .subscribe({ (balance, transactionCount, lockBalance) ->
                     onUpdateAccountState(AccountState(balance, transactionCount.toLong(), timeLockBalance =  lockBalance))
@@ -653,27 +653,12 @@ class RpcBlockchainSafe4(
     }
 
     override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice, data: ByteArray?): Single<Long> {
-        val price = when (gasPrice) {
-            is GasPrice.Eip1559 -> {
-                gasPrice.maxFeePerGas
-            }
-            is GasPrice.Legacy -> {
-                gasPrice.legacyGasPrice
-            }
-        }
-        val estimateGas = web3j.ethEstimateGas(org.web3j.protocol.core.methods.request.Transaction.createFunctionCallTransaction(
-                address.hex,
-                null,
-                price.toBigInteger(),
-                gasLimit?.toBigInteger(),
-                to?.hex,
-                data?.toHexString()
-        )).send()
-        return Single.just(estimateGas.amountUsed.toLong())
+        return syncer.single(EstimateGasJsonRpc(address, to, amount, gasLimit, gasPrice, data))
     }
 
     override fun getTransactionReceipt(transactionHash: ByteArray): Single<RpcTransactionReceipt> {
-        val transactionReceipt = web3j.ethGetTransactionReceipt(transactionHash.toHexString()).send().transactionReceipt.get()
+        return syncer.single(GetTransactionReceiptJsonRpc(transactionHash))
+        /*val transactionReceipt = web3j.ethGetTransactionReceipt(transactionHash.toHexString()).send().transactionReceipt.get()
         return Single.just(
                 RpcTransactionReceipt(
                         transactionHash,
@@ -703,7 +688,7 @@ class RpcBlockchainSafe4(
                         transactionReceipt.root.toByteArray(),
                         transactionReceipt.status.toInt()
                 )
-        )
+        )*/
     }
 
     override fun getTransaction(transactionHash: ByteArray): Single<RpcTransaction> {
@@ -796,19 +781,11 @@ class RpcBlockchainSafe4(
     }
 
     override fun getStorageAt(contractAddress: Address, position: ByteArray, defaultBlockParameter: DefaultBlockParameter): Single<ByteArray> {
-        val storageAt = web3j.ethGetStorageAt(contractAddress.hex, position.toBigInteger(),
-                org.web3j.protocol.core.DefaultBlockParameter.valueOf(defaultBlockParameter.raw)).send()
-        return Single.just(storageAt.data.toByteArray())
+        return syncer.single(GetStorageAtJsonRpc(contractAddress, position, defaultBlockParameter))
     }
 
     override fun call(contractAddress: Address, data: ByteArray, defaultBlockParameter: DefaultBlockParameter): Single<ByteArray> {
-        val transaction = org.web3j.protocol.core.methods.request.Transaction.createEthCallTransaction(null, contractAddress.hex, data.decodeToString())
-        val callRpc = web3j.ethCall(transaction, org.web3j.protocol.core.DefaultBlockParameter.valueOf(defaultBlockParameter.raw)).send()
-        return if (callRpc.hasError()) {
-            Single.just(ByteArray(0))
-        } else {
-            Single.just(callRpc.value.toByteArray())
-        }
+        return syncer.single(RpcBlockchain.callRpc(contractAddress, data, defaultBlockParameter))
     }
 
     override fun <T> rpcSingle(rpc: JsonRpc<T>): Single<T> {

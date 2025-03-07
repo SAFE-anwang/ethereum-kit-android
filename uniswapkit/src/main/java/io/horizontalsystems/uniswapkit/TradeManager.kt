@@ -22,11 +22,11 @@ import java.util.logging.Logger
 class TradeManager {
     private val logger = Logger.getLogger(this.javaClass.simpleName)
 
-    fun routerAddress(chain: Chain): Address = getRouterAddress(chain, Extensions.isSafeSwap)
-    fun factoryAddressString(chain: Chain): String = getFactoryAddressString(chain, Extensions.isSafeSwap)
-    fun initCodeHashString(chain: Chain): String = getInitCodeHashString(chain, Extensions.isSafeSwap)
+    fun routerAddress(chain: Chain): Address = getRouterAddress(chain, Extensions.isSafeSwap || chain == Chain.SafeFour)
+    fun factoryAddressString(chain: Chain): String = getFactoryAddressString(chain, Extensions.isSafeSwap || chain == Chain.SafeFour)
+    fun initCodeHashString(chain: Chain): String = getInitCodeHashString(chain, Extensions.isSafeSwap || chain == Chain.SafeFour)
 
-    fun liquidityRouterAddress(chain: Chain): Address = getLiquidityRouterAddress(chain)
+    fun  liquidityRouterAddress(chain: Chain): Address = getLiquidityRouterAddress(chain)
     fun liquidityFactoryAddressString(chain: Chain): String = getLiquidityFactoryAddressString(chain)
     fun liquidityInitCodeHashString(chain: Chain): String = getLiquidityInitCodeHashString(chain)
 
@@ -90,7 +90,7 @@ class TradeManager {
                     val reserve0 = TokenAmount(token0, rawReserve0)
                     val reserve1 = TokenAmount(token1, rawReserve1)
 
-                    logger.info("getReserves reserve0: $reserve0, reserve1: $reserve1")
+                    logger.info("liquidity getReserves reserve0: $reserve0, reserve1: $reserve1")
 
                     Pair(reserve0, reserve1)
                 }
@@ -140,7 +140,7 @@ class TradeManager {
 
         return buildLiquidityData(receiveAddress, tradeData, chain).let {
 
-            TransactionData(routerAddress, it.value, it.input)
+            TransactionData(routerAddress, it.value, it.input, isBothErc = it.isBothErc)
         }
     }
 
@@ -169,9 +169,16 @@ class TradeManager {
                     slippage
                 )
         ).divide(BigInteger("1000"))
-        val method = buildMethodForLiquidityOut(tokenIn, tokenOut, to, deadline, tradeData, trade, amount0Min, amount1Min)
 
-        return TransactionData(liquidityRouterAddress(chain), trade.tokenAmountIn.rawAmount, method.encodedABI())
+        val amountETHMin: BigInteger = trade.tokenAmountIn.rawAmount.multiply(
+            BigInteger(
+                "5"
+            )
+        ).divide(BigInteger("1000"))
+        val method = buildMethodForLiquidityOut(tokenIn, tokenOut, to, deadline, tradeData, trade, amount0Min, amount1Min, amountETHMin)
+
+        return TransactionData(liquidityRouterAddress(chain), trade.tokenAmountIn.rawAmount, method.encodedABI(),
+            isBothErc = tokenIn is Erc20 || tokenOut is Erc20)
     }
 
 
@@ -180,8 +187,33 @@ class TradeManager {
     private fun buildMethodForLiquidityOut(tokenIn: Token, tokenOut: Token, to: Address, deadline: BigInteger,
                                            tradeData: TradeData, trade: Trade,
                                            amount0Min: BigInteger,
-                                           amount1Min: BigInteger): ContractMethod {
-        return AddLiquidityMethod(
+                                           amount1Min: BigInteger,
+                                           amountETHMin: BigInteger): ContractMethod {
+        return when {
+            (tokenIn is Erc20 && tokenOut is Ether) ||
+                    (tokenIn is Ether && tokenOut is Erc20) -> {
+                AddLiquidityETHMethod(
+                    tokenIn.address,
+                    trade.tokenAmountIn.rawAmount,
+                    amount0Min,
+                    amountETHMin,
+                    to,
+                    deadline)
+            }
+            tokenIn is Erc20 && tokenOut is Erc20 -> {
+                AddLiquidityMethod(
+                    tokenIn.address,
+                    tokenOut.address,
+                    trade.tokenAmountIn.rawAmount,
+                    trade.tokenAmountOut.rawAmount,
+                    amount0Min,
+                    amount1Min,
+                    to,
+                    deadline)
+            }
+            else -> throw Exception("Invalid tokenIn/Out for add liquidity!")
+        }
+        /*return AddLiquidityMethod(
             tokenIn.address,
             tokenOut.address,
             trade.tokenAmountIn.rawAmount,
@@ -189,7 +221,7 @@ class TradeManager {
             amount0Min,
             amount1Min,
             to,
-            deadline)
+            deadline)*/
     }
 
 
@@ -219,9 +251,9 @@ class TradeManager {
 
     companion object {
 
-        var safeSwapv2Safe4Router = "0x1Ef5BC9eCac0E1dd69497506A977Cc3f002DB034"
+        var safeSwapv2Safe4Router = "0x6476008C612dF9F8Db166844fFE39D24aEa12271"
         var safeSwapv2Safe4CodeHash = "ad0e51aa7a058efb9eb40fd6385473f0175ee7419e8d4f91a4e0294ec12b2d13"
-        var safeSwapv2Safe4Factory = "0xc394953741CA409426Bf6C3489294375BaE1629D"
+        var safeSwapv2Safe4Factory = "0xB3c827077312163c53E3822defE32cAffE574B42"
 
         fun getRouterAddress(chain: Chain, isSafeSwap: Boolean) =
             if (isSafeSwap) {
@@ -291,6 +323,7 @@ class TradeManager {
 
         private fun getLiquidityRouterAddress(chain: Chain) =
             when (chain) {
+                Chain.SafeFour -> Address(safeSwapv2Safe4Router)
                 Chain.Ethereum, Chain.EthereumGoerli -> Address(
                     "0x7a250d5630b4cf539739df2c5dacb4c659f2488d"
                 )
@@ -302,6 +335,7 @@ class TradeManager {
 
         private fun getLiquidityFactoryAddressString(chain: Chain) =
             when (chain) {
+                Chain.SafeFour -> safeSwapv2Safe4Factory
                 Chain.Ethereum, Chain.EthereumGoerli -> "0x5c69bee701ef814a2b6a3edd4b1652cb9cc5aa6f"
                 Chain.BinanceSmartChain -> "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73"
                 Chain.Polygon -> "0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E"
@@ -311,6 +345,7 @@ class TradeManager {
 
         private fun getLiquidityInitCodeHashString(chain: Chain) =
                 when (chain) {
+                    Chain.SafeFour -> safeSwapv2Safe4CodeHash
                     Chain.Ethereum, Chain.EthereumGoerli, Chain.Polygon, Chain.Avalanche -> "0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f"
                     Chain.BinanceSmartChain -> "0x00fb7f630766e6a796048ea87d01acd3068e8ff67d078148a3fa3f4a84f69bd5"
                     else -> throw UnsupportedChainError.NoInitCodeHash
@@ -364,6 +399,7 @@ class TradeManager {
                 val tokenAmountOut = try {
                     pair.tokenAmountOut(tokenAmountIn)
                 } catch (error: Throwable) {
+                    Log.d("TAG","tradeLiquidityExactIn: ${error}")
                     continue
                 }
 
