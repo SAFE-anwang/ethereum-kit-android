@@ -175,41 +175,56 @@ class TradeManager {
                 "5"
             )
         ).divide(BigInteger("1000"))
-        val method = buildMethodForLiquidityOut(tokenIn, tokenOut, to, deadline, tradeData, trade, amount0Min, amount1Min, amountETHMin)
-
-        return TransactionData(liquidityRouterAddress(chain), trade.tokenAmountIn.rawAmount, method.encodedABI(),
-            isBothErc = tokenIn is Erc20 || tokenOut is Erc20)
+        val method = buildMethodForLiquidityOut(chain, tokenIn, tokenOut, to, deadline, tradeData, trade, amount0Min, amount1Min, amountETHMin)
+        return TransactionData(liquidityRouterAddress(chain), method.second, method.first.encodedABI(),
+            isBothErc = tokenIn is Erc20 && tokenOut is Erc20)
     }
 
 
     private class LiquidityData(val amountA: BigInteger, val amountB: BigInteger, val input: ByteArray)
 
-    private fun buildMethodForLiquidityOut(tokenIn: Token, tokenOut: Token, to: Address, deadline: BigInteger,
+    private fun buildMethodForLiquidityOut(chain: Chain, tokenIn: Token, tokenOut: Token, to: Address, deadline: BigInteger,
                                            tradeData: TradeData, trade: Trade,
                                            amount0Min: BigInteger,
                                            amount1Min: BigInteger,
-                                           amountETHMin: BigInteger): ContractMethod {
+                                           amountETHMin: BigInteger): kotlin.Pair<ContractMethod, BigInteger> {
         return when {
             (tokenIn is Erc20 && tokenOut is Ether) ||
                     (tokenIn is Ether && tokenOut is Erc20) -> {
-                AddLiquidityETHMethod(
-                    tokenIn.address,
-                    trade.tokenAmountIn.rawAmount,
-                    amount0Min,
-                    amountETHMin,
-                    to,
-                    deadline)
+                 val pair = if (tokenIn is Erc20) {
+                            Pair(tokenIn.address, trade.tokenAmountOut.rawAmount)
+                        } else {
+                            Pair(tokenOut.address, trade.tokenAmountIn.rawAmount)
+                        }
+                val amountMin = if (tokenIn is Erc20) {
+                    amount0Min
+                } else {
+                    amount1Min
+                }
+                Pair(
+                    AddLiquidityETHMethod(
+                        pair.first,
+                        pair.second,
+                        amountMin,
+                        amountETHMin,
+                        to,
+                        deadline),
+                    pair.second
+                )
             }
             tokenIn is Erc20 && tokenOut is Erc20 -> {
-                AddLiquidityMethod(
-                    tokenIn.address,
-                    tokenOut.address,
-                    trade.tokenAmountIn.rawAmount,
-                    trade.tokenAmountOut.rawAmount,
-                    amount0Min,
-                    amount1Min,
-                    to,
-                    deadline)
+                Pair(
+                    AddLiquidityMethod(
+                        tokenIn.address,
+                        tokenOut.address,
+                        trade.tokenAmountIn.rawAmount,
+                        trade.tokenAmountOut.rawAmount,
+                        amount0Min,
+                        amount1Min,
+                        to,
+                        deadline),
+                    trade.tokenAmountIn.rawAmount
+                )
             }
             else -> throw Exception("Invalid tokenIn/Out for add liquidity!")
         }
