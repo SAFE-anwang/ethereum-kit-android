@@ -24,7 +24,6 @@ class Safe4TransactionSyncer(
     override fun getTransactionsSingle(): Single<Pair<List<Transaction>, Boolean>> {
         val lastTransactionBlockNumber = storage.get(SyncerId)?.lastBlockNumber ?: 0
         val initial = lastTransactionBlockNumber == 0L
-        Log.e("EtherscanService", "lastTransactionBlockNumber=$lastTransactionBlockNumber")
         return transactionProvider.getSafeAccountManagerTransactions(lastTransactionBlockNumber + 1)
                 .doOnSuccess { providerTransactions -> handle(providerTransactions) }
                 .map { providerTransactions ->
@@ -33,7 +32,6 @@ class Safe4TransactionSyncer(
                         transaction.transaction(transactionSize.size)
                     }.filter { it.from!!.hex != address && it.to!!.hex == address }.distinctBy { it.hashString }
 
-                    Log.e("EtherscanService", "TransactionSize=${array.size}")
                     Pair(array, initial)
                 }
                 .onErrorReturnItem(Pair(listOf(), initial))
