@@ -37,7 +37,6 @@ class PancakeSwapKit(
     fun swapData(rpcSource: RpcSource, chain: Chain, tokenIn: Token, tokenOut: Token): Single<SwapData> {
         val tokenPairs = pairSelector.tokenPairs(chain, tokenIn, tokenOut)
         val singles = tokenPairs.map { (tokenA, tokenB) ->
-            Log.d("TradeManager", "-----")
             tradeManager.liquidityPair(rpcSource, chain, tokenA, tokenB)
         }
 
