@@ -8,7 +8,8 @@ data class TransactionData(
         val to: Address,
         val value: BigInteger,
         val input: ByteArray,
-        var lockTime: Int? = null // lock time , unit day
+        var lockTime: Int? = null, // lock time , unit day
+        var isBothErc: Boolean = false
 ) {
     override fun equals(other: Any?): Boolean {
         return when {

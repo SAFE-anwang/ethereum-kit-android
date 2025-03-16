@@ -1,5 +1,6 @@
 package io.horizontalsystems.ethereumkit.decorations
 
+import com.anwang.utils.Safe4Contract
 import io.horizontalsystems.ethereumkit.contracts.ContractEventInstance
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.InternalTransaction
@@ -40,6 +41,24 @@ open class UnknownTransactionDecoration(
                 incomingValue < outgoingValue -> {
                     add(TransactionTag.EVM_COIN_OUTGOING)
                     add(TransactionTag.OUTGOING)
+                }
+            }
+
+            // SAFE4 扩展
+            toAddress?.let {
+                when(it.hex) {
+                    Safe4Contract.AccountManagerContractAddr,
+                    Safe4Contract.MasterNodeStorageContractAddr,
+                    Safe4Contract.MasterNodeLogicContractAddr,
+                    Safe4Contract.SuperNodeStorageContractAddr,
+                    Safe4Contract.SuperNodeLogicContractAddr,
+                    Safe4Contract.SNVoteContractAddr,
+                    Safe4Contract.ProposalContractAddr ->{
+                        add(TransactionTag.EVM_COIN)
+                    }
+                    else -> {
+
+                    }
                 }
             }
 
