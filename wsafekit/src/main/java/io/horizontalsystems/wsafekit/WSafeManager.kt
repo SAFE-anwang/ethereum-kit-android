@@ -7,7 +7,8 @@ import io.horizontalsystems.ethereumkit.models.TransactionData
 import java.math.BigInteger
 
 class WSafeManager(
-    chain: Chain
+    chain: Chain,
+    private val isSafe4: Boolean = false
 )  {
 
     private val contractAddress = getContractAddress(chain)
@@ -35,6 +36,12 @@ class WSafeManager(
         ).hexStringToByteArray())
     }
 
+    fun transactionDataSafe4(amount: BigInteger,
+                        to: String): TransactionData {
+        return TransactionData(to = Address(safeConvertAddress), value = amount,
+            to.toByteArray())
+    }
+
     sealed class UnsupportedChainError : Throwable() {
         object NoWethAddress : UnsupportedChainError()
         object NoSafeAddress : UnsupportedChainError()
@@ -45,13 +52,22 @@ class WSafeManager(
      * 获取跨链eth合约地址
      */
     private fun getContractAddress(chain: Chain): Address {
-        val wethAddressHex = when (chain) {
-            Chain.Ethereum -> "0xee9c1ea4dcf0aaf4ff2d78b6ff83aa69797b65eb"
+        val wethAddressHex = if (isSafe4) {
+            when (chain) {
+                Chain.Ethereum -> "0x96f59C9D155d598d4f895F07dd6991cCB5FA7DC7"
+                Chain.BinanceSmartChain -> "0x3a5557AD6FA16699dD56fd0E418C70c83e42240a" //BSC正式环境
+                Chain.Polygon -> "0xe0D3ff9b473976855B2242a1A022aC66f980Ce50"
+                else -> throw UnsupportedChainError.NoWethAddress
+            }
+        } else {
+            when (chain) {
+                Chain.Ethereum -> "0xee9c1ea4dcf0aaf4ff2d78b6ff83aa69797b65eb"
 //            Chain.EthereumRopsten -> "0x32885f2faf83aeee39e2cfe7f302e3bb884869f4"
-            Chain.BinanceSmartChain -> "0x4d7fa587ec8e50bd0e9cd837cb4da796f47218a1" //BSC正式环境
-            Chain.Polygon -> "0xb7dd19490951339fe65e341df6ec5f7f93ff2779"
+                Chain.BinanceSmartChain -> "0x4d7fa587ec8e50bd0e9cd837cb4da796f47218a1" //BSC正式环境
+                Chain.Polygon -> "0xb7dd19490951339fe65e341df6ec5f7f93ff2779"
 //            Chain.BinanceSmartChain -> "0xa3d8077c3a447049164e60294c892e5e4c7f3ad2" //BSC测试环境
-            else -> throw UnsupportedChainError.NoWethAddress
+                else -> throw UnsupportedChainError.NoWethAddress
+            }
         }
         return Address(wethAddressHex)
     }
@@ -60,13 +76,22 @@ class WSafeManager(
      * 获取跨链safe地址
      */
     private fun getSafeAddress(chain: Chain): String {
-        val safeAddressHex = when (chain) {
-            Chain.Ethereum -> "Xnr78kmFtZBWKypYeyDLaaQRLf2EoMSgMV"
+        val safeAddressHex = if (isSafe4) {
+            when (chain) {
+                Chain.Ethereum -> "0xaD016d35FE9148F2a8D8A8d37325ada3B7070386"
+                Chain.BinanceSmartChain -> "0x7756B490d4Ce394bB6FBA5559C10a8eDc7b102Fc" //BSC正式环境
+                Chain.Polygon -> "0x8b151740b4a5B2bF7dA631AAD83Be627f97F5790"
+                else -> throw UnsupportedChainError.NoSafeAddress
+            }
+        } else {
+            when (chain) {
+                Chain.Ethereum -> "Xnr78kmFtZBWKypYeyDLaaQRLf2EoMSgMV"
 //            Chain.EthereumRopsten -> "XiY8mw8XXxfkfrgAwgVUs7qQW7vGGFLByx"
-            Chain.BinanceSmartChain -> "XdyjRkZpyDdPD3uJAUC3MzJSoCtEZincFf" //BSC正式环境
-            Chain.Polygon -> "XuPmDoaNb6rbNywefkTbESHXiYqNpYvaPU"
+                Chain.BinanceSmartChain -> "XdyjRkZpyDdPD3uJAUC3MzJSoCtEZincFf" //BSC正式环境
+                Chain.Polygon -> "XuPmDoaNb6rbNywefkTbESHXiYqNpYvaPU"
 //            Chain.BinanceSmartChain -> "Xm3DvW7ZpmCYtyhtPSu5iYQknpofseVxaF" //BSC测试环境
-            else -> throw UnsupportedChainError.NoSafeAddress
+                else -> throw UnsupportedChainError.NoSafeAddress
+            }
         }
         return safeAddressHex
     }
@@ -80,6 +105,7 @@ class WSafeManager(
 //            Chain.EthereumRopsten -> "testnet"
             Chain.BinanceSmartChain -> "mainnet" //BSC正式环境
             Chain.Polygon -> "mainnet"
+            Chain.SafeFour -> "mainnet"
 //            Chain.BinanceSmartChain -> "testnet" //BSC测试环境
             else -> throw UnsupportedChainError.NoSafeNetType
         }
