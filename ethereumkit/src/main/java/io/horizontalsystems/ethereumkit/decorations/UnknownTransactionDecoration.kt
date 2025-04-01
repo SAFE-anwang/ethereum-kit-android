@@ -1,5 +1,6 @@
 package io.horizontalsystems.ethereumkit.decorations
 
+import com.anwang.utils.Safe4Contract
 import io.horizontalsystems.ethereumkit.contracts.ContractEventInstance
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.InternalTransaction
@@ -8,9 +9,9 @@ import java.math.BigInteger
 
 open class UnknownTransactionDecoration(
         val fromAddress: Address?,
-        private val toAddress: Address?,
+        val toAddress: Address?,
         private val userAddress: Address,
-        private val value: BigInteger?,
+        val value: BigInteger?,
         open val internalTransactions: List<InternalTransaction>,
         open val eventInstances: List<ContractEventInstance>
 ) : TransactionDecoration {
@@ -34,14 +35,35 @@ open class UnknownTransactionDecoration(
         buildList {
             when {
                 incomingValue > outgoingValue -> {
+                    add(TransactionTag.EVM_COIN)
                     add(TransactionTag.EVM_COIN_INCOMING)
                     add(TransactionTag.INCOMING)
                 }
                 incomingValue < outgoingValue -> {
+                    add(TransactionTag.EVM_COIN)
                     add(TransactionTag.EVM_COIN_OUTGOING)
                     add(TransactionTag.OUTGOING)
                 }
             }
+
+            // SAFE4 扩展
+            toAddress?.let {
+                when(it.hex) {
+                    Safe4Contract.AccountManagerContractAddr,
+                    Safe4Contract.MasterNodeStorageContractAddr,
+                    Safe4Contract.MasterNodeLogicContractAddr,
+                    Safe4Contract.SuperNodeStorageContractAddr,
+                    Safe4Contract.SuperNodeLogicContractAddr,
+                    Safe4Contract.SNVoteContractAddr,
+                    Safe4Contract.ProposalContractAddr ->{
+                        add(TransactionTag.EVM_COIN)
+                    }
+                    else -> {
+
+                    }
+                }
+            }
+
 
             internalTransactions.forEach { internalTransaction ->
                 if (internalTransaction.from != userAddress) {

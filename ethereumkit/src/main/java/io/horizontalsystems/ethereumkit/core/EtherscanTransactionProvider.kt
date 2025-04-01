@@ -1,6 +1,5 @@
 package io.horizontalsystems.ethereumkit.core
 
-import android.util.Log
 import io.horizontalsystems.ethereumkit.models.*
 import io.horizontalsystems.ethereumkit.network.EtherscanService
 import io.reactivex.Single
@@ -102,11 +101,15 @@ class EtherscanTransactionProvider(
                         val tokenName = tx.getValue("tokenName")
                         val tokenSymbol = tx.getValue("tokenSymbol")
                         val tokenDecimal = tx.getValue("tokenDecimal").toInt()
-                        val transactionIndex = tx.getValue("transactionIndex").toInt()
+                        val transactionIndex = tx.get("transactionIndex")?.toInt() ?: 0
                         val gasLimit = tx.getValue("gas").toLong()
                         val gasPrice = tx.getValue("gasPrice").toLong()
                         val gasUsed = tx.getValue("gasUsed").toLong()
-                        val cumulativeGasUsed = tx.getValue("cumulativeGasUsed").toLong()
+                        val cumulativeGasUsed = try {
+                            tx.getValue("cumulativeGasUsed").toLong()
+                        } catch (e: Exception) {
+                            0L
+                        }
 
                         ProviderTokenTransaction(
                             blockNumber, timestamp, hash, nonce, blockHash, from, contractAddress, to, value, tokenName, tokenSymbol, tokenDecimal,
