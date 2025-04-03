@@ -8,21 +8,14 @@ import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.Chain
 import io.horizontalsystems.ethereumkit.models.RpcSource
 import io.horizontalsystems.ethereumkit.models.TransactionData
-import io.horizontalsystems.uniswapkit.contract.AddLiquidityMethod
-import io.horizontalsystems.uniswapkit.contract.GetReservesMethod
-import io.horizontalsystems.uniswapkit.contract.SwapETHForExactTokensMethod
-import io.horizontalsystems.uniswapkit.contract.SwapExactETHForTokensMethod
-import io.horizontalsystems.uniswapkit.contract.SwapExactTokensForETHMethod
-import io.horizontalsystems.uniswapkit.contract.SwapExactTokensForTokensMethod
-import io.horizontalsystems.uniswapkit.contract.SwapTokensForExactETHMethod
-import io.horizontalsystems.uniswapkit.contract.SwapTokensForExactTokensMethod
+import io.horizontalsystems.uniswapkit.contract.*
 import io.horizontalsystems.uniswapkit.models.*
 import io.horizontalsystems.uniswapkit.models.Token.Erc20
 import io.horizontalsystems.uniswapkit.models.Token.Ether
 import io.reactivex.Single
 import java.math.BigDecimal
 import java.math.BigInteger
-import java.util.Date
+import java.util.*
 import java.util.logging.Logger
 
 class TradeManager {
@@ -431,7 +424,6 @@ class TradeManager {
                 val tokenAmountOut = try {
                     pair.tokenAmountOut(tokenAmountIn)
                 } catch (error: Throwable) {
-                    Log.d("TAG","tradeLiquidityExactIn: ${error}")
                     continue
                 }
 
