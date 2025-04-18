@@ -19,6 +19,7 @@ class TokenFactory {
     }
 
     companion object {
+        // WSAFE
         fun getWethAddress(chain: Chain): Address {
             val wethAddressHex = when (chain) {
                 Chain.Ethereum -> "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
@@ -28,7 +29,8 @@ class TokenFactory {
                 Chain.Avalanche -> "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7"
                 Chain.EthereumGoerli -> "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6"
                 Chain.ArbitrumOne -> "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
-                Chain.SafeFour -> "0x64c5aB0DFeCCe653751B463AFb05352085c5f2f9"
+//                Chain.SafeFour -> "0x64c5aB0DFeCCe653751B463AFb05352085c5f2f9" // Test
+                Chain.SafeFour -> "0x0000000000000000000000000000000000001101"
                  else -> throw UnsupportedChainError.NoWethAddress
             }
             return Address(wethAddressHex)
