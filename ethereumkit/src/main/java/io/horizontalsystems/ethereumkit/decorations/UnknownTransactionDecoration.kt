@@ -49,12 +49,14 @@ open class UnknownTransactionDecoration(
             // SAFE4 扩展
             toAddress?.let {
                 when(it.hex) {
+                    Safe4Contract.PropertyContractAddr,
                     Safe4Contract.AccountManagerContractAddr,
                     Safe4Contract.MasterNodeStorageContractAddr,
                     Safe4Contract.MasterNodeLogicContractAddr,
                     Safe4Contract.SuperNodeStorageContractAddr,
                     Safe4Contract.SuperNodeLogicContractAddr,
                     Safe4Contract.SNVoteContractAddr,
+                    Safe4Contract.Safe3ContractAddr,
                     Safe4Contract.ProposalContractAddr ->{
                         add(TransactionTag.EVM_COIN)
                     }
