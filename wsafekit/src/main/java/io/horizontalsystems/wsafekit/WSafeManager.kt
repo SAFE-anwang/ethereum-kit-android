@@ -78,9 +78,9 @@ class WSafeManager(
     private fun getSafeAddress(chain: Chain): String {
         val safeAddressHex = if (isSafe4) {
             when (chain) {
-                Chain.Ethereum -> "0xaD016d35FE9148F2a8D8A8d37325ada3B7070386"
-                Chain.BinanceSmartChain -> "0x7756B490d4Ce394bB6FBA5559C10a8eDc7b102Fc" //BSC正式环境
-                Chain.Polygon -> "0x8b151740b4a5B2bF7dA631AAD83Be627f97F5790"
+                Chain.Ethereum -> "0x30728eBa408684D167CF59828261Db8A2A59E8C7"
+                Chain.BinanceSmartChain -> "0x471B9eB32a6750b0356E0C80294Ee035C4bdF60B" //BSC正式环境
+                Chain.Polygon -> "0x960Bb626aba915c242301EC47948Ba475CDeC090"
                 else -> throw UnsupportedChainError.NoSafeAddress
             }
         } else {
