@@ -2,8 +2,6 @@ package io.horizontalsystems.ethereumkit.core
 
 import android.app.Application
 import android.content.Context
-import android.util.Log
-import com.anwang.utils.Safe4Contract
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import io.horizontalsystems.ethereumkit.api.core.ApiRpcSyncer
