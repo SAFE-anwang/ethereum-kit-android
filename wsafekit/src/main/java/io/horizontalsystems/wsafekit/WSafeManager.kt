@@ -109,7 +109,7 @@ class WSafeManager(
 //            Chain.BinanceSmartChain -> "testnet" //BSC测试环境
             else -> throw UnsupportedChainError.NoSafeNetType
         }
-        return safeAddressHex
+        return safeAddressHex + if(isSafe4) "4" else ""
     }
 
 }
