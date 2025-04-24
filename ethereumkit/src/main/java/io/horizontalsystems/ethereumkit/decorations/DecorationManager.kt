@@ -1,5 +1,6 @@
 package io.horizontalsystems.ethereumkit.decorations
 
+import com.anwang.utils.Safe4Contract
 import io.horizontalsystems.ethereumkit.contracts.ContractEventInstance
 import io.horizontalsystems.ethereumkit.contracts.ContractMethod
 import io.horizontalsystems.ethereumkit.contracts.EmptyMethod
@@ -96,7 +97,12 @@ class DecorationManager(private val userAddress: Address, private val storage: I
         val map: MutableMap<String, List<InternalTransaction>> = mutableMapOf()
 
         for (internalTransaction in internalTransactions) {
-            map[internalTransaction.hashString] = (map[internalTransaction.hashString] ?: mutableListOf()) + listOf(internalTransaction)
+            if (internalTransaction.from.hex != Safe4Contract.AccountManagerContractAddr ||(!map.contains(internalTransaction.hashString) && internalTransaction.from.hex == Safe4Contract.AccountManagerContractAddr)) {
+                map[internalTransaction.hashString] =
+                    (map[internalTransaction.hashString] ?: mutableListOf()) + listOf(
+                        internalTransaction
+                    )
+            }
         }
 
         return map
