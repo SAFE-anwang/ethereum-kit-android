@@ -97,12 +97,7 @@ class DecorationManager(private val userAddress: Address, private val storage: I
         val map: MutableMap<String, List<InternalTransaction>> = mutableMapOf()
 
         for (internalTransaction in internalTransactions) {
-            if (internalTransaction.from.hex != Safe4Contract.AccountManagerContractAddr ||(!map.contains(internalTransaction.hashString) && internalTransaction.from.hex == Safe4Contract.AccountManagerContractAddr)) {
-                map[internalTransaction.hashString] =
-                    (map[internalTransaction.hashString] ?: mutableListOf()) + listOf(
-                        internalTransaction
-                    )
-            }
+            map[internalTransaction.hashString] = (map[internalTransaction.hashString] ?: mutableListOf()) + listOf(internalTransaction)
         }
 
         return map

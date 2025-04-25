@@ -127,10 +127,10 @@ class TransactionStorage(database: TransactionDatabase) : ITransactionStorage {
         transactionDao.getLastInternalTransaction()
 
     override fun getInternalTransactions(): List<InternalTransaction> =
-        transactionDao.getInternalTransactions()
+        transactionDao.getInternalTransactions().distinctBy { it.hashString }
 
     override fun getInternalTransactionsByHashes(hashes: List<ByteArray>): List<InternalTransaction> =
-        transactionDao.getInternalTransactionsByHashes(hashes)
+        transactionDao.getInternalTransactionsByHashes(hashes).distinctBy { it.hashString }
 
     override fun saveInternalTransactions(internalTransactions: List<InternalTransaction>) {
         transactionDao.insertInternalTransactions(internalTransactions)
