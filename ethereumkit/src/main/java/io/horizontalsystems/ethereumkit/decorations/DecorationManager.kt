@@ -92,7 +92,7 @@ class DecorationManager(private val userAddress: Address, private val storage: I
         } else {
             val hashes = transactions.map { it.hash }
             storage.getInternalTransactionsByHashes(hashes)
-        }.filter { it.from.hex != Safe4Contract.Safe3ContractAddr }
+        }
 
         val map: MutableMap<String, List<InternalTransaction>> = mutableMapOf()
 
