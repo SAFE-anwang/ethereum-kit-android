@@ -52,14 +52,14 @@ class WSafeManager(
      * 获取跨链eth合约地址
      */
     private fun getContractAddress(chain: Chain): Address {
-        val wethAddressHex = if (isSafe4) {
+        val wethAddressHex = /*if (isSafe4) {
             when (chain) {
                 Chain.Ethereum -> "0x96f59C9D155d598d4f895F07dd6991cCB5FA7DC7"
                 Chain.BinanceSmartChain -> "0x3a5557AD6FA16699dD56fd0E418C70c83e42240a" //BSC正式环境
                 Chain.Polygon -> "0xe0D3ff9b473976855B2242a1A022aC66f980Ce50"
                 else -> throw UnsupportedChainError.NoWethAddress
             }
-        } else {
+        } else {*/
             when (chain) {
                 Chain.Ethereum -> "0xee9c1ea4dcf0aaf4ff2d78b6ff83aa69797b65eb"
 //            Chain.EthereumRopsten -> "0x32885f2faf83aeee39e2cfe7f302e3bb884869f4"
@@ -68,7 +68,7 @@ class WSafeManager(
 //            Chain.BinanceSmartChain -> "0xa3d8077c3a447049164e60294c892e5e4c7f3ad2" //BSC测试环境
                 else -> throw UnsupportedChainError.NoWethAddress
             }
-        }
+//        }
         return Address(wethAddressHex)
     }
 
