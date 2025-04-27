@@ -285,9 +285,9 @@ class EthereumKit(
     }
 
     fun withdraw(privateKey: BigInteger) {
-        if(blockchain is RpcBlockchainSafe4) {
+        /*if(blockchain is RpcBlockchainSafe4) {
             blockchain.withdraw(privateKey)
-        }
+        }*/
     }
 
 
