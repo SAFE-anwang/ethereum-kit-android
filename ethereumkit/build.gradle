@@ -111,7 +111,7 @@ dependencies {
     androidTestImplementation 'com.nhaarman:mockito-kotlin-kt1.1:1.6.0'
 
     // safe4
-    api "com.anwang:web3j-safe4:1.1.3"
+    api "com.anwang:web3j-safe4:1.1.4"
 }
 
 configurations.all {
