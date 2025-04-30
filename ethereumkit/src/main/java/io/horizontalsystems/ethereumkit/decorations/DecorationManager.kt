@@ -1,5 +1,6 @@
 package io.horizontalsystems.ethereumkit.decorations
 
+import com.anwang.utils.Safe4Contract
 import io.horizontalsystems.ethereumkit.contracts.ContractEventInstance
 import io.horizontalsystems.ethereumkit.contracts.ContractMethod
 import io.horizontalsystems.ethereumkit.contracts.EmptyMethod

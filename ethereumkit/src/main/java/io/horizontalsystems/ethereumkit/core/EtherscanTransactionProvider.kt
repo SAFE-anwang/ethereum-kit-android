@@ -1,6 +1,5 @@
 package io.horizontalsystems.ethereumkit.core
 
-import android.util.Log
 import io.horizontalsystems.ethereumkit.models.*
 import io.horizontalsystems.ethereumkit.network.EtherscanService
 import io.reactivex.Single

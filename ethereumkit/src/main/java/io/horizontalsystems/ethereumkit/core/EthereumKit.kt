@@ -2,8 +2,6 @@ package io.horizontalsystems.ethereumkit.core
 
 import android.app.Application
 import android.content.Context
-import android.util.Log
-import com.anwang.utils.Safe4Contract
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import io.horizontalsystems.ethereumkit.api.core.ApiRpcSyncer
@@ -286,10 +284,20 @@ class EthereumKit(
         )
     }
 
+    fun safe4ToSrc20(privateKey: BigInteger, transactionData: TransactionData): Single<String> {
+        val rpc = blockchain as RpcBlockchainSafe4
+        return rpc.safe4ToSrc20(privateKey, transactionData)
+    }
+
+    fun src20ToSafe4(privateKey: BigInteger, transactionData: TransactionData): Single<String>  {
+        val rpc = blockchain as RpcBlockchainSafe4
+        return rpc.src20ToSafe4(privateKey, transactionData)
+    }
+
     fun withdraw(privateKey: BigInteger) {
-        if(blockchain is RpcBlockchainSafe4) {
+        /*if(blockchain is RpcBlockchainSafe4) {
             blockchain.withdraw(privateKey)
-        }
+        }*/
     }
 
 
