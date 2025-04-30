@@ -12,7 +12,6 @@ import com.anwang.types.safe3.LockedSafe3Info
 import com.anwang.types.snvote.SNVoteRetInfo
 import com.anwang.types.supernode.SuperNodeInfo
 import com.anwang.utils.Safe4Contract
-import io.horizontalsystems.ethereumkit.api.core.RpcBlockchain.Companion
 import io.horizontalsystems.ethereumkit.api.jsonrpc.CallJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.DataJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.EstimateGasJsonRpc
@@ -24,7 +23,6 @@ import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcBlock
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransaction
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTransactionReceipt
 import io.horizontalsystems.ethereumkit.api.models.AccountState
-import io.horizontalsystems.ethereumkit.contracts.ContractMethodHelper
 import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.core.EthereumKit.SyncState
 import io.horizontalsystems.ethereumkit.core.IApiStorage
@@ -42,13 +40,18 @@ import io.horizontalsystems.ethereumkit.models.RawTransaction
 import io.horizontalsystems.ethereumkit.models.RpcSource
 import io.horizontalsystems.ethereumkit.models.Signature
 import io.horizontalsystems.ethereumkit.models.Transaction
+import io.horizontalsystems.ethereumkit.models.TransactionData
 import io.horizontalsystems.ethereumkit.models.TransactionLog
-import io.horizontalsystems.ethereumkit.spv.core.toBigInteger
 import io.reactivex.Single
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 import org.web3j.abi.FunctionEncoder
+import org.web3j.abi.TypeReference
 import org.web3j.abi.datatypes.Function
+import org.web3j.abi.datatypes.Type
+import org.web3j.abi.datatypes.generated.Uint256
+import org.web3j.crypto.Credentials
+import org.web3j.crypto.TransactionEncoder
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.DefaultBlockParameterName
 import org.web3j.protocol.core.DefaultBlockParameterNumber
@@ -57,6 +60,7 @@ import org.web3j.protocol.core.methods.request.EthFilter
 import org.web3j.protocol.core.methods.response.EthCall
 import org.web3j.utils.Numeric
 import java.math.BigInteger
+import java.util.Arrays
 
 class RpcBlockchainSafe4(
         private val address: Address,
@@ -65,6 +69,8 @@ class RpcBlockchainSafe4(
         private val transactionBuilder: Safe4TransactionBuilder,
         private val web3j: Web3j
 ) : IBlockchain, IRpcSyncerListener, ISafeFourOperate {
+
+    private val safe4SwapContractAddress = "0x0000000000000000000000000000000000001101"
 
     private val disposables = CompositeDisposable()
 
@@ -577,7 +583,7 @@ class RpcBlockchainSafe4(
         return Single.just(web3jSafe4.safe3.batchRedeemSafe3(callerAddress, privateKey, org.web3j.abi.datatypes.Address(targetAddress)))
     }
 
-    override fun redeemMasterNode(callerAddress: String, privateKey: List<String>, targetAddress: String): Single<String> {
+    override fun redeemMasterNode(callerAddress: String, privateKey: List<String>, targetAddress: String): Single<List<String>> {
         return Single.just(web3jSafe4.safe3.batchRedeemMasterNode(callerAddress, privateKey, privateKey.map { "" }, org.web3j.abi.datatypes.Address(targetAddress)))
     }
 
@@ -842,6 +848,85 @@ class RpcBlockchainSafe4(
                         }
                 ) as T
         )
+    }
+
+    fun safe4ToSrc20(privateKey: BigInteger, transaction: TransactionData): Single<String> {
+        return Single.create<String> { emitter ->
+            try {
+                val function = Function(
+                    "deposit",
+                    listOf(),
+                    listOf<TypeReference<*>>(object : TypeReference<Uint256?>() {})
+                )
+                val result = call(privateKey, transaction.value, function)
+                emitter.onSuccess(result)
+            } catch (e: Throwable) {
+                Log.d("safe4ToSrc20", "error=$e")
+                emitter.onError(e)
+            }
+        }
+
+    }
+
+    fun src20ToSafe4(privateKey: BigInteger, transaction: TransactionData): Single<String> {
+        return Single.create<String> { emitter ->
+            try {
+                val function = Function(
+                    "withdraw",
+                    Arrays.asList<Type<*>>(Uint256(transaction.value)),
+                    listOf<TypeReference<*>>(object : TypeReference<Uint256?>() {})
+                )
+                val result = call(privateKey, BigInteger.ZERO, function)
+                emitter.onSuccess(result)
+            } catch (e: Throwable) {
+                Log.e("src20ToSafe4", "e=$e")
+                emitter.onError(e)
+            }
+        }
+    }
+
+    private fun call(privateKey: BigInteger, value: BigInteger, function: Function): String {
+        val nonce = getNonce(DefaultBlockParameter.Latest).blockingGet().toBigInteger()
+        val gasPrice: BigInteger = web3j.ethGasPrice().send().gasPrice
+        val data = FunctionEncoder.encode(function)
+        val ethEstimateGas = web3j.ethEstimateGas(
+            org.web3j.protocol.core.methods.request.Transaction.createFunctionCallTransaction(
+                address.hex,
+                nonce,
+                gasPrice,
+                java.math.BigInteger.ZERO,
+                safe4SwapContractAddress,
+                value,
+                data
+            )
+        ).send()
+        if (ethEstimateGas.error != null) {
+            throw java.lang.Exception(ethEstimateGas.error.message)
+        }
+        val gasLimit =
+            ethEstimateGas.amountUsed.multiply(java.math.BigInteger.valueOf(6)).divide(java.math.BigInteger.valueOf(5))
+        val rawTransaction = org.web3j.crypto.RawTransaction.createTransaction(
+            nonce,
+            gasPrice,
+            gasLimit,
+            safe4SwapContractAddress,
+            value,
+            data
+        )
+        val credentials: Credentials = Credentials.create(privateKey.toHexString())
+        val signedTransactionData = Numeric.toHexString(
+            TransactionEncoder.signMessage(
+                rawTransaction,
+                Chain.SafeFour.id.toLong(),
+                credentials
+            )
+        )
+        val ethSendTransaction =
+            web3j.ethSendRawTransaction(signedTransactionData).sendAsync().get()
+        if (ethSendTransaction.hasError()) {
+            throw java.lang.Exception(ethSendTransaction.error.message)
+        }
+        return ethSendTransaction.transactionHash
     }
 
     //endregion

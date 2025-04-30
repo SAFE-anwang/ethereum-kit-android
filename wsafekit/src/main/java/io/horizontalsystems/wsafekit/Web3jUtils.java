@@ -28,4 +28,28 @@ public class Web3jUtils {
         return FunctionEncoder.encode(function);
     }
 
+    public static String getSafe4SwapSrcTransactionInput(){
+        String methodName = "deposit";
+        List<Type> inputParameters = new ArrayList<>();
+        List<TypeReference<?>> outputParameters = new ArrayList<>();
+        TypeReference<Uint256> typeReference = new TypeReference<Uint256>() {
+        };
+        outputParameters.add(typeReference);
+        Function function = new Function(methodName, inputParameters, outputParameters);
+        return FunctionEncoder.encode(function);
+    }
+
+    public static String getSrcSwapSafe4TransactionInput(BigInteger amount){
+        String methodName = "withdraw";
+        List<Type> inputParameters = new ArrayList<>();
+        List<TypeReference<?>> outputParameters = new ArrayList<>();
+        Uint256 tokenValue = new Uint256(amount);
+        inputParameters.add(tokenValue);
+        TypeReference<Uint256> typeReference = new TypeReference<Uint256>() {
+        };
+        outputParameters.add(typeReference);
+        Function function = new Function(methodName, inputParameters, outputParameters);
+        return FunctionEncoder.encode(function);
+    }
+
 }
