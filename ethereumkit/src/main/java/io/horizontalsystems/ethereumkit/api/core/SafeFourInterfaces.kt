@@ -1,5 +1,6 @@
 package io.horizontalsystems.ethereumkit.api.core
 
+import com.anwang.types.accountmanager.AccountAmountInfo
 import com.anwang.types.accountmanager.AccountRecord
 import com.anwang.types.accountmanager.RecordUseInfo
 import com.anwang.types.masternode.MasterNodeInfo
@@ -15,6 +16,7 @@ import java.math.BigInteger
 
 interface ISafeFourOperate {
 	fun withdraw(privateKey: BigInteger)
+	fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>): String?
 
 	fun superNodeRegister(
 			privateKey: String,
@@ -94,6 +96,7 @@ interface ISafeFourOperate {
 	fun getRecordByID(id: Int): AccountRecord
 
 	fun getVoters(address: String, start: Int, count: Int): Single<SNVoteRetInfo>
+	fun getAvailableIDs(address: String, start: Int, count: Int): Single<List<BigInteger>>
 
 	fun proposalCreate(
 			privateKey: String,
@@ -161,4 +164,6 @@ interface ISafeFourOperate {
 	fun existNodeEnode(enode: String): Single<Boolean>
 	fun existNodeFounder(address: String): Single<Boolean>
 	fun addLockDay(privateKey: String, id: Long, day: Int): Single<String>
+
+	fun getAvailableAmount(address: String): AccountAmountInfo
 }
