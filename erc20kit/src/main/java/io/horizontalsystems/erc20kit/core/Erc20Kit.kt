@@ -73,7 +73,9 @@ class Erc20Kit(
         disposables.clear()
     }
 
-    fun refresh() {}
+    fun refresh() {
+        start()
+    }
 
     fun getAllowanceAsync(spenderAddress: Address, defaultBlockParameter: DefaultBlockParameter = DefaultBlockParameter.Latest): Single<BigInteger> {
         return allowanceManager.allowance(spenderAddress, defaultBlockParameter)
