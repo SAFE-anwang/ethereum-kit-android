@@ -366,6 +366,10 @@ class RpcBlockchainSafe4(
         return web3jSafe4.proposal.getInfo(id.toBigInteger())
     }
 
+    override fun getRewardIDs(id: Int): List<BigInteger> {
+        return web3jSafe4.proposal.getRewardIDs(id.toBigInteger())
+    }
+
     override fun getRecordByID(id: Int): AccountRecord {
         return web3jSafe4.account.getRecordByID(id.toBigInteger())
     }
@@ -675,6 +679,32 @@ class RpcBlockchainSafe4(
 
     override fun getAvailableAmount(address: String): AccountAmountInfo {
         return web3jSafe4.account.getAvailableAmount(org.web3j.abi.datatypes.Address(address))
+    }
+
+    override fun batchDeposit4One(
+        privateKey: String,
+        value: BigInteger,
+        to: String,
+        times: BigInteger,
+        spaceDay: BigInteger,
+        startDay: BigInteger
+    ): Single<String> {
+        return Single.create<String> { emitter ->
+            try {
+                val result = web3jSafe4.account.batchDeposit4One(
+                    privateKey,
+                    value,
+                    org.web3j.abi.datatypes.Address(to),
+                    times,
+                    spaceDay,
+                    startDay
+                )
+                emitter.onSuccess(result)
+            } catch (e: Throwable) {
+                Log.e("batchDeposit4One", "error=$e")
+                emitter.onError(e)
+            }
+        }
     }
 
     override fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long> {

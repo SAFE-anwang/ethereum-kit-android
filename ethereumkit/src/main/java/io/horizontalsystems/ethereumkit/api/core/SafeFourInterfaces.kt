@@ -92,6 +92,7 @@ interface ISafeFourOperate {
 	fun getProposalVoteList(id: Int, start: Int, count: Int): Single<List<ProposalVoteInfo>>
 
 	fun getProposalInfo(id: Int): ProposalInfo
+	fun getRewardIDs(id: Int): List<BigInteger>
 
 	fun getRecordByID(id: Int): AccountRecord
 
@@ -166,4 +167,6 @@ interface ISafeFourOperate {
 	fun addLockDay(privateKey: String, id: Long, day: Int): Single<String>
 
 	fun getAvailableAmount(address: String): AccountAmountInfo
+
+	fun batchDeposit4One(privateKey: String, value:BigInteger, to:String, times:BigInteger, spaceDay: BigInteger, startDay: BigInteger): Single<String>
 }

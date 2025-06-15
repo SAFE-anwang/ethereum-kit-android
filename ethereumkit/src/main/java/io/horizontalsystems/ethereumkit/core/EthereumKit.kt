@@ -294,6 +294,18 @@ class EthereumKit(
         return rpc.src20ToSafe4(privateKey, transactionData)
     }
 
+    fun safe4LineLock(privateKey: BigInteger, transactionData: TransactionData): Single<String>  {
+        val rpc = blockchain as RpcBlockchainSafe4
+        return rpc.batchDeposit4One(
+            privateKey.toHexString(),
+            transactionData.value,
+            transactionData.to.hex,
+            transactionData.times.toBigInteger(),
+            transactionData.spaceDay.toBigInteger(),
+            transactionData.startDay.toBigInteger()
+        )
+    }
+
     fun withdraw(privateKey: BigInteger) {
         /*if(blockchain is RpcBlockchainSafe4) {
             blockchain.withdraw(privateKey)
