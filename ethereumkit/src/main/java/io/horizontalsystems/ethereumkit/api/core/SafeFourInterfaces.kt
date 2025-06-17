@@ -16,7 +16,7 @@ import java.math.BigInteger
 
 interface ISafeFourOperate {
 	fun withdraw(privateKey: BigInteger)
-	fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>): String?
+	fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>): Single<String>
 
 	fun superNodeRegister(
 			privateKey: String,

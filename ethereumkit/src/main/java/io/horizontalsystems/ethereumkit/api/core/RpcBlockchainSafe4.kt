@@ -211,14 +211,8 @@ class RpcBlockchainSafe4(
         }
     }
 
-    override fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>): String? {
-        try {
-            val hash = web3jSafe4.account.withdrawByID(privateKey.toHexString(), ids)
-            Log.e("Withdraw", "result=$hash")
-            return hash
-        } catch (e: Exception) {
-            return null
-        }
+    override fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>): Single<String> {
+        return Single.just(web3jSafe4.account.withdrawByID(privateKey.toHexString(), ids))
     }
 
     override fun superNodeRegister(
