@@ -11,6 +11,7 @@ class HDWalletDelegate(
 	private val coinType: Int,
 	purpose: HDWallet.Purpose,
 	private val isBaoCoinWallet: Boolean,
+	private val isSafe3Wallet: Boolean,
 	private val anBaoCoinType: Int = -1
 ) {
 
@@ -19,10 +20,11 @@ class HDWalletDelegate(
 			coinType: Int,
 			purpose: HDWallet.Purpose,
 			isBaoCoinWallet: Boolean,
+			isSafe3Wallet: Boolean,
 			curve: Curve = Curve.Secp256K1,
 			anBaoCoinType: Int = -1
 	) : this(
-			HDKeychain(seed, curve), coinType, purpose, isBaoCoinWallet, anBaoCoinType
+			HDKeychain(seed, curve), coinType, purpose, isBaoCoinWallet, isSafe3Wallet, anBaoCoinType
 	)
 
 	constructor(
@@ -30,10 +32,11 @@ class HDWalletDelegate(
 			coinType: Int,
 			purpose: HDWallet.Purpose,
 			isBaoCoinWallet: Boolean,
+			isSafe3Wallet: Boolean,
 			curve: Curve = Curve.Secp256K1,
 			anBaoCoinType: Int = -1
 	) : this(
-			HDKeychain(masterKey, curve), coinType, purpose, isBaoCoinWallet, anBaoCoinType
+			HDKeychain(masterKey, curve), coinType, purpose, isBaoCoinWallet, isSafe3Wallet, anBaoCoinType
 	)
 
 	private val hdWallet = HDWallet(hdKeychain, coinType, purpose)
