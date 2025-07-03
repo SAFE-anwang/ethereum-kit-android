@@ -596,12 +596,12 @@ class RpcBlockchainSafe4(
         return web3jSafe4.safe3.existMasterNodeNeedToRedeem(safe3Addr)
     }
 
-    override fun redeemSafe3(callerAddress: String, privateKey: List<String>, targetAddress: String): Single<List<String>> {
-        return Single.just(web3jSafe4.safe3.batchRedeemSafe3(callerAddress, privateKey, org.web3j.abi.datatypes.Address(targetAddress)))
+    override fun redeemSafe3(callerAddress: String, privateKey: List<String>, targetAddress: String): List<String> {
+        return web3jSafe4.safe3.batchRedeemSafe3(callerAddress, privateKey, org.web3j.abi.datatypes.Address(targetAddress))
     }
 
-    override fun redeemMasterNode(callerAddress: String, privateKey: List<String>, targetAddress: String): Single<List<String>> {
-        return Single.just(web3jSafe4.safe3.batchRedeemMasterNode(callerAddress, privateKey, privateKey.map { "" }, org.web3j.abi.datatypes.Address(targetAddress)))
+    override fun redeemMasterNode(callerAddress: String, privateKey: List<String>, targetAddress: String): List<String> {
+        return web3jSafe4.safe3.batchRedeemMasterNode(callerAddress, privateKey, privateKey.map { "" }, org.web3j.abi.datatypes.Address(targetAddress))
     }
 
     override fun existFounder(isSuperNode: Boolean, founder: String): Single<Boolean> {
