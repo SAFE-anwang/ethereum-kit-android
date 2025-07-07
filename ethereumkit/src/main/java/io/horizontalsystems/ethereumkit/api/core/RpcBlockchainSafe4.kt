@@ -2,6 +2,7 @@ package io.horizontalsystems.ethereumkit.api.core
 
 import android.util.Log
 import com.anwang.Safe4
+import com.anwang.types.accountmanager.AccountAmountInfo
 import com.anwang.types.accountmanager.AccountRecord
 import com.anwang.types.accountmanager.RecordUseInfo
 import com.anwang.types.masternode.MasterNodeInfo
@@ -63,7 +64,7 @@ import java.math.BigInteger
 import java.util.Arrays
 
 class RpcBlockchainSafe4(
-        private val address: Address,
+        val address: Address,
         private val storage: IApiStorage,
         private val syncer: IRpcSyncer,
         private val transactionBuilder: Safe4TransactionBuilder,
@@ -208,6 +209,10 @@ class RpcBlockchainSafe4(
         } catch (ex: Exception) {
             Log.e("Withdraw", "error=$ex")
         }
+    }
+
+    override fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>): Single<String> {
+        return Single.just(web3jSafe4.account.withdrawByID(privateKey.toHexString(), ids))
     }
 
     override fun superNodeRegister(
@@ -355,6 +360,10 @@ class RpcBlockchainSafe4(
         return web3jSafe4.proposal.getInfo(id.toBigInteger())
     }
 
+    override fun getRewardIDs(id: Int): List<BigInteger> {
+        return web3jSafe4.proposal.getRewardIDs(id.toBigInteger())
+    }
+
     override fun getRecordByID(id: Int): AccountRecord {
         return web3jSafe4.account.getRecordByID(id.toBigInteger())
     }
@@ -365,6 +374,14 @@ class RpcBlockchainSafe4(
                 start.toBigInteger(),
                 count.toBigInteger()
         ))
+    }
+
+    override fun getAvailableIDs(
+        address: String,
+        start: Int,
+        count: Int
+    ): Single<List<BigInteger>> {
+        return Single.just(web3jSafe4.account.getAvailableIDs(org.web3j.abi.datatypes.Address(address), start.toBigInteger(), count.toBigInteger()))
     }
 
     override fun proposalCreate(privateKey: String, title: String, payAmount: BigInteger, payTimes: BigInteger, startPayTime: BigInteger, endPayTime: BigInteger, description: String): Single<String> {
@@ -579,12 +596,12 @@ class RpcBlockchainSafe4(
         return web3jSafe4.safe3.existMasterNodeNeedToRedeem(safe3Addr)
     }
 
-    override fun redeemSafe3(callerAddress: String, privateKey: List<String>, targetAddress: String): Single<List<String>> {
-        return Single.just(web3jSafe4.safe3.batchRedeemSafe3(callerAddress, privateKey, org.web3j.abi.datatypes.Address(targetAddress)))
+    override fun redeemSafe3(callerAddress: String, privateKey: List<String>, targetAddress: String): List<String> {
+        return web3jSafe4.safe3.batchRedeemSafe3(callerAddress, privateKey, org.web3j.abi.datatypes.Address(targetAddress))
     }
 
-    override fun redeemMasterNode(callerAddress: String, privateKey: List<String>, targetAddress: String): Single<List<String>> {
-        return Single.just(web3jSafe4.safe3.batchRedeemMasterNode(callerAddress, privateKey, privateKey.map { "" }, org.web3j.abi.datatypes.Address(targetAddress)))
+    override fun redeemMasterNode(callerAddress: String, privateKey: List<String>, targetAddress: String): List<String> {
+        return web3jSafe4.safe3.batchRedeemMasterNode(callerAddress, privateKey, privateKey.map { "" }, org.web3j.abi.datatypes.Address(targetAddress))
     }
 
     override fun existFounder(isSuperNode: Boolean, founder: String): Single<Boolean> {
@@ -652,6 +669,36 @@ class RpcBlockchainSafe4(
 
     override fun addLockDay(privateKey: String, id: Long, day: Int): Single<String> {
         return Single.just(web3jSafe4.account.addLockDay(privateKey, id.toBigInteger(), day.toBigInteger()))
+    }
+
+    override fun getAvailableAmount(address: String): AccountAmountInfo {
+        return web3jSafe4.account.getAvailableAmount(org.web3j.abi.datatypes.Address(address))
+    }
+
+    override fun batchDeposit4One(
+        privateKey: String,
+        value: BigInteger,
+        to: String,
+        times: BigInteger,
+        spaceDay: BigInteger,
+        startDay: BigInteger
+    ): Single<String> {
+        return Single.create<String> { emitter ->
+            try {
+                val result = web3jSafe4.account.batchDeposit4One(
+                    privateKey,
+                    value,
+                    org.web3j.abi.datatypes.Address(to),
+                    times,
+                    spaceDay,
+                    startDay
+                )
+                emitter.onSuccess(result)
+            } catch (e: Throwable) {
+                Log.e("batchDeposit4One", "error=$e")
+                emitter.onError(e)
+            }
+        }
     }
 
     override fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long> {

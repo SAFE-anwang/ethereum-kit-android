@@ -73,21 +73,22 @@ class Signer(
             return Signer(transactionBuilder, transactionSigner, ethSigner, privateKey)
         }
 
-        fun getInstance(seed: ByteArray, chain: Chain, isAnBaoWallet: Boolean): Signer {
-            return getInstance(privateKey(seed, chain, isAnBaoWallet), chain, isAnBaoWallet)
+        fun getInstance(seed: ByteArray, chain: Chain, isAnBaoWallet: Boolean, isSafe3Wallet: Boolean): Signer {
+            return getInstance(privateKey(seed, chain, isAnBaoWallet, isSafe3Wallet), chain, isAnBaoWallet)
         }
 
         fun address(
             words: List<String>,
             passphrase: String = "",
             chain: Chain,
-            isAnBaoWallet: Boolean
+            isAnBaoWallet: Boolean,
+            isSafe3Wallet: Boolean
         ): Address {
-            return address(Mnemonic().toSeed(words, passphrase), chain, isAnBaoWallet)
+            return address(Mnemonic().toSeed(words, passphrase), chain, isAnBaoWallet, isSafe3Wallet)
         }
 
-        fun address(seed: ByteArray, chain: Chain, isAnBaoWallet: Boolean): Address {
-            val privateKey = privateKey(seed, chain, isAnBaoWallet)
+        fun address(seed: ByteArray, chain: Chain, isAnBaoWallet: Boolean, isSafe3Wallet: Boolean): Address {
+            val privateKey = privateKey(seed, chain, isAnBaoWallet, isSafe3Wallet)
             return address(privateKey)
         }
 
@@ -95,9 +96,10 @@ class Signer(
             words: List<String>,
             passphrase: String = "",
             chain: Chain,
-            isAnBaoWallet: Boolean
+            isAnBaoWallet: Boolean,
+            isSafe3Wallet: Boolean
         ): BigInteger {
-            return privateKey(Mnemonic().toSeed(words, passphrase), chain, isAnBaoWallet)
+            return privateKey(Mnemonic().toSeed(words, passphrase), chain, isAnBaoWallet, isSafe3Wallet)
         }
 
         @Throws(InvalidDataString::class, InvalidDataLength::class)
@@ -110,9 +112,9 @@ class Signer(
             return data.toBigInteger()
         }
 
-        fun privateKey(seed: ByteArray, chain: Chain, isAnBaoWallet: Boolean = false): BigInteger {
+        fun privateKey(seed: ByteArray, chain: Chain, isAnBaoWallet: Boolean = false, isSafe3Wallet: Boolean = false): BigInteger {
 //            val hdWallet = HDWallet(seed, chain.coinType, HDWallet.Purpose.BIP44)
-            val hdWallet = HDWalletDelegate(seed, chain.coinType, HDWallet.Purpose.BIP44, isAnBaoWallet, anBaoCoinType = chain.anBaoCoinType)
+            val hdWallet = HDWalletDelegate(seed, chain.coinType, HDWallet.Purpose.BIP44, isAnBaoWallet, anBaoCoinType = chain.anBaoCoinType, isSafe3Wallet = isSafe3Wallet)
             return hdWallet.privateKey(0, 0, true).privKey
         }
 
@@ -124,7 +126,7 @@ class Signer(
         }
 
         fun getAnBaoPrivateKeys(seed: ByteArray, chain: Chain): List<BigInteger> {
-            val hdWallet = HDWalletDelegate(seed, chain.coinType, HDWallet.Purpose.BIP44, true, anBaoCoinType = chain.anBaoCoinType)
+            val hdWallet = HDWalletDelegate(seed, chain.coinType, HDWallet.Purpose.BIP44, true, false, anBaoCoinType = chain.anBaoCoinType)
             val privateKeys = mutableListOf<BigInteger>()
             repeat(5) {
                 privateKeys.add(hdWallet.privateKey(0, it, true).privKey)

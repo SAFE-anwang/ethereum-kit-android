@@ -1,5 +1,6 @@
 package io.horizontalsystems.ethereumkit.api.core
 
+import com.anwang.types.accountmanager.AccountAmountInfo
 import com.anwang.types.accountmanager.AccountRecord
 import com.anwang.types.accountmanager.RecordUseInfo
 import com.anwang.types.masternode.MasterNodeInfo
@@ -15,6 +16,7 @@ import java.math.BigInteger
 
 interface ISafeFourOperate {
 	fun withdraw(privateKey: BigInteger)
+	fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>): Single<String>
 
 	fun superNodeRegister(
 			privateKey: String,
@@ -90,10 +92,12 @@ interface ISafeFourOperate {
 	fun getProposalVoteList(id: Int, start: Int, count: Int): Single<List<ProposalVoteInfo>>
 
 	fun getProposalInfo(id: Int): ProposalInfo
+	fun getRewardIDs(id: Int): List<BigInteger>
 
 	fun getRecordByID(id: Int): AccountRecord
 
 	fun getVoters(address: String, start: Int, count: Int): Single<SNVoteRetInfo>
+	fun getAvailableIDs(address: String, start: Int, count: Int): Single<List<BigInteger>>
 
 	fun proposalCreate(
 			privateKey: String,
@@ -150,9 +154,9 @@ interface ISafeFourOperate {
 
 	fun existMasterNodeNeedToRedeem(safe3Addr: String): Boolean
 
-	fun redeemSafe3(callerAddress: String, privateKey: List<String>, targetAddress: String): Single<List<String>>
+	fun redeemSafe3(callerAddress: String, privateKey: List<String>, targetAddress: String): List<String>
 
-	fun redeemMasterNode(callerAddress: String, privateKey: List<String>, targetAddress: String): Single<List<String>>
+	fun redeemMasterNode(callerAddress: String, privateKey: List<String>, targetAddress: String): List<String>
 
 	fun existFounder(isSuperNode: Boolean, founder: String): Single<Boolean>
 	fun getTops4Creator(address: String): Single<List<String>>
@@ -161,4 +165,8 @@ interface ISafeFourOperate {
 	fun existNodeEnode(enode: String): Single<Boolean>
 	fun existNodeFounder(address: String): Single<Boolean>
 	fun addLockDay(privateKey: String, id: Long, day: Int): Single<String>
+
+	fun getAvailableAmount(address: String): AccountAmountInfo
+
+	fun batchDeposit4One(privateKey: String, value:BigInteger, to:String, times:BigInteger, spaceDay: BigInteger, startDay: BigInteger): Single<String>
 }
