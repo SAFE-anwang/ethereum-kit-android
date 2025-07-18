@@ -143,6 +143,7 @@ interface ISafeFourOperate {
 
 	fun existEnode(isSuperNode: Boolean, enode: String): Boolean
 	fun changeDescription(isSuperNode: Boolean, privateKey: String, addr: String, desc: String): String
+	fun changeIncentive(privateKey: String, id: BigInteger, creatorIncentive: BigInteger, partnerIncentive: BigInteger, voterIncentive: BigInteger): String
 
 	fun safe3GetAvailableInfo(safe3Addr: String): Single<AvailableSafe3Info>
 	fun safe3GetLockedNum(safe3Addr: String): Single<BigInteger>
