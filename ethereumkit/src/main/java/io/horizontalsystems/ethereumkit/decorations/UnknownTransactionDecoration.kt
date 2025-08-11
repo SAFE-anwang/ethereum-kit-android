@@ -1,5 +1,6 @@
 package io.horizontalsystems.ethereumkit.decorations
 
+import android.util.Log
 import com.anwang.utils.Safe4Contract
 import io.horizontalsystems.ethereumkit.contracts.ContractEventInstance
 import io.horizontalsystems.ethereumkit.models.Address
@@ -65,7 +66,13 @@ open class UnknownTransactionDecoration(
                     }
                 }
             }
-
+            // 资产发行
+            if (fromAddress?.hex == userAddress.hex && Constants.deployContracts.contains(toAddress?.hex)) {
+                toAddress?.let {
+//                    add(TransactionTag.EVM_COIN)
+                    add(TransactionTag.fromAddress(it.hex))
+                }
+            }
 
             internalTransactions.forEach { internalTransaction ->
                 if (internalTransaction.from != userAddress) {

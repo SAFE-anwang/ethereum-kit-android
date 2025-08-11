@@ -24,7 +24,8 @@ import java.util.logging.Logger
 
 class EtherscanService(
     baseUrl: String,
-    private val apiKey: String
+    private val apiKey: String,
+    private val chainId: Int,
 ) {
 
     private val logger = Logger.getLogger("EtherscanService")
@@ -41,14 +42,23 @@ class EtherscanService(
         }).setLevel(HttpLoggingInterceptor.Level.BASIC)
 
         val httpClient = OkHttpClient.Builder()
-            .addInterceptor(loggingInterceptor)
             .addInterceptor(Interceptor { chain ->
-                val originalRequest: Request = chain.request()
-                val requestWithUserAgent: Request = originalRequest.newBuilder()
-                    .header("User-Agent", "Mobile App Agent")
+                val originalRequest = chain.request()
+                val originalUrl = originalRequest.url
+
+                val url = originalUrl.newBuilder()
+                    .addQueryParameter("apikey", apiKey)
+                    .addQueryParameter("chainid", chainId.toString())
                     .build()
-                chain.proceed(requestWithUserAgent)
+
+                val request = originalRequest.newBuilder()
+                    .header("User-Agent", "Mobile App Agent")
+                    .url(url)
+                    .build()
+
+                chain.proceed(request)
             })
+            .addInterceptor(loggingInterceptor)
 
         gson = GsonBuilder()
             .setLenient()
@@ -68,8 +78,7 @@ class EtherscanService(
         return service.accountApi(
             action = "txlist",
             address = address.hex,
-            startBlock = startBlock,
-            apiKey = apiKey
+            startBlock = startBlock
         ).map {
             parseResponse(it)
         }.retryWhenError(RequestError.RateLimitExceed::class)
@@ -79,8 +88,7 @@ class EtherscanService(
         return service.accountApi(
             action = "txlistinternal",
             address = address.hex,
-            startBlock = startBlock,
-            apiKey = apiKey
+            startBlock = startBlock
         ).map {
             parseResponse(it)
         }.retryWhenError(RequestError.RateLimitExceed::class)
@@ -90,8 +98,7 @@ class EtherscanService(
         return service.accountApi(
             action = "tokentx",
             address = address.hex,
-            startBlock = startBlock,
-            apiKey = apiKey
+            startBlock = startBlock
         ).map {
             parseResponse(it)
         }.retryWhenError(RequestError.RateLimitExceed::class)
@@ -100,8 +107,7 @@ class EtherscanService(
     fun getInternalTransactionsAsync(transactionHash: ByteArray): Single<EtherscanResponse> {
         return service.accountApi(
             action = "txlistinternal",
-            txHash = transactionHash.toHexString(),
-            apiKey = apiKey
+            txHash = transactionHash.toHexString()
         ).map {
             parseResponse(it)
         }.retryWhenError(RequestError.RateLimitExceed::class)
@@ -112,7 +118,6 @@ class EtherscanService(
             action = "tokennfttx",
             address = address.hex,
             startBlock = startBlock,
-            apiKey = apiKey
         ).map {
             parseResponse(it)
         }.retryWhenError(RequestError.RateLimitExceed::class)
@@ -123,7 +128,6 @@ class EtherscanService(
             action = "token1155tx",
             address = address.hex,
             startBlock = startBlock,
-            apiKey = apiKey
         ).map {
             parseResponse(it)
         }.retryWhenError(RequestError.RateLimitExceed::class)
@@ -134,7 +138,6 @@ class EtherscanService(
                 action = "accountmanager",
                 address = address.hex,
                 startBlock = startBlock,
-                apiKey = apiKey
         ).map {
             parseResponse(it)
         }.retryWhenError(RequestError.RateLimitExceed::class)
@@ -168,7 +171,7 @@ class EtherscanService(
     }
 
     private interface EtherscanServiceAPI {
-        @GET("/api")
+        @GET("api")
         fun accountApi(
             @Query("module") module: String = "account",
             @Query("action") action: String,
@@ -176,8 +179,7 @@ class EtherscanService(
             @Query("txhash") txHash: String? = null,
             @Query("startblock") startBlock: Long? = null,
             @Query("endblock") endBlock: Long? = null,
-            @Query("sort") sort: String? = "desc",
-            @Query("apikey") apiKey: String
+            @Query("sort") sort: String? = "desc"
         ): Single<JsonElement>
     }
 

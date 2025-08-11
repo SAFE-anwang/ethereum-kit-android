@@ -68,7 +68,7 @@ class RpcBlockchainSafe4(
         private val storage: IApiStorage,
         private val syncer: IRpcSyncer,
         private val transactionBuilder: Safe4TransactionBuilder,
-        private val web3j: Web3j
+        val web3j: Web3j
 ) : IBlockchain, IRpcSyncerListener, ISafeFourOperate {
 
     private val safe4SwapContractAddress = "0x0000000000000000000000000000000000001101"
@@ -570,6 +570,16 @@ class RpcBlockchainSafe4(
         } else {
             web3jSafe4.masternode.changeDescription(privateKey, org.web3j.abi.datatypes.Address(addr), desc)
         }
+    }
+
+    override fun changeIncentive(
+        privateKey: String,
+        id: BigInteger,
+        creatorIncentive: BigInteger,
+        partnerIncentive: BigInteger,
+        voterIncentive: BigInteger
+    ): String {
+        return web3jSafe4.supernode.changeIncentivePlan(privateKey, id, creatorIncentive, partnerIncentive, voterIncentive)
     }
 
     override fun safe3GetAvailableInfo(safe3Addr: String): Single<AvailableSafe3Info> {

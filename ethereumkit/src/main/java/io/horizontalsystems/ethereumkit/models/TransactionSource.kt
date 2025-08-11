@@ -15,7 +15,7 @@ class TransactionSource(val name: String, val type: SourceType) {
         private fun etherscan(apiSubdomain: String, txSubdomain: String?, apiKey: String): TransactionSource {
             return TransactionSource(
                 "etherscan.io",
-                SourceType.Etherscan("https://$apiSubdomain.etherscan.io", "https://${txSubdomain?.let { "$it." } ?: ""}etherscan.io", apiKey)
+                SourceType.Etherscan("https://$apiSubdomain.etherscan.io/v2/", "https://${txSubdomain?.let { "$it." } ?: ""}etherscan.io", apiKey)
             )
         }
 
@@ -30,7 +30,7 @@ class TransactionSource(val name: String, val type: SourceType) {
         fun bscscan(apiKey: String): TransactionSource {
             return TransactionSource(
                 "bscscan.com",
-                SourceType.Etherscan("https://api.bscscan.com", "https://bscscan.com", apiKey)
+                SourceType.Etherscan("https://api.bscscan.com/", "https://bscscan.com", apiKey)
             )
         }
 
@@ -84,9 +84,9 @@ class TransactionSource(val name: String, val type: SourceType) {
                     "safe4.anwang.com"
                 },
                     if (Chain.SafeFour.isSafe4TestNetId) {
-                        SourceType.Etherscan("https://safe4testnet.anwang.com", "https://safe4testnet.anwang.com", apiKey)
+                        SourceType.Etherscan("https://safe4testnet.anwang.com/", "https://safe4testnet.anwang.com", apiKey)
                     } else {
-                        SourceType.Etherscan("https://safe4.anwang.com", "https://safe4.anwang.com", apiKey)
+                        SourceType.Etherscan("https://safe4.anwang.com/", "https://safe4.anwang.com", apiKey)
                     }
 
             )
