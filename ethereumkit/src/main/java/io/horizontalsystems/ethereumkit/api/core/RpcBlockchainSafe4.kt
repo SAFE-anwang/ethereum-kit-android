@@ -344,6 +344,15 @@ class RpcBlockchainSafe4(
         return Single.just(emptyList())
     }
 
+    override fun getTotalIDs(addr: String, start: Int, count: Int): Single<List<BigInteger>> {
+        try {
+            return Single.just(web3jSafe4.account.getTotalIDs(org.web3j.abi.datatypes.Address(addr), start.toBigInteger(), count.toBigInteger()))
+        } catch (e: Exception) {
+
+        }
+        return Single.just(emptyList())
+    }
+
     override fun getVotedIDs4Voter(addr: String, start: Int, count: Int): Single<List<BigInteger>> {
         return Single.just(web3jSafe4.snvote.getVotedIDs4Voter(org.web3j.abi.datatypes.Address(addr), start.toBigInteger(), count.toBigInteger()))
     }

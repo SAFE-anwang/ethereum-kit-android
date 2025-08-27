@@ -87,6 +87,7 @@ interface ISafeFourOperate {
 	fun getAllVoteNum(): BigInteger
 
 	fun getLockIds(addr: String, start: Int, count: Int): Single<List<BigInteger>>
+	fun getTotalIDs(addr: String, start: Int, count: Int): Single<List<BigInteger>>
 	fun getVotedIDs4Voter(addr: String, start: Int, count: Int): Single<List<BigInteger>>
 
 	fun getProposalVoteList(id: Int, start: Int, count: Int): Single<List<ProposalVoteInfo>>
