@@ -60,6 +60,7 @@ import org.web3j.protocol.core.Request
 import org.web3j.protocol.core.methods.request.EthFilter
 import org.web3j.protocol.core.methods.response.EthCall
 import org.web3j.utils.Numeric
+import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.Arrays
 
@@ -71,11 +72,24 @@ class RpcBlockchainSafe4(
         val web3j: Web3j
 ) : IBlockchain, IRpcSyncerListener, ISafeFourOperate {
 
+    val AccountManagerContractAddr4ac6: String = "0xA7DBB85CB123106B0d227a317D00A53574694aC6"
+    val AccountManagerContractAddr91b2: String = "0xF6A2C019beF11825E73ed219c7b0582324dE91b2"
+
     private val safe4SwapContractAddress = "0x0000000000000000000000000000000000001101"
 
     private val disposables = CompositeDisposable()
 
     private val web3jSafe4: Safe4 = Safe4(web3j, Chain.SafeFour.id.toLong())
+    private val accountManagerContract4ac6 = AccountManagerCustomContract(
+        web3j,
+        Chain.SafeFour.id.toLong(),
+        AccountManagerContractAddr4ac6
+    )
+    private val accountManagerContract91b2 = AccountManagerCustomContract(
+        web3j,
+        Chain.SafeFour.id.toLong(),
+        AccountManagerContractAddr91b2
+    )
 
     private fun onUpdateLastBlockHeight(lastBlockHeight: Long) {
         storage.saveLastBlockHeight(lastBlockHeight)
@@ -211,8 +225,14 @@ class RpcBlockchainSafe4(
         }
     }
 
-    override fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>): Single<String> {
-        return Single.just(web3jSafe4.account.withdrawByID(privateKey.toHexString(), ids))
+    override fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>, type: Int): Single<String> {
+        return if (type == 1) {
+            Single.just(accountManagerContract4ac6.withdrawByID(privateKey.toHexString(), ids))
+        } else if (type == 2) {
+            Single.just(accountManagerContract91b2.withdrawByID(privateKey.toHexString(), ids))
+        } else {
+            Single.just(web3jSafe4.account.withdrawByID(privateKey.toHexString(), ids))
+        }
     }
 
     override fun superNodeRegister(
@@ -344,9 +364,33 @@ class RpcBlockchainSafe4(
         return Single.just(emptyList())
     }
 
-    override fun getTotalIDs(addr: String, start: Int, count: Int): Single<List<BigInteger>> {
+    override fun getTotalIDs(type: Int, addr: String, start: Int, count: Int): Single<List<BigInteger>> {
         try {
-            return Single.just(web3jSafe4.account.getTotalIDs(org.web3j.abi.datatypes.Address(addr), start.toBigInteger(), count.toBigInteger()))
+            return if (type == 1) {
+                Single.just(
+                    accountManagerContract4ac6.getTotalIDs(
+                        org.web3j.abi.datatypes.Address(addr),
+                        start.toBigInteger(),
+                        count.toBigInteger()
+                    )
+                )
+            } else if (type == 2) {
+                Single.just(
+                    accountManagerContract91b2.getTotalIDs(
+                        org.web3j.abi.datatypes.Address(addr),
+                        start.toBigInteger(),
+                        count.toBigInteger()
+                    )
+                )
+            } else {
+                Single.just(
+                    web3jSafe4.account.getTotalIDs(
+                        org.web3j.abi.datatypes.Address(addr),
+                        start.toBigInteger(),
+                        count.toBigInteger()
+                    )
+                )
+            }
         } catch (e: Exception) {
 
         }
@@ -373,8 +417,15 @@ class RpcBlockchainSafe4(
         return web3jSafe4.proposal.getRewardIDs(id.toBigInteger())
     }
 
-    override fun getRecordByID(id: Int): AccountRecord {
-        return web3jSafe4.account.getRecordByID(id.toBigInteger())
+    override fun getRecordByID(id: Int, type: Int): AccountRecord {
+        return if (type == 1) {
+            accountManagerContract4ac6.getRecordByID(id.toBigInteger())
+        } else if (type == 2) {
+            accountManagerContract91b2.getRecordByID(id.toBigInteger())
+        } else {
+            web3jSafe4.account.getRecordByID(id.toBigInteger())
+        }
+
     }
 
     override fun getVoters(address: String, start: Int, count: Int): Single<SNVoteRetInfo> {
@@ -694,6 +745,16 @@ class RpcBlockchainSafe4(
         return web3jSafe4.account.getAvailableAmount(org.web3j.abi.datatypes.Address(address))
     }
 
+    override fun getAccountTotalAmount(address: String, type: Int): AccountAmountInfo {
+        return if (type == 1) {
+            accountManagerContract4ac6.getTotalAmount(org.web3j.abi.datatypes.Address(address))
+        } else if (type == 2) {
+            accountManagerContract91b2.getTotalAmount(org.web3j.abi.datatypes.Address(address))
+        } else {
+            web3jSafe4.account.getTotalAmount(org.web3j.abi.datatypes.Address(address))
+        }
+    }
+
     override fun batchDeposit4One(
         privateKey: String,
         value: BigInteger,
@@ -704,19 +765,44 @@ class RpcBlockchainSafe4(
     ): Single<String> {
         return Single.create<String> { emitter ->
             try {
-                val result = web3jSafe4.account.batchDeposit4One(
-                    privateKey,
-                    value,
-                    org.web3j.abi.datatypes.Address(to),
-                    times,
-                    spaceDay,
-                    startDay
-                )
+                val customAccountManager = getAccountManager(value, times)
+                val result = if (customAccountManager != null) {
+                    Log.e("batchDeposit4One", "custom account")
+                    customAccountManager.batchDeposit4One(
+                        privateKey,
+                        value,
+                        org.web3j.abi.datatypes.Address(to),
+                        times,
+                        spaceDay,
+                        startDay
+                    )
+                } else {
+                    web3jSafe4.account.batchDeposit4One(
+                        privateKey,
+                        value,
+                        org.web3j.abi.datatypes.Address(to),
+                        times,
+                        spaceDay,
+                        startDay
+                    )
+                }
                 emitter.onSuccess(result)
             } catch (e: Throwable) {
                 Log.e("batchDeposit4One", "error=$e")
                 emitter.onError(e)
             }
+        }
+    }
+
+    private fun getAccountManager(totalValue: BigInteger, times: BigInteger): AccountManagerCustomContract? {
+        val singleValue = totalValue.divide(times).toBigDecimal().movePointLeft(18).stripTrailingZeros()
+        Log.d("batchDeposit4One", "${BigDecimal.valueOf(0.01)}, $singleValue")
+        return if (singleValue >= BigDecimal.valueOf(0.1) && singleValue < BigDecimal.valueOf(1)) {
+            accountManagerContract91b2
+        } else if (singleValue >= BigDecimal.valueOf(0.01) && singleValue < BigDecimal(0.1)) {
+            accountManagerContract4ac6
+        } else {
+            null
         }
     }
 

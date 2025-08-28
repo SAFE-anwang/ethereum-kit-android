@@ -313,9 +313,9 @@ class EthereumKit(
     }
 
 
-    fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>): Single<String> {
+    fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>, type: Int): Single<String> {
         if(blockchain is RpcBlockchainSafe4) {
-            return blockchain.withdrawByIds(privateKey, ids)
+            return blockchain.withdrawByIds(privateKey, ids, type)
         }
         return Single.just("withdraw fail")
     }
