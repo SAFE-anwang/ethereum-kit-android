@@ -14,6 +14,7 @@ import io.horizontalsystems.uniswapkit.contract.SwapContractMethodFactories
 import io.horizontalsystems.uniswapkit.models.*
 import io.reactivex.Single
 import java.math.BigDecimal
+import java.math.BigInteger
 import java.util.logging.Logger
 
 class PancakeSwapKit(
@@ -37,14 +38,19 @@ class PancakeSwapKit(
     fun swapData(rpcSource: RpcSource, chain: Chain, tokenIn: Token, tokenOut: Token): Single<SwapData> {
         val tokenPairs = pairSelector.tokenPairs(chain, tokenIn, tokenOut)
         val singles = tokenPairs.map { (tokenA, tokenB) ->
-            tradeManager.liquidityPair(rpcSource, chain, tokenA, tokenB)
+//            tradeManager.liquidityPair(rpcSource, chain, tokenA, tokenB)
+            val (token0, token1) = if (tokenA.sortsBefore(tokenB)) Pair(tokenA, tokenB) else Pair(tokenB, tokenA)
+            val reserve0 = TokenAmount(token0, BigInteger.ZERO)
+            val reserve1 = TokenAmount(token1, BigInteger.ZERO)
+            Pair(reserve0, reserve1)
         }
+        return Single.just(SwapData(singles, tokenIn, tokenOut))
 
-        return Single.zip(singles) { array ->
+        /*return Single.zip(singles) { array ->
             val pairs = array.map { it as Pair }
             Log.d("TradeManager", "pairs=$pairs")
             SwapData(pairs, tokenIn, tokenOut)
-        }
+        }*/
     }
 
     fun bestTradeExact(swapData: SwapData, amountIn: BigDecimal, amountOut: BigDecimal, options: TradeOptions = TradeOptions()): TradeData {
@@ -109,8 +115,18 @@ class PancakeSwapKit(
         return tradeManager.transactionData(receiveAddress, chain, tradeData)
     }
 
-    fun transactionLiquidityData(receiveAddress: Address, chain: Chain, tradeData: TradeData): TransactionData {
-        return tradeManager.transactionLiquidityData(receiveAddress, chain, tradeData)
+    fun transactionLiquidityData(receiveAddress: Address, chain: Chain,
+                                 tokenIn: Token,
+                                 tokenOut: Token,
+                                 recipient: Address?,
+                                 tokenInAmount: BigInteger,
+                                 tokenOutAmount: BigInteger): TransactionData {
+        val (token0, token1) = if (tokenIn.sortsBefore(tokenOut)) Pair(tokenIn, tokenOut) else Pair(tokenOut, tokenIn)
+        return tradeManager.transactionLiquidityData(receiveAddress, chain,
+            token0, token1, recipient,
+            if (token0 == tokenIn) tokenInAmount else tokenOutAmount,
+            if (token0 == tokenIn) tokenOutAmount else tokenInAmount
+        )
     }
 
     companion object {

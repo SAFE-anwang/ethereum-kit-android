@@ -135,47 +135,58 @@ class TradeManager {
     }
 
 
-    fun transactionLiquidityData(receiveAddress: Address, chain: Chain, tradeData: TradeData): TransactionData {
+    fun transactionLiquidityData(receiveAddress: Address, chain: Chain,
+                                 tokenIn: Token,
+                                 tokenOut: Token,
+                                 recipient: Address?,
+                                 tokenInAmount: BigInteger,
+                                 tokenOutAmount: BigInteger): TransactionData {
         val routerAddress = liquidityRouterAddress(chain)
 
-        return buildLiquidityData(receiveAddress, tradeData, chain).let {
+        return buildLiquidityData(receiveAddress, tokenIn, tokenOut, recipient, tokenInAmount, tokenOutAmount, chain).let {
 
             TransactionData(routerAddress, it.value, it.input, isBothErc = it.isBothErc)
         }
     }
 
 
-    private fun buildLiquidityData(receiveAddress: Address, tradeData: TradeData, chain: Chain): TransactionData {
-        val trade = tradeData.trade
+    private fun buildLiquidityData(receiveAddress: Address,
+                                   tokenIn: Token,
+                                   tokenOut: Token,
+                                   recipient: Address?,
+                                   tokenInAmount: BigInteger,
+                                   tokenOutAmount: BigInteger,
+                                   chain: Chain): TransactionData {
+//        val trade = tradeData.trade
 
-        val tokenIn = trade.tokenAmountIn.token
-        val tokenOut = trade.tokenAmountOut.token
+//        val tokenIn = trade.tokenAmountIn.token
+//        val tokenOut = trade.tokenAmountOut.token
 
-        val to = tradeData.options.recipient ?: receiveAddress
-        val deadline = (Date().time / 1000 + tradeData.options.ttl).toBigInteger()
+        val to = recipient ?: receiveAddress
+        val deadline = (Date().time / 1000 + (60 * 20)).toBigInteger()
         val slippage = if (tokenIn.address.hex == "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c" ||
                 tokenOut.address.hex == "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c") {
-            "25"
+            "75"
         } else {
-            "5"
+            "95"
         }
-        val amount0Min: BigInteger = trade.tokenAmountIn.rawAmount.multiply(
+        val amount0Min: BigInteger = tokenInAmount.multiply(
             BigInteger(
                 slippage
             )
         ).divide(BigInteger("1000"))
-        val amount1Min: BigInteger = trade.tokenAmountOut.rawAmount.multiply(
+        val amount1Min: BigInteger = tokenOutAmount.multiply(
                 BigInteger(
                     slippage
                 )
         ).divide(BigInteger("1000"))
 
-        val amountETHMin: BigInteger = trade.tokenAmountIn.rawAmount.multiply(
+        val amountETHMin: BigInteger = tokenInAmount.multiply(
             BigInteger(
-                "5"
+                "95"
             )
         ).divide(BigInteger("1000"))
-        val method = buildMethodForLiquidityOut(chain, tokenIn, tokenOut, to, deadline, tradeData, trade, amount0Min, amount1Min, amountETHMin)
+        val method = buildMethodForLiquidityOut(tokenIn, tokenOut, to, deadline, tokenInAmount, tokenOutAmount, amount0Min, amount1Min, amountETHMin)
         return TransactionData(liquidityRouterAddress(chain), method.second, method.first.encodedABI(),
             isBothErc = tokenIn is Erc20 && tokenOut is Erc20)
     }
@@ -183,8 +194,9 @@ class TradeManager {
 
     private class LiquidityData(val amountA: BigInteger, val amountB: BigInteger, val input: ByteArray)
 
-    private fun buildMethodForLiquidityOut(chain: Chain, tokenIn: Token, tokenOut: Token, to: Address, deadline: BigInteger,
-                                           tradeData: TradeData, trade: Trade,
+    private fun buildMethodForLiquidityOut(tokenIn: Token, tokenOut: Token, to: Address, deadline: BigInteger,
+                                           tokenInAmount: BigInteger,
+                                           tokenOutAmount: BigInteger,
                                            amount0Min: BigInteger,
                                            amount1Min: BigInteger,
                                            amountETHMin: BigInteger): kotlin.Pair<ContractMethod, BigInteger> {
@@ -192,9 +204,9 @@ class TradeManager {
             (tokenIn is Erc20 && tokenOut is Ether) ||
                     (tokenIn is Ether && tokenOut is Erc20) -> {
                  val pair = if (tokenIn is Erc20) {
-                            Pair(tokenIn.address, trade.tokenAmountOut.rawAmount)
+                            Pair(tokenIn.address, tokenInAmount)
                         } else {
-                            Pair(tokenOut.address, trade.tokenAmountIn.rawAmount)
+                            Pair(tokenOut.address, tokenOutAmount)
                         }
                 val amountMin = if (tokenIn is Erc20) {
                     amount0Min
@@ -217,13 +229,13 @@ class TradeManager {
                     AddLiquidityMethod(
                         tokenIn.address,
                         tokenOut.address,
-                        trade.tokenAmountIn.rawAmount,
-                        trade.tokenAmountOut.rawAmount,
+                        tokenInAmount,
+                        tokenOutAmount,
                         amount0Min,
                         amount1Min,
                         to,
                         deadline),
-                    trade.tokenAmountIn.rawAmount
+                    tokenInAmount
                 )
             }
             else -> throw Exception("Invalid tokenIn/Out for add liquidity!")
