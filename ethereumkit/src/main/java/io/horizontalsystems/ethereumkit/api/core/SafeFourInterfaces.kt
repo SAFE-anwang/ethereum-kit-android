@@ -95,7 +95,7 @@ interface ISafeFourOperate {
 	fun getProposalInfo(id: Int): ProposalInfo
 	fun getRewardIDs(id: Int): List<BigInteger>
 
-	fun getRecordByID(id: Int, type: Int = 0): AccountRecord
+	fun getRecordByID(id: Long, type: Int = 0): AccountRecord
 
 	fun getVoters(address: String, start: Int, count: Int): Single<SNVoteRetInfo>
 	fun getAvailableIDs(address: String, start: Int, count: Int): Single<List<BigInteger>>

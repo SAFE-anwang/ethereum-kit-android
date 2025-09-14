@@ -75,7 +75,7 @@ class RpcBlockchainSafe4(
     val AccountManagerContractAddr4ac6: String = "0xA7DBB85CB123106B0d227a317D00A53574694aC6"
     val AccountManagerContractAddr91b2: String = "0xF6A2C019beF11825E73ed219c7b0582324dE91b2"
 
-    private val safe4SwapContractAddress = "0x0000000000000000000000000000000000001101"
+    val safe4SwapContractAddress = "0x0000000000000000000000000000000000001101"
 
     private val disposables = CompositeDisposable()
 
@@ -417,7 +417,7 @@ class RpcBlockchainSafe4(
         return web3jSafe4.proposal.getRewardIDs(id.toBigInteger())
     }
 
-    override fun getRecordByID(id: Int, type: Int): AccountRecord {
+    override fun getRecordByID(id: Long, type: Int): AccountRecord {
         return if (type == 1) {
             accountManagerContract4ac6.getRecordByID(id.toBigInteger())
         } else if (type == 2) {
@@ -807,7 +807,11 @@ class RpcBlockchainSafe4(
     }
 
     override fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long> {
-        return Single.just(web3j.ethGetTransactionCount(address.hex, org.web3j.protocol.core.DefaultBlockParameter.valueOf(defaultBlockParameter.raw)).send().transactionCount.toLong())
+        try {
+            return Single.just(web3j.ethGetTransactionCount(address.hex, org.web3j.protocol.core.DefaultBlockParameter.valueOf(defaultBlockParameter.raw)).send().transactionCount.toLong())
+        } catch (e: Exception) {
+            return Single.just(0L)
+        }
     }
 
     override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice, data: ByteArray?): Single<Long> {
