@@ -235,6 +235,13 @@ class RpcBlockchainSafe4(
         }
     }
 
+    override fun removeVoteOrApproval(
+        privateKey: BigInteger,
+        ids: List<BigInteger>
+    ): Single<String> {
+        return Single.just(web3jSafe4.snvote.removeVoteOrApproval(privateKey.toHexString(), ids))
+    }
+
     override fun superNodeRegister(
             privateKey: String,
             value: BigInteger,

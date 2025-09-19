@@ -321,6 +321,14 @@ class EthereumKit(
     }
 
 
+    fun removeVoteOrApproval(privateKey: BigInteger, ids: List<BigInteger>): Single<String> {
+        if(blockchain is RpcBlockchainSafe4) {
+            return blockchain.removeVoteOrApproval(privateKey, ids)
+        }
+        return Single.just("withdraw fail")
+    }
+
+
     fun send(rawTransaction: RawTransaction, signature: Signature, privateKey: BigInteger, lockTime: Int? = null): Single<FullTransaction> {
         logger.info("send rawTransaction: $rawTransaction")
 
