@@ -72,8 +72,20 @@ class RpcBlockchainSafe4(
         val web3j: Web3j
 ) : IBlockchain, IRpcSyncerListener, ISafeFourOperate {
 
-    val AccountManagerContractAddr4ac6: String = "0xA7DBB85CB123106B0d227a317D00A53574694aC6"
-    val AccountManagerContractAddr91b2: String = "0xF6A2C019beF11825E73ed219c7b0582324dE91b2"
+    val AccountManagerContractAddr4ac6 by lazy {
+        if (Chain.SafeFour.isSafe4TestNetId) {
+            "0xA7DBB85CB123106B0d227a317D00A53574694aC6"
+        } else {
+            "0xF80D63cE916850CF131a4760853B9d685F8ec65a"
+        }
+    }
+    val AccountManagerContractAddr91b2 by lazy {
+        if (Chain.SafeFour.isSafe4TestNetId) {
+            "0xF6A2C019beF11825E73ed219c7b0582324dE91b2"
+        } else {
+            "0x5A9CDa846D12e047d87c06f633f2c4f344b33C97"
+        }
+    }
 
     val safe4SwapContractAddress = "0x0000000000000000000000000000000000001101"
 
