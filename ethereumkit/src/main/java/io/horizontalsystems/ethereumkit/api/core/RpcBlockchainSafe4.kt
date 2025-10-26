@@ -2,6 +2,7 @@ package io.horizontalsystems.ethereumkit.api.core
 
 import android.util.Log
 import com.anwang.Safe4
+import com.anwang.src20.SRC20LockFactory
 import com.anwang.types.accountmanager.AccountAmountInfo
 import com.anwang.types.accountmanager.AccountRecord
 import com.anwang.types.accountmanager.RecordUseInfo
@@ -87,6 +88,14 @@ class RpcBlockchainSafe4(
         }
     }
 
+    val SRC20LockContract by lazy {
+        if (Chain.SafeFour.isSafe4TestNetId) {
+            "0x4f203092FB68732D8484c099a72dDc5a195f26f9"
+        } else {
+            "0x6A6dFAF83cc1741FE08A9EFDea596dEad68f7420"
+        }
+    }
+
     val safe4SwapContractAddress = "0x0000000000000000000000000000000000001101"
 
     private val disposables = CompositeDisposable()
@@ -102,6 +111,10 @@ class RpcBlockchainSafe4(
         Chain.SafeFour.id.toLong(),
         AccountManagerContractAddr91b2
     )
+
+    private val src20LockFactory by lazy {
+        SRC20LockFactory(web3j, Chain.SafeFour.id.toLong(), SRC20LockContract)
+    }
 
     private fun onUpdateLastBlockHeight(lastBlockHeight: Long) {
         storage.saveLastBlockHeight(lastBlockHeight)
@@ -1055,6 +1068,31 @@ class RpcBlockchainSafe4(
                 emitter.onSuccess(result)
             } catch (e: Throwable) {
                 Log.e("src20ToSafe4", "e=$e")
+                emitter.onError(e)
+            }
+        }
+    }
+
+    fun src20Lock(
+        privateKey: String,
+        token: String,
+        to: String,
+        value: BigInteger,
+        lockDay: BigInteger
+    ): Single<String> {
+        return Single.create<String> { emitter ->
+            try {
+                Log.d("longwen", "lock src20 amount=$value, lockDay=$lockDay")
+                val result = src20LockFactory.lock(
+                    privateKey,
+                    org.web3j.abi.datatypes.Address(token),
+                    org.web3j.abi.datatypes.Address(to),
+                    value,
+                    lockDay
+                )
+                emitter.onSuccess(result)
+            } catch (e: Throwable) {
+                Log.d("safe4ToSrc20", "error=$e")
                 emitter.onError(e)
             }
         }
