@@ -14,7 +14,7 @@ class KitState {
             }
         }
 
-    var balance: BigInteger? = null
+    var balance: Pair<BigInteger, BigInteger>? = null
         set(value) {
             if (value != null && field != value) {
                 field = value
@@ -23,5 +23,5 @@ class KitState {
         }
 
     val syncStateSubject = PublishSubject.create<SyncState>()
-    val balanceSubject = PublishSubject.create<BigInteger>()
+    val balanceSubject = PublishSubject.create<Pair<BigInteger, BigInteger>>()
 }

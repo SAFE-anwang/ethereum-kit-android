@@ -29,6 +29,10 @@ public class AccountManagerCustomContract {
         contractUtil = new ContractUtil(web3j, chainId, contractAddr);
     }
 
+    public void setContractAddress(String contractAddress) {
+        contractUtil.contractAddr = contractAddress;
+    }
+
     public String deposit(String privateKey, BigInteger value, Address to, BigInteger lockDay) throws Exception {
         Function function = new Function("deposit", Arrays.asList(to, new Uint256(lockDay)), Collections.singletonList(new TypeReference<Uint256>() {
         }));

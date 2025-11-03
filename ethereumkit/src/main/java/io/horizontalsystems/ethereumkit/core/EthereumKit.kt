@@ -513,6 +513,14 @@ class EthereumKit(
         }
     }
 
+    fun getLockBalance(contractAddress: Address): Single<BigInteger> {
+        return if (blockchain is RpcBlockchainSafe4) {
+            blockchain.getLockBalance(contractAddress)
+        } else {
+            Single.just(BigInteger.ZERO)
+        }
+    }
+
     sealed class SyncState {
         class Synced : SyncState()
         class NotSynced(val error: Throwable) : SyncState()

@@ -172,6 +172,20 @@ class RpcBlockchainSafe4(
                 }
     }
 
+    fun getLockBalance(contractAddress: Address): Single<BigInteger> {
+        return Single.create<BigInteger> {
+            try {
+//                val accountManagerCustom = AccountManagerCustomContract(web3j, Chain.SafeFour.id.toLong(), contractAddress.hex)
+//                val balance = accountManagerCustom.getTotalAmount(org.web3j.abi.datatypes.Address(address.hex)).amount
+                // TODO
+                it.onSuccess(BigInteger.ZERO)
+            } catch (e: Exception) {
+                Log.d("RpcBlockchainSafe4", "getLockBalance error=${e}")
+                BigInteger.ZERO
+            }
+        }.onErrorReturnItem(BigInteger.ZERO)
+    }
+
     private fun query(function: Function): Request<*, EthCall> {
         return query(function, org.web3j.abi.datatypes.Address.DEFAULT.value)
     }

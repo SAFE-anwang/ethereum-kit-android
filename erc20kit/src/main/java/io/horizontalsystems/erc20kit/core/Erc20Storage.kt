@@ -10,12 +10,15 @@ class Erc20Storage(
 
     private val tokenBalanceDao = database.tokenBalanceDao
 
-    override fun getBalance(): BigInteger? {
-        return tokenBalanceDao.getBalance()?.value
+    override fun getBalance(): Pair<BigInteger, BigInteger>? {
+        tokenBalanceDao.getBalance()?.let {
+            return Pair(it.value, it.lockValue)
+        }
+        return null
     }
 
-    override fun save(balance: BigInteger) {
-        tokenBalanceDao.insert(TokenBalance(balance))
+    override fun save(balance: BigInteger, lockBalance: BigInteger) {
+        tokenBalanceDao.insert(TokenBalance(balance, lockBalance))
     }
 
 }

@@ -5,22 +5,22 @@ import io.reactivex.Single
 import java.math.BigInteger
 
 interface IBalanceManagerListener {
-    fun onSyncBalanceSuccess(balance: BigInteger)
+    fun onSyncBalanceSuccess(balance: Pair<BigInteger, BigInteger>)
     fun onSyncBalanceError(error: Throwable)
 }
 
 interface IBalanceManager {
     var listener: IBalanceManagerListener?
 
-    val balance: BigInteger?
+    val balance: Pair<BigInteger, BigInteger>?
     fun sync()
 }
 
 interface ITokenBalanceStorage {
-    fun getBalance(): BigInteger?
-    fun save(balance: BigInteger)
+    fun getBalance(): Pair<BigInteger, BigInteger>?
+    fun save(balance: BigInteger, lockBalance: BigInteger)
 }
 
 interface IDataProvider {
-    fun getBalance(contractAddress: Address, address: Address): Single<BigInteger>
+    fun getBalance(contractAddress: Address, address: Address): Single<Pair<BigInteger, BigInteger>>
 }
