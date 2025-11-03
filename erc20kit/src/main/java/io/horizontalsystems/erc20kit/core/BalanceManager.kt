@@ -14,14 +14,14 @@ class BalanceManager(private val contractAddress: Address,
 
     override var listener: IBalanceManagerListener? = null
 
-    override val balance: BigInteger?
+    override val balance: Pair<BigInteger, BigInteger>?
         get() = storage.getBalance()
 
     override fun sync() {
         dataProvider.getBalance(contractAddress, address)
                 .subscribeOn(Schedulers.io())
                 .subscribe({ balance ->
-                    storage.save(balance)
+                    storage.save(balance.first, balance.second)
                     listener?.onSyncBalanceSuccess(balance)
                 }, {
                     listener?.onSyncBalanceError(it)
