@@ -16,6 +16,7 @@ data class TransactionData(
         val spaceDay: Int = 0,
         val startDay: Int = 0,
     var isCreatePool: Boolean = false,
+    var isSafeUsdt: Boolean = false
 ) {
     override fun equals(other: Any?): Boolean {
         return when {
