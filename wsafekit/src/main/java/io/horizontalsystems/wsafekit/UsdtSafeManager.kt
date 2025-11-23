@@ -57,7 +57,7 @@ class UsdtSafeManager(
     fun transactionDataSafe4ToUsdt(amount: BigInteger,
                                    to: String,
                                    network: String): TransactionData {
-        return TransactionData(to = getContractAddress(Chain.SafeFour), value = BigInteger.ZERO,
+        return TransactionData(to = getContractAddress(Chain.SafeFour), value = amount,
             Web3jUtils.safe4ToUsdt(amount, to, network).toByteArray(),
             isSafeUsdt = true)
     }
