@@ -112,7 +112,7 @@ class RpcBlockchainSafe4(
         AccountManagerContractAddr91b2
     )
 
-    private val src20LockFactory by lazy {
+    val src20LockFactory by lazy {
         SRC20LockFactory(web3j, Chain.SafeFour.id.toLong(), SRC20LockContract)
     }
 

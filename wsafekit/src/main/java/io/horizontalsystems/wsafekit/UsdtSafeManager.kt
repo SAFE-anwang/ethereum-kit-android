@@ -95,7 +95,7 @@ class UsdtSafeManager(
         val safeAddressHex =
             when (chain) {
                 Chain.SafeFour -> "0xcF5B813482d29232604ff7c93564fc44202f5998"
-                Chain.Ethereum -> "0xB7D811f99a786C1f47360C7630D306F2d34FEf55"
+                Chain.Ethereum -> "0xbB92E5E0120fe5345D5b5d36fcCdAfA391976622"
                 Chain.BinanceSmartChain -> "0xbB92E5E0120fe5345D5b5d36fcCdAfA391976622" //BSC正式环境
                 Chain.TRON -> "TJefpssM9uEuUhrxnmGVotw4GRem63uXFr"
                 Chain.SOL -> "E7gFBw75dnXad9GqYW5EVgCNAJ85uCe29L4x6iR4BAqQ"

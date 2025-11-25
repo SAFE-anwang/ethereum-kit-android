@@ -54,10 +54,10 @@ class Erc20Kit(
     val transactionsSyncStateFlowable: Flowable<SyncState>
         get() = ethereumKit.transactionsSyncStateFlowable
 
-    val balance: Pair<BigInteger, BigInteger>?
+    val balance: BigInteger?
         get() = state.balance
 
-    val balanceFlowable: Flowable<Pair<BigInteger, BigInteger>>
+    val balanceFlowable: Flowable<BigInteger>
         get() = state.balanceSubject.toFlowable(BackpressureStrategy.LATEST)
 
     val transactionsFlowable: Flowable<List<FullTransaction>>
@@ -98,7 +98,7 @@ class Erc20Kit(
     }
 
     //region IBalanceManagerListener
-    override fun onSyncBalanceSuccess(balance: Pair<BigInteger, BigInteger>) {
+    override fun onSyncBalanceSuccess(balance: BigInteger) {
         state.balance = balance
         state.syncState = SyncState.Synced()
     }
