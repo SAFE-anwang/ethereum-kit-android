@@ -16,7 +16,8 @@ import java.math.BigInteger
 
 interface ISafeFourOperate {
 	fun withdraw(privateKey: BigInteger)
-	fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>): Single<String>
+	fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>, type: Int): Single<String>
+	fun removeVoteOrApproval(privateKey: BigInteger, ids: List<BigInteger>): Single<String>
 
 	fun superNodeRegister(
 			privateKey: String,
@@ -87,6 +88,7 @@ interface ISafeFourOperate {
 	fun getAllVoteNum(): BigInteger
 
 	fun getLockIds(addr: String, start: Int, count: Int): Single<List<BigInteger>>
+	fun getTotalIDs(type: Int, addr: String, start: Int, count: Int): Single<List<BigInteger>>
 	fun getVotedIDs4Voter(addr: String, start: Int, count: Int): Single<List<BigInteger>>
 
 	fun getProposalVoteList(id: Int, start: Int, count: Int): Single<List<ProposalVoteInfo>>
@@ -94,7 +96,7 @@ interface ISafeFourOperate {
 	fun getProposalInfo(id: Int): ProposalInfo
 	fun getRewardIDs(id: Int): List<BigInteger>
 
-	fun getRecordByID(id: Int): AccountRecord
+	fun getRecordByID(id: Long, type: Int = 0): AccountRecord
 
 	fun getVoters(address: String, start: Int, count: Int): Single<SNVoteRetInfo>
 	fun getAvailableIDs(address: String, start: Int, count: Int): Single<List<BigInteger>>
@@ -168,6 +170,7 @@ interface ISafeFourOperate {
 	fun addLockDay(privateKey: String, id: Long, day: Int): Single<String>
 
 	fun getAvailableAmount(address: String): AccountAmountInfo
+	fun getAccountTotalAmount(address: String, type: Int): AccountAmountInfo
 
 	fun batchDeposit4One(privateKey: String, value:BigInteger, to:String, times:BigInteger, spaceDay: BigInteger, startDay: BigInteger): Single<String>
 }

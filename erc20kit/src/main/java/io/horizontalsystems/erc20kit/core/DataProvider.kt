@@ -1,5 +1,6 @@
 package io.horizontalsystems.erc20kit.core
 
+import android.util.Log
 import io.horizontalsystems.erc20kit.contract.BalanceOfMethod
 import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.models.Address
@@ -15,13 +16,13 @@ class DataProvider(
     override fun getBalance(contractAddress: Address, address: Address): Single<BigInteger> {
         return ethereumKit.call(contractAddress, BalanceOfMethod(address).encodedABI())
             .map { it.sliceArray(IntRange(0, 31)).toBigInteger() }
-                /*.map {
-                    if (ethereumKit.chain.id == Chain.SafeFour.id ) {
-                        it.toBigInteger()
-                    } else {
-                        it.sliceArray(IntRange(0, 31)).toBigInteger()
-                    }
-                }*/
+        /*.map {
+            if (ethereumKit.chain.id == Chain.SafeFour.id ) {
+                it.toBigInteger()
+            } else {
+                it.sliceArray(IntRange(0, 31)).toBigInteger()
+            }
+        }*/
     }
 
 }

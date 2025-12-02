@@ -84,9 +84,6 @@ class UniswapKit(
         return tradeManager.transactionData(receiveAddress, chain, tradeData)
     }
 
-    fun transactionLiquidityData(receiveAddress: Address, chain: Chain, tradeData: TradeData): TransactionData {
-        return tradeManager.transactionLiquidityData(receiveAddress, chain, tradeData)
-    }
 
     companion object {
         fun getInstance(): UniswapKit {

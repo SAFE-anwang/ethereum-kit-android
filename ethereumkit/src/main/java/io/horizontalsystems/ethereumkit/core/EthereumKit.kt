@@ -21,6 +21,7 @@ import io.horizontalsystems.ethereumkit.api.models.AccountState
 import io.horizontalsystems.ethereumkit.api.models.AnBaoAddress
 import io.horizontalsystems.ethereumkit.api.models.EthereumKitState
 import io.horizontalsystems.ethereumkit.api.storage.ApiStorage
+import io.horizontalsystems.ethereumkit.contracts.ContractMethodHelper
 import io.horizontalsystems.ethereumkit.core.signer.Signer
 import io.horizontalsystems.ethereumkit.core.storage.Eip20Storage
 import io.horizontalsystems.ethereumkit.core.storage.TransactionStorage
@@ -289,6 +290,16 @@ class EthereumKit(
         return rpc.safe4ToSrc20(privateKey, transactionData)
     }
 
+    fun src20Lock(privateKey: BigInteger, transactionData: TransactionData): Single<String> {
+        val rpc = blockchain as RpcBlockchainSafe4
+        val argumentTypes = listOf(Address::class, BigInteger::class)
+        val parsedArguments = ContractMethodHelper.decodeABI(transactionData.input.copyOfRange(4, transactionData.input.size), argumentTypes)
+        return rpc.src20Lock(privateKey.toHexString(), transactionData.to.hex,
+            (parsedArguments[0] as Address).hex,
+            parsedArguments[1] as BigInteger,
+            transactionData.lockTime?.toBigInteger() ?: BigInteger.ZERO)
+    }
+
     fun src20ToSafe4(privateKey: BigInteger, transactionData: TransactionData): Single<String>  {
         val rpc = blockchain as RpcBlockchainSafe4
         return rpc.src20ToSafe4(privateKey, transactionData)
@@ -313,9 +324,17 @@ class EthereumKit(
     }
 
 
-    fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>): Single<String> {
+    fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>, type: Int): Single<String> {
         if(blockchain is RpcBlockchainSafe4) {
-            return blockchain.withdrawByIds(privateKey, ids)
+            return blockchain.withdrawByIds(privateKey, ids, type)
+        }
+        return Single.just("withdraw fail")
+    }
+
+
+    fun removeVoteOrApproval(privateKey: BigInteger, ids: List<BigInteger>): Single<String> {
+        if(blockchain is RpcBlockchainSafe4) {
+            return blockchain.removeVoteOrApproval(privateKey, ids)
         }
         return Single.just("withdraw fail")
     }
@@ -491,6 +510,14 @@ class EthereumKit(
             blockchain.voteOrApproval(privateKey.toHexString(), isVote, dstAddr, recordIDs)
         } else {
             Single.just("")
+        }
+    }
+
+    fun getLockBalance(contractAddress: Address): Single<BigInteger> {
+        return if (blockchain is RpcBlockchainSafe4) {
+            blockchain.getLockBalance(contractAddress)
+        } else {
+            Single.just(BigInteger.ZERO)
         }
     }
 

@@ -5,7 +5,7 @@ import io.horizontalsystems.erc20kit.models.TokenBalance
 import java.math.BigInteger
 
 class Erc20Storage(
-        database: Erc20KitDatabase
+    database: Erc20KitDatabase
 ) : ITokenBalanceStorage {
 
     private val tokenBalanceDao = database.tokenBalanceDao

@@ -10,10 +10,13 @@ data class TransactionData(
         val input: ByteArray,
         var lockTime: Int? = null, // lock time , unit day
         var isBothErc: Boolean = false,
+        var isSRC20Lock: Boolean = false,
         var safe4Swap: Int = 0,
         val times: Int = -1,
         val spaceDay: Int = 0,
         val startDay: Int = 0,
+    var isCreatePool: Boolean = false,
+    var isSafeUsdt: Boolean = false
 ) {
     override fun equals(other: Any?): Boolean {
         return when {
