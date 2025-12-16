@@ -700,12 +700,20 @@ class RpcBlockchainSafe4(
         return Single.just(web3jSafe4.safe3.getLockedInfo(safe3Addr, start.toBigInteger(), count.toBigInteger()))
     }
 
+    fun safe3GetPettyInfo(safe3Addr: String): Single<AvailableSafe3Info> {
+        return Single.just(web3jSafe4.safe3.getPettyInfo(safe3Addr))
+    }
+
     override fun existAvailableNeedToRedeem(safe3Addr: String): Boolean {
         return web3jSafe4.safe3.existAvailableNeedToRedeem(safe3Addr)
     }
 
     override fun existLockedNeedToRedeem(safe3Addr: String): Boolean {
         return web3jSafe4.safe3.existLockedNeedToRedeem(safe3Addr)
+    }
+
+    fun existPettyLockedNeedToRedeem(safe3Addr: String): Boolean {
+        return web3jSafe4.safe3.existPettyNeedToRedeem(safe3Addr)
     }
 
     override fun existMasterNodeNeedToRedeem(safe3Addr: String): Boolean {
