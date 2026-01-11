@@ -704,6 +704,13 @@ class RpcBlockchainSafe4(
         return Single.just(web3jSafe4.safe3.getPettyInfo(safe3Addr))
     }
 
+    fun safe3GetPettyNum(): Single<Long> {
+        return Single.just(web3jSafe4.safe3.allPettyNum.toLong())
+    }
+    fun safe3GetPettyInfos(start: Int, count: Long): Single<List<AvailableSafe3Info>> {
+        return Single.just(web3jSafe4.safe3.getPettyInfos(start.toBigInteger(), count.toBigInteger()))
+    }
+
     override fun existAvailableNeedToRedeem(safe3Addr: String): Boolean {
         return web3jSafe4.safe3.existAvailableNeedToRedeem(safe3Addr)
     }
@@ -1104,7 +1111,6 @@ class RpcBlockchainSafe4(
     ): Single<String> {
         return Single.create<String> { emitter ->
             try {
-                Log.d("longwen", "lock src20 amount=$value, lockDay=$lockDay")
                 val result = src20LockFactory.lock(
                     privateKey,
                     org.web3j.abi.datatypes.Address(token),

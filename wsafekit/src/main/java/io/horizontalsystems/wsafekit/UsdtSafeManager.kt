@@ -47,7 +47,6 @@ class UsdtSafeManager(
 
         val transferData = FunctionEncoder.encode(function)
         val extraData = Numeric.toHexString("safe4:$to".toByteArray()).substring(2)
-        Log.d("longwen", "extraData=$extraData, $to")
         val input = (transferData + extraData).hexStringToByteArray()
         return TransactionData(to = contractAddress, value = BigInteger.ZERO,
             input
