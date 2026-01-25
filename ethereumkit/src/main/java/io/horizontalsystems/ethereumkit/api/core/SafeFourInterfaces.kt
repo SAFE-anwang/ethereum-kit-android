@@ -15,7 +15,6 @@ import org.web3j.abi.datatypes.Address
 import java.math.BigInteger
 
 interface ISafeFourOperate {
-	fun withdraw(privateKey: BigInteger)
 	fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>, type: Int): Single<String>
 	fun removeVoteOrApproval(privateKey: BigInteger, ids: List<BigInteger>): Single<String>
 
@@ -165,7 +164,8 @@ interface ISafeFourOperate {
 	fun getTops4Creator(address: String): Single<List<String>>
 
 	fun existNodeAddress(address: String): Single<Boolean>
-	fun existNodeEnode(enode: String): Single<Boolean>
+	fun existNodeEnode(isSuperNode: Boolean, enode: String): Single<Boolean>
+	fun isBindEnode(id: Long, enode: String): Single<Boolean>
 	fun existNodeFounder(address: String): Single<Boolean>
 	fun addLockDay(privateKey: String, id: Long, day: Int): Single<String>
 

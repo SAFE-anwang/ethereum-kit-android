@@ -255,14 +255,6 @@ class RpcBlockchainSafe4(
         return Single.just(ethSendTransaction).map { transaction }
     }
 
-    override fun withdraw(privateKey: BigInteger) {
-        try {
-            val hash = web3jSafe4.account.withdraw(privateKey.toHexString())
-            Log.e("Withdraw", "result=$hash")
-        } catch (ex: Exception) {
-            Log.e("Withdraw", "error=$ex")
-        }
-    }
 
     override fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>, type: Int): Single<String> {
         return if (type == 1) {
@@ -774,11 +766,29 @@ class RpcBlockchainSafe4(
         }.onErrorReturnItem(false)
     }
 
-    override fun existNodeEnode(enode: String): Single<Boolean> {
+    override fun existNodeEnode(isSuperNode: Boolean, enode: String): Single<Boolean> {
         return Single.create<Boolean> { emitter ->
             try {
-                val list = web3jSafe4.supernode.existNodeEnode(enode)
-                emitter.onSuccess(list)
+                val exitsSuperEnode =  web3jSafe4.supernode.existNodeEnode(enode)
+                val ids = web3jSafe4.masternode.getIDsByEnode(enode)
+                Log.d("existENode", "isSuperEnode=$exitsSuperEnode, ids=$ids")
+                if (isSuperNode) {
+                    emitter.onSuccess(exitsSuperEnode || ids.isNotEmpty())
+                } else {
+                    emitter.onSuccess(exitsSuperEnode && ids.size >= 5)
+                }
+                return@create
+            } catch (e: Throwable) {
+                emitter.onError(e)
+            }
+        }.onErrorReturnItem(false)
+    }
+
+    override fun isBindEnode(id: Long, enode: String): Single<Boolean> {
+        return Single.create<Boolean> { emitter ->
+            try {
+                val result = web3jSafe4.masternode.isBindEnode(id.toBigInteger(), enode)
+                emitter.onSuccess(result)
                 return@create
             } catch (e: Throwable) {
                 emitter.onError(e)
