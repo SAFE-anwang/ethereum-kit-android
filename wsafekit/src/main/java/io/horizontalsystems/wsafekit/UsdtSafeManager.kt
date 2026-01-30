@@ -23,7 +23,7 @@ class UsdtSafeManager(
 
     private val safeConvertAddress = getSafeAddress(chain)
 
-    private val safeNetType = getSafeNetType(chain)
+    private val safeNetType = getSafeUsdtNetType()
 
     fun getSafeConvertAddress(): String {
         return safeConvertAddress;
@@ -107,17 +107,12 @@ class UsdtSafeManager(
     /**
      * 获取跨链safe网络类型
      */
-    private fun getSafeNetType(chain: Chain): String {
-        val safeAddressHex = when (chain) {
-            Chain.Ethereum -> "mainnet"
-//            Chain.EthereumRopsten -> "testnet"
-            Chain.BinanceSmartChain -> "mainnet" //BSC正式环境
-            Chain.Polygon -> "mainnet"
-            Chain.SafeFour -> "mainnet"
-//            Chain.BinanceSmartChain -> "testnet" //BSC测试环境
-            else -> throw UnsupportedChainError.NoSafeNetType
+    private fun getSafeUsdtNetType(): String {
+        return if (Chain.SafeFour.isSafe4TestNetId) {
+            "testnet4/usdt"
+        } else {
+            "mainnet4/usdt"
         }
-        return safeAddressHex + "4"
     }
 
 }
