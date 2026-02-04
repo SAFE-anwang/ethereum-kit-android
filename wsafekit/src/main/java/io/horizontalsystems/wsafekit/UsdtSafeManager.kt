@@ -109,9 +109,9 @@ class UsdtSafeManager(
      */
     private fun getSafeUsdtNetType(): String {
         return if (Chain.SafeFour.isSafe4TestNetId) {
-            "testnet4/usdt"
+            "testnet4"
         } else {
-            "mainnet4/usdt"
+            "mainnet4"
         }
     }
 
