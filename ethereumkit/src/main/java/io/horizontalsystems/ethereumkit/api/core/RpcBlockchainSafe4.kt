@@ -255,14 +255,6 @@ class RpcBlockchainSafe4(
         return Single.just(ethSendTransaction).map { transaction }
     }
 
-    override fun withdraw(privateKey: BigInteger) {
-        try {
-            val hash = web3jSafe4.account.withdraw(privateKey.toHexString())
-            Log.e("Withdraw", "result=$hash")
-        } catch (ex: Exception) {
-            Log.e("Withdraw", "error=$ex")
-        }
-    }
 
     override fun withdrawByIds(privateKey: BigInteger, ids: List<BigInteger>, type: Int): Single<String> {
         return if (type == 1) {
@@ -700,12 +692,27 @@ class RpcBlockchainSafe4(
         return Single.just(web3jSafe4.safe3.getLockedInfo(safe3Addr, start.toBigInteger(), count.toBigInteger()))
     }
 
+    fun safe3GetPettyInfo(safe3Addr: String): Single<AvailableSafe3Info> {
+        return Single.just(web3jSafe4.safe3.getPettyInfo(safe3Addr))
+    }
+
+    fun safe3GetPettyNum(): Single<Long> {
+        return Single.just(web3jSafe4.safe3.allPettyNum.toLong())
+    }
+    fun safe3GetPettyInfos(start: Int, count: Long): Single<List<AvailableSafe3Info>> {
+        return Single.just(web3jSafe4.safe3.getPettyInfos(start.toBigInteger(), count.toBigInteger()))
+    }
+
     override fun existAvailableNeedToRedeem(safe3Addr: String): Boolean {
         return web3jSafe4.safe3.existAvailableNeedToRedeem(safe3Addr)
     }
 
     override fun existLockedNeedToRedeem(safe3Addr: String): Boolean {
         return web3jSafe4.safe3.existLockedNeedToRedeem(safe3Addr)
+    }
+
+    fun existPettyLockedNeedToRedeem(safe3Addr: String): Boolean {
+        return web3jSafe4.safe3.existPettyNeedToRedeem(safe3Addr)
     }
 
     override fun existMasterNodeNeedToRedeem(safe3Addr: String): Boolean {
@@ -759,11 +766,29 @@ class RpcBlockchainSafe4(
         }.onErrorReturnItem(false)
     }
 
-    override fun existNodeEnode(enode: String): Single<Boolean> {
+    override fun existNodeEnode(isSuperNode: Boolean, enode: String): Single<Boolean> {
         return Single.create<Boolean> { emitter ->
             try {
-                val list = web3jSafe4.supernode.existNodeEnode(enode)
-                emitter.onSuccess(list)
+                val exitsSuperEnode =  web3jSafe4.supernode.existNodeEnode(enode)
+                val ids = web3jSafe4.masternode.getIDsByEnode(enode)
+                Log.d("existENode", "isSuperEnode=$exitsSuperEnode, ids=$ids")
+                if (isSuperNode) {
+                    emitter.onSuccess(exitsSuperEnode || ids.isNotEmpty())
+                } else {
+                    emitter.onSuccess(exitsSuperEnode && ids.size >= 5)
+                }
+                return@create
+            } catch (e: Throwable) {
+                emitter.onError(e)
+            }
+        }.onErrorReturnItem(false)
+    }
+
+    override fun isBindEnode(id: Long, enode: String): Single<Boolean> {
+        return Single.create<Boolean> { emitter ->
+            try {
+                val result = web3jSafe4.masternode.isBindEnode(id.toBigInteger(), enode)
+                emitter.onSuccess(result)
                 return@create
             } catch (e: Throwable) {
                 emitter.onError(e)
@@ -1096,7 +1121,6 @@ class RpcBlockchainSafe4(
     ): Single<String> {
         return Single.create<String> { emitter ->
             try {
-                Log.d("longwen", "lock src20 amount=$value, lockDay=$lockDay")
                 val result = src20LockFactory.lock(
                     privateKey,
                     org.web3j.abi.datatypes.Address(token),

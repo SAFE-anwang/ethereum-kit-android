@@ -157,7 +157,7 @@ class SwapTransactionDecorator : ITransactionDecorator {
         var amountIn: BigInteger = 0.toBigInteger()
         var amountOut: BigInteger = 0.toBigInteger()
 
-        eventInstances.forEach { eventInstance ->
+        eventInstances.distinctBy { it.contractAddress } .forEach { eventInstance ->
             if (eventInstance.contractAddress == tokenAddress) {
                 (eventInstance as? TransferEventInstance)?.let { transferEventDecoration ->
                     if (transferEventDecoration.from == userAddress) {
