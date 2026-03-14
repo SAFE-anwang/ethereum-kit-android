@@ -78,7 +78,8 @@ import java.util.logging.Logger
 
 class EthereumKit(
     val blockchain: IBlockchain,
-    private val transactionManager: TransactionManager,
+    private val nonceProvider: NonceProvider,
+    val transactionManager: TransactionManager,
     private val transactionSyncManager: TransactionSyncManager,
     private val connectionManager: ConnectionManager,
     private val address: Address,
@@ -167,6 +168,14 @@ class EthereumKit(
         connectionManager.stop()
     }
 
+    fun onEnterForeground() {
+        blockchain.resume()
+    }
+
+    fun onEnterBackground() {
+        blockchain.pause()
+    }
+
     fun getAnBaoAllAddressInfo(seed: ByteArray) {
         if (!isAnBaoWallet)    return
         val privateKeys = Signer.getAnBaoPrivateKeys(seed, chain)
@@ -194,7 +203,7 @@ class EthereumKit(
     }
 
     fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long> {
-        return blockchain.getNonce(defaultBlockParameter)
+        return nonceProvider.getNonce(defaultBlockParameter)
     }
 
     fun getFullTransactionsFlowable(tags: List<List<String>>): Flowable<List<FullTransaction>> {
@@ -217,6 +226,10 @@ class EthereumKit(
         return transactionManager.getFullTransactionSingle(hash)
     }
 
+    fun getFullTransactionsAfterSingle(hash: ByteArray?): Single<List<FullTransaction>> {
+        return transactionManager.getFullTransactionsAfterSingle(hash)
+    }
+
     fun estimateGas(to: Address?, value: BigInteger, gasPrice: GasPrice): Single<Long> {
         // without address - provide default gas limit
         if (to == null) {
@@ -229,11 +242,11 @@ class EthereumKit(
         return blockchain.estimateGas(to, resolvedAmount, chain.gasLimit, gasPrice, null)
     }
 
-    fun estimateGas(to: Address?, value: BigInteger?, gasPrice: GasPrice, data: ByteArray?): Single<Long> {
+    fun estimateGas(to: Address?, value: BigInteger?, gasPrice: GasPrice?, data: ByteArray?): Single<Long> {
         return blockchain.estimateGas(to, value, chain.gasLimit, gasPrice, data)
     }
 
-    fun estimateGas(transactionData: TransactionData, gasPrice: GasPrice): Single<Long> {
+    fun estimateGas(transactionData: TransactionData, gasPrice: GasPrice? = null): Single<Long> {
         return estimateGas(transactionData.to, transactionData.value, gasPrice, transactionData.input)
     }
 
@@ -261,7 +274,7 @@ class EthereumKit(
         gasLimit: Long,
         nonce: Long? = null
     ): Single<RawTransaction> {
-        val nonceSingle = nonce?.let { Single.just(it) } ?: blockchain.getNonce(DefaultBlockParameter.Pending)
+        val nonceSingle = nonce?.let { Single.just(it) } ?: nonceProvider.getNonce(DefaultBlockParameter.Pending)
 
         return nonceSingle.flatMap { nonce ->
             Single.just(RawTransaction(gasPrice, gasLimit, address, value, nonce, transactionInput))
@@ -420,6 +433,14 @@ class EthereumKit(
         transactionSyncManager.add(transactionSyncer)
     }
 
+    fun addNonceProvider(provider: INonceProvider) {
+        nonceProvider.addProvider(provider)
+    }
+
+    fun addExtraDecorator(decorator: IExtraDecorator) {
+        decorationManager.addExtraDecorator(decorator)
+    }
+
     fun addMethodDecorator(decorator: IMethodDecorator) {
         decorationManager.addMethodDecorator(decorator)
     }
@@ -432,7 +453,7 @@ class EthereumKit(
         decorationManager.addTransactionDecorator(decorator)
     }
 
-    internal fun <T> rpcSingle(rpc: JsonRpc<T>): Single<T> {
+    internal fun <T: Any> rpcSingle(rpc: JsonRpc<T>): Single<T> {
         if (blockchain is RpcBlockchainSafe4) {
             return when(rpc.method) {
                 "eth_gasPrice" -> blockchain.getGasPrice()
@@ -444,54 +465,53 @@ class EthereumKit(
         }
     }
 
-
     fun superNodeRegister(
-            privateKey: BigInteger,
-            value: BigInteger,
-            isUnion: Boolean,
-            addr: String,
-            lockDay: BigInteger,
-            name: String,
-            enode: String,
-            description: String,
-            creatorIncentive: BigInteger,
-            partnerIncentive: BigInteger,
-            voterIncentive: BigInteger
+        privateKey: BigInteger,
+        value: BigInteger,
+        isUnion: Boolean,
+        addr: String,
+        lockDay: BigInteger,
+        name: String,
+        enode: String,
+        description: String,
+        creatorIncentive: BigInteger,
+        partnerIncentive: BigInteger,
+        voterIncentive: BigInteger
     ): Single<String> {
         return  if (blockchain is RpcBlockchainSafe4) {
             blockchain.superNodeRegister(privateKey.toHexString(), value, isUnion,
-                    addr, lockDay,
-                    name, enode, description, creatorIncentive, partnerIncentive, voterIncentive)
+                addr, lockDay,
+                name, enode, description, creatorIncentive, partnerIncentive, voterIncentive)
         } else {
             Single.just("")
         }
     }
 
     fun masterNodeRegister(
-            privateKey: BigInteger,
-            value: BigInteger,
-            isUnion: Boolean,
-            addr: String,
-            lockDay: BigInteger,
-            enode: String,
-            description: String,
-            creatorIncentive: BigInteger,
-            partnerIncentive: BigInteger
+        privateKey: BigInteger,
+        value: BigInteger,
+        isUnion: Boolean,
+        addr: String,
+        lockDay: BigInteger,
+        enode: String,
+        description: String,
+        creatorIncentive: BigInteger,
+        partnerIncentive: BigInteger
     ): Single<String> {
         return  if (blockchain is RpcBlockchainSafe4) {
             blockchain.masterNodeRegister(privateKey.toHexString(), value, isUnion,
-                    addr, lockDay,
-                    enode, description, creatorIncentive, partnerIncentive)
+                addr, lockDay,
+                enode, description, creatorIncentive, partnerIncentive)
         } else {
             Single.just("")
         }
     }
 
     fun voteOrApprovalWithAmount(
-            privateKey: BigInteger,
-            value: BigInteger,
-            isVote: Boolean,
-            dstAddr: String
+        privateKey: BigInteger,
+        value: BigInteger,
+        isVote: Boolean,
+        dstAddr: String
     ): Single<String> {
         return  if (blockchain is RpcBlockchainSafe4) {
             blockchain.voteOrApprovalWithAmount(privateKey.toHexString(), value, isVote, dstAddr)
@@ -501,10 +521,10 @@ class EthereumKit(
     }
 
     fun voteOrApproval(
-            privateKey: BigInteger,
-            isVote: Boolean,
-            dstAddr: String,
-            recordIDs: List<BigInteger>
+        privateKey: BigInteger,
+        isVote: Boolean,
+        dstAddr: String,
+        recordIDs: List<BigInteger>
     ): Single<String> {
         return  if (blockchain is RpcBlockchainSafe4) {
             blockchain.voteOrApproval(privateKey.toHexString(), isVote, dstAddr, recordIDs)
@@ -670,6 +690,7 @@ class EthereumKit(
                 }
             }
 
+            val transactionBuilder = TransactionBuilder(address, chain.id)
             val transactionProvider = transactionProvider(transactionSource, address, chain.id)
 
             val apiDatabase = EthereumDatabaseManager.getEthereumApiDatabase(application, walletId, chain)
@@ -697,6 +718,9 @@ class EthereumKit(
             transactionSyncManager.add(internalTransactionsSyncer)
             transactionSyncManager.add(ethereumTransactionSyncer)
 
+            val nonceProvider = NonceProvider()
+            nonceProvider.addProvider(nonceProvider)
+
             if (chain == Chain.SafeFour) {
                 val safe4TransactionSyncer = Safe4TransactionSyncer(address.hex, transactionProvider, transactionSyncerStateStorage)
                 transactionSyncManager.add(safe4TransactionSyncer)
@@ -704,6 +728,7 @@ class EthereumKit(
 
             val ethereumKit = EthereumKit(
                 blockchain,
+                nonceProvider,
                 transactionManager,
                 transactionSyncManager,
                 connectionManager,
@@ -733,7 +758,7 @@ class EthereumKit(
         private fun transactionProvider(transactionSource: TransactionSource, address: Address, chainId: Int): ITransactionProvider {
             when (transactionSource.type) {
                 is TransactionSource.SourceType.Etherscan -> {
-                    val service = EtherscanService(transactionSource.type.apiBaseUrl, transactionSource.type.apiKey, chainId)
+                    val service = EtherscanService(transactionSource.type.apiBaseUrl, transactionSource.type.apiKeys, chainId)
                     return EtherscanTransactionProvider(service, address)
                 }
             }

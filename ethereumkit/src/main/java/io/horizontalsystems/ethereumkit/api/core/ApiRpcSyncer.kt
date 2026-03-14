@@ -7,7 +7,7 @@ import io.horizontalsystems.ethereumkit.network.ConnectionManager
 import io.reactivex.Single
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
-import java.util.*
+import java.util.Timer
 import kotlin.concurrent.schedule
 
 class ApiRpcSyncer(
@@ -52,7 +52,15 @@ class ApiRpcSyncer(
         stopTimer()
     }
 
-    override fun <T> single(rpc: JsonRpc<T>): Single<T> =
+    override fun pause() {
+        stopTimer()
+    }
+
+    override fun resume() {
+        startTimer()
+    }
+
+    override fun <T: Any> single(rpc: JsonRpc<T>): Single<T> =
         rpcApiProvider.single(rpc)
     //endregion
 
@@ -69,6 +77,8 @@ class ApiRpcSyncer(
     }
 
     private fun startTimer() {
+        if (timer != null) return
+
         timer = Timer().apply {
             schedule(0, syncInterval * 1000) {
                 onFireTimer()
@@ -85,11 +95,9 @@ class ApiRpcSyncer(
         rpcApiProvider.single(BlockNumberJsonRpc())
                 .subscribeOn(Schedulers.io())
                 .observeOn(Schedulers.io())
-                .subscribe({ lastBlockNumber ->
+                .subscribe { lastBlockNumber ->
                     listener?.didUpdateLastBlockHeight(lastBlockNumber)
-                }, {
-                    state = SyncerState.NotReady(it)
-                }).let {
+                }.let {
                     disposables.add(it)
                 }
     }

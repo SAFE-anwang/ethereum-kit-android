@@ -22,6 +22,7 @@ import io.horizontalsystems.ethereumkit.core.EthereumKit.SyncState
 import io.horizontalsystems.ethereumkit.core.IApiStorage
 import io.horizontalsystems.ethereumkit.core.IBlockchain
 import io.horizontalsystems.ethereumkit.core.IBlockchainListener
+import io.horizontalsystems.ethereumkit.core.INonceProvider
 import io.horizontalsystems.ethereumkit.core.RpcApiProviderFactory
 import io.horizontalsystems.ethereumkit.core.TransactionBuilder
 import io.horizontalsystems.ethereumkit.models.Address
@@ -42,7 +43,7 @@ class RpcBlockchain(
     private val storage: IApiStorage,
     private val syncer: IRpcSyncer,
     private val transactionBuilder: TransactionBuilder
-) : IBlockchain, IRpcSyncerListener {
+) : IBlockchain, IRpcSyncerListener, INonceProvider {
 
     private val disposables = CompositeDisposable()
 
@@ -132,6 +133,14 @@ class RpcBlockchain(
         syncer.stop()
     }
 
+    override fun pause() {
+        syncer.pause()
+    }
+
+    override fun resume() {
+        syncer.resume()
+    }
+
     override fun send(rawTransaction: RawTransaction, signature: Signature, privateKey: BigInteger, lockTime: Int?): Single<Transaction> {
         val transaction = transactionBuilder.transaction(rawTransaction, signature)
         val encoded = transactionBuilder.encode(rawTransaction, signature)
@@ -144,7 +153,7 @@ class RpcBlockchain(
         return syncer.single(GetTransactionCountJsonRpc(address, defaultBlockParameter))
     }
 
-    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice, data: ByteArray?): Single<Long> {
+    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice?, data: ByteArray?): Single<Long> {
         return syncer.single(EstimateGasJsonRpc(address, to, amount, gasLimit, gasPrice, data))
     }
 
@@ -223,7 +232,7 @@ class RpcBlockchain(
         return syncer.single(callRpc(contractAddress, data, defaultBlockParameter))
     }
 
-    override fun <T> rpcSingle(rpc: JsonRpc<T>): Single<T> {
+    override fun <T: Any> rpcSingle(rpc: JsonRpc<T>): Single<T> {
         return syncer.single(rpc)
     }
 

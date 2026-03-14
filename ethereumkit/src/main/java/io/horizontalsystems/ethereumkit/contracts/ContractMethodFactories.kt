@@ -30,7 +30,11 @@ open class ContractMethodFactories {
         val methodId = input.copyOfRange(0, 4)
         val methodFactory = methodFactories[methodId.toInt()]
 
-        return methodFactory?.createMethod(input.copyOfRange(4, input.size))
+        return try {
+            methodFactory?.createMethod(input.copyOfRange(4, input.size))
+        } catch (e: IndexOutOfBoundsException) {
+            null
+        }
     }
 
 }

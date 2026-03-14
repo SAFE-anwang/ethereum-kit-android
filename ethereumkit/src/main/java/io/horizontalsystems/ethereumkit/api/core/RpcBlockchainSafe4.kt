@@ -241,6 +241,14 @@ class RpcBlockchainSafe4(
         syncer.stop()
     }
 
+    override fun pause() {
+        syncer.pause()
+    }
+
+    override fun resume() {
+        syncer.resume()
+    }
+
     override fun send(rawTransaction: RawTransaction, signature: Signature, privateKey: BigInteger, lockTime: Int?): Single<Transaction> {
         // 锁仓
         if (lockTime != null) {
@@ -885,7 +893,7 @@ class RpcBlockchainSafe4(
         }
     }
 
-    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice, data: ByteArray?): Single<Long> {
+    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice?, data: ByteArray?): Single<Long> {
         return syncer.single(EstimateGasJsonRpc(address, to, amount, gasLimit, gasPrice, data))
     }
 
@@ -932,7 +940,7 @@ class RpcBlockchainSafe4(
                         transaction.nonce.toLong(),
                         transaction.blockHash.toByteArray(),
                         transaction.blockNumber.toLong(),
-                        transaction.transactionIndex.toInt(),
+                        transaction.transactionIndex.toLong(),
                         Address(transaction.from),
                         Address(transaction.to),
                         transaction.value,
@@ -1021,7 +1029,7 @@ class RpcBlockchainSafe4(
         return syncer.single(RpcBlockchain.callRpc(contractAddress, data, defaultBlockParameter))
     }
 
-    override fun <T> rpcSingle(rpc: JsonRpc<T>): Single<T> {
+    override fun <T : Any> rpcSingle(rpc: JsonRpc<T>): Single<T> {
         return syncer.single(rpc)
     }
 

@@ -8,7 +8,22 @@ import io.horizontalsystems.ethereumkit.api.models.AccountState
 import io.horizontalsystems.ethereumkit.contracts.ContractEventInstance
 import io.horizontalsystems.ethereumkit.contracts.ContractMethod
 import io.horizontalsystems.ethereumkit.decorations.TransactionDecoration
-import io.horizontalsystems.ethereumkit.models.*
+import io.horizontalsystems.ethereumkit.models.Address
+import io.horizontalsystems.ethereumkit.models.DefaultBlockParameter
+import io.horizontalsystems.ethereumkit.models.Eip20Event
+import io.horizontalsystems.ethereumkit.models.GasPrice
+import io.horizontalsystems.ethereumkit.models.InternalTransaction
+import io.horizontalsystems.ethereumkit.models.ProviderEip1155Transaction
+import io.horizontalsystems.ethereumkit.models.ProviderEip721Transaction
+import io.horizontalsystems.ethereumkit.models.ProviderInternalTransaction
+import io.horizontalsystems.ethereumkit.models.ProviderTokenTransaction
+import io.horizontalsystems.ethereumkit.models.ProviderTransaction
+import io.horizontalsystems.ethereumkit.models.RawTransaction
+import io.horizontalsystems.ethereumkit.models.Safe4AccountManagerTransaction
+import io.horizontalsystems.ethereumkit.models.Signature
+import io.horizontalsystems.ethereumkit.models.Transaction
+import io.horizontalsystems.ethereumkit.models.TransactionLog
+import io.horizontalsystems.ethereumkit.models.TransactionTag
 import io.horizontalsystems.ethereumkit.spv.models.AccountStateSpv
 import io.horizontalsystems.ethereumkit.spv.models.BlockHeader
 import io.reactivex.Single
@@ -39,6 +54,8 @@ interface IBlockchain {
     fun start()
     fun refresh()
     fun stop()
+    fun pause()
+    fun resume()
     fun syncAccountState()
 
     val syncState: EthereumKit.SyncState
@@ -47,7 +64,7 @@ interface IBlockchain {
 
     fun send(rawTransaction: RawTransaction, signature: Signature, privateKey: BigInteger, lockTime: Int?): Single<Transaction>
     fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long>
-    fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice, data: ByteArray?): Single<Long>
+    fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice?, data: ByteArray?): Single<Long>
     fun getTransactionReceipt(transactionHash: ByteArray): Single<RpcTransactionReceipt>
     fun getTransaction(transactionHash: ByteArray): Single<RpcTransaction>
     fun getBlock(blockNumber: Long): Single<RpcBlock>
@@ -56,7 +73,7 @@ interface IBlockchain {
     fun getStorageAt(contractAddress: Address, position: ByteArray, defaultBlockParameter: DefaultBlockParameter): Single<ByteArray>
     fun call(contractAddress: Address, data: ByteArray, defaultBlockParameter: DefaultBlockParameter): Single<ByteArray>
 
-    fun <T> rpcSingle(rpc: JsonRpc<T>): Single<T>
+    fun <T: Any> rpcSingle(rpc: JsonRpc<T>): Single<T>
 
     fun getBalance(address: Address): Single<BigInteger>
 }
@@ -84,6 +101,8 @@ interface ITransactionStorage {
 
     fun saveTags(tags: List<TransactionTag>)
     fun getDistinctTokenContractAddresses(): List<String>
+
+    fun getTransactionsAfterSingle(hash: ByteArray?): Single<List<Transaction>>
 }
 
 interface IEip20Storage {
@@ -106,6 +125,10 @@ interface IEventDecorator {
     fun contractEventInstances(logs: List<TransactionLog>): List<ContractEventInstance>
 }
 
+interface IExtraDecorator {
+    fun extra(hash: ByteArray) : Map<String, Any>
+}
+
 interface ITransactionDecorator {
     fun decoration(
         from: Address?,
@@ -126,4 +149,8 @@ interface ITransactionProvider {
     fun getEip721Transactions(startBlock: Long): Single<List<ProviderEip721Transaction>>
     fun getEip1155Transactions(startBlock: Long): Single<List<ProviderEip1155Transaction>>
     fun getSafeAccountManagerTransactions(startBlock: Long): Single<List<Safe4AccountManagerTransaction>>
+}
+
+interface INonceProvider {
+    fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long>
 }

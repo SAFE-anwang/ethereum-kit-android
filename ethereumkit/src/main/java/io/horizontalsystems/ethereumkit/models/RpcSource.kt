@@ -25,6 +25,10 @@ sealed class RpcSource {
             return Http(listOf(URI(getCacheRpc("p2pify") ?: "https://nd-981-064-010.p2pify.com/3abdd3b90f012f4427380b632deb4180")), null)
         }
 
+        fun zkSyncRpcHttp(): Http {
+            return Http(listOf(URI("https://mainnet.era.zksync.io")), null)
+        }
+
         fun binanceSmartChainHttp(): Http {
             return Http(
                     listOf(
@@ -91,6 +95,10 @@ sealed class RpcSource {
                 },
                     null
             )
+        }
+
+        fun baseRpcHttp(): Http {
+            return Http(listOf(URI("https://mainnet.base.org")), null)
         }
 
     }
