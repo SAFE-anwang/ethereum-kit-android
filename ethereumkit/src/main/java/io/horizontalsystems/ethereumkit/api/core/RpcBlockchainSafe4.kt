@@ -30,6 +30,7 @@ import io.horizontalsystems.ethereumkit.core.EthereumKit.SyncState
 import io.horizontalsystems.ethereumkit.core.IApiStorage
 import io.horizontalsystems.ethereumkit.core.IBlockchain
 import io.horizontalsystems.ethereumkit.core.IBlockchainListener
+import io.horizontalsystems.ethereumkit.core.INonceProvider
 import io.horizontalsystems.ethereumkit.core.RpcApiProviderFactory
 import io.horizontalsystems.ethereumkit.core.Safe4TransactionBuilder
 import io.horizontalsystems.ethereumkit.core.eip1559.FeeHistory
@@ -71,7 +72,7 @@ class RpcBlockchainSafe4(
         private val syncer: IRpcSyncer,
         private val transactionBuilder: Safe4TransactionBuilder,
         val web3j: Web3j
-) : IBlockchain, IRpcSyncerListener, ISafeFourOperate {
+) : IBlockchain, IRpcSyncerListener, ISafeFourOperate, INonceProvider {
 
     val AccountManagerContractAddr4ac6 by lazy {
         if (Chain.SafeFour.isSafe4TestNetId) {

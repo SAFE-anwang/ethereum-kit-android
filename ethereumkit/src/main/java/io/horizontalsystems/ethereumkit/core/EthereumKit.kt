@@ -719,7 +719,7 @@ class EthereumKit(
             transactionSyncManager.add(ethereumTransactionSyncer)
 
             val nonceProvider = NonceProvider()
-            nonceProvider.addProvider(nonceProvider)
+            nonceProvider.addProvider(blockchain)
 
             if (chain == Chain.SafeFour) {
                 val safe4TransactionSyncer = Safe4TransactionSyncer(address.hex, transactionProvider, transactionSyncerStateStorage)
