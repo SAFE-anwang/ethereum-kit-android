@@ -16,7 +16,7 @@ kotlin {
 
 android {
     namespace 'io.horizontalsystems.uniswapkit'
-    compileSdkVersion 33
+    compileSdkVersion 36
 
     defaultConfig {
         minSdkVersion 26

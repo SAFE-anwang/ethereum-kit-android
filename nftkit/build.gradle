@@ -16,7 +16,7 @@ kotlin {
 
 android {
     namespace 'io.horizontalsystems.nftkit'
-    compileSdk 32
+    compileSdk 36
 
     defaultConfig {
         minSdk 26
