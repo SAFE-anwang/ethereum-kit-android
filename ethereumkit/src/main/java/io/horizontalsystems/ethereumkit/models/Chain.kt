@@ -22,8 +22,8 @@ enum class Chain(
     EthereumRopsten(3, 1, 2_000_000, 15, true),
     TRON(1, 195, 2_000_000, 15, true),
     SOL(3, 1, 2_000_000, 15, true),
-//    SafeFour(6666665, 60, 300000000, 15, false);
-    SafeFour(6666666, 60, 300000000, 15, false); // Test
+    SafeFour(6666665, 60, 300000000, 15, false);
+//    SafeFour(6666666, 60, 300000000, 15, false); // Test
 
     val isMainNet = coinType != 1
 
