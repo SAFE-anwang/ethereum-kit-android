@@ -50,9 +50,14 @@ class NodeApiProvider(
         val httpClient = OkHttpClient.Builder()
             .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
-            .connectionPool(ConnectionPool(0, 1, TimeUnit.MILLISECONDS))
-            .retryOnConnectionFailure(false)
-            .connectionSpecs(Arrays.asList(ConnectionSpec.MODERN_TLS))
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .dns(TimeoutDns(timeoutMillis = 12000))
+            .connectionSpecs(listOf(
+                ConnectionSpec.RESTRICTED_TLS,
+                ConnectionSpec.MODERN_TLS,
+                ConnectionSpec.COMPATIBLE_TLS
+            ))
+//            .addInterceptor(RetryInterceptor(maxRetries = 3))
 //            .proxy(Proxy( Proxy.Type.HTTP , InetSocketAddress("47.89.208.160", 58972) ))
                 .addInterceptor(loggingInterceptor)
                 .addInterceptor(headersInterceptor)

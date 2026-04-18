@@ -14,6 +14,7 @@ import com.anwang.types.safe3.LockedSafe3Info
 import com.anwang.types.snvote.SNVoteRetInfo
 import com.anwang.types.supernode.SuperNodeInfo
 import com.anwang.utils.Safe4Contract
+import io.horizontalsystems.ethereumkit.api.jsonrpc.BlockNumberJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.CallJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.DataJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.EstimateGasJsonRpc
@@ -128,34 +129,25 @@ class RpcBlockchainSafe4(
     }
 
     private fun syncLastBlockHeight() {
-        Single.create { emitter ->
-            var error: Throwable
-            try {
-                val blockNumber = web3j.ethBlockNumber().send().blockNumber
-                emitter.onSuccess(blockNumber)
-                return@create
-            } catch (throwable: Throwable) {
-                error = throwable
+        syncer.single(BlockNumberJsonRpc())
+            .subscribeOn(Schedulers.io())
+            .observeOn(Schedulers.io())
+            .subscribe({ lastBlockNumber ->
+                onUpdateLastBlockHeight(lastBlockNumber)
+            }, {
+                syncState = SyncState.NotSynced(it)
+            }).let {
+                disposables.add(it)
             }
-            emitter.onError(error)
-        }.subscribeOn(Schedulers.io())
-                .observeOn(Schedulers.io())
-                .subscribe({ lastBlockNumber ->
-                    onUpdateLastBlockHeight(lastBlockNumber.toLong())
-                }, {
-                    syncState = SyncState.NotSynced(it)
-                }).let {
-                    disposables.add(it)
-                }
     }
 
     override fun syncAccountState() {
         Single.create { emitter ->
             var error: Throwable
             try {
-                val safe4Account = web3jSafe4.account.getTotalAmount(org.web3j.abi.datatypes.Address(address.hex)).amount
                 val balance = web3j.ethGetBalance(address.hex, DefaultBlockParameterName.LATEST).send().balance
                 val transactionCount = web3j.ethGetTransactionCount(address.hex, DefaultBlockParameterName.LATEST).send().transactionCount
+                val safe4Account = web3jSafe4.account.getTotalAmount(org.web3j.abi.datatypes.Address(address.hex)).amount
                 emitter.onSuccess(BalanceInfo(balance, transactionCount, safe4Account))
 //                return@create
             } catch (throwable: Throwable) {

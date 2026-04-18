@@ -69,11 +69,13 @@ import io.reactivex.subjects.PublishSubject
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.http.HttpService
+import org.web3j.protocol.http.HttpService.getOkHttpClientBuilder
 import java.math.BigInteger
 import java.security.Security
 import java.util.Objects
 import java.util.Optional
 import java.util.Random
+import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 
 class EthereumKit(
@@ -682,7 +684,11 @@ class EthereumKit(
 
                     if (chain == Chain.SafeFour) {
                         val index = Random().nextInt(rpcSource.uris.size)
-                        web3j = Web3j.build(HttpService(rpcSource.uris[index].toString()))
+                        val httpClientBuilder = getOkHttpClientBuilder()
+                        httpClientBuilder.connectTimeout(60, TimeUnit.SECONDS)
+                        httpClientBuilder.readTimeout(60, TimeUnit.SECONDS)
+                        httpClientBuilder.writeTimeout(60, TimeUnit.SECONDS)
+                        web3j = Web3j.build(HttpService(rpcSource.uris[index].toString(), httpClientBuilder.build()))
                         ApiRpcSyncerSafe4(apiProvider, connectionManager, chain.syncInterval, web3j)
                     } else {
                         ApiRpcSyncer(apiProvider, connectionManager, chain.syncInterval)
