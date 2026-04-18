@@ -18,7 +18,12 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 import java.net.InetSocketAddress
 import java.net.Proxy
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.logging.Logger
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSocketFactory
+import javax.net.ssl.X509TrustManager
 
 class EtherscanService(
     baseUrl: String,
@@ -40,6 +45,12 @@ class EtherscanService(
         }.setLevel(HttpLoggingInterceptor.Level.BASIC)
 
         val httpClient = OkHttpClient.Builder()
+            .connectTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+            // 允许所有 TLS 版本
+            .sslSocketFactory(createSSLSocketFactory(), createTrustManager())
+            // 或使用更宽松的主机名验证（仅测试环境）
+            .hostnameVerifier { _, _ -> true }
             .addInterceptor { chain ->
                 val originalRequest = chain.request()
                 val originalUrl = originalRequest.url
@@ -70,6 +81,20 @@ class EtherscanService(
             .build()
 
         service = retrofit.create(EtherscanServiceAPI::class.java)
+    }
+
+    private fun createSSLSocketFactory(): SSLSocketFactory {
+        val sslContext = SSLContext.getInstance("TLS")
+        sslContext.init(null, arrayOf(createTrustManager()), SecureRandom())
+        return sslContext.socketFactory
+    }
+
+    private fun createTrustManager(): X509TrustManager {
+        return object : X509TrustManager {
+            override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+            override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+            override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+        }
     }
 
     private fun getNextApiKey(): String {

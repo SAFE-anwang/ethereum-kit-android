@@ -64,7 +64,13 @@ class TransactionManager(
     }
 
     private fun save(transactions: List<Transaction>) {
-        val existingTransactions = storage.getTransactions(hashes = transactions.map { it.hash }).associateBy { it.hashString }
+//        val existingTransactions = storage.getTransactions(hashes = transactions.map { it.hash }).associateBy { it.hashString }
+        val existingTransactions = transactions.map { it.hash }
+            .chunked(100) // 分批，避免 SQLite 变量限制
+            .flatMap { batch ->
+                storage.getTransactions(hashes = batch)
+            }
+            .associateBy { it.hashString }
 
         val mergedTransactions = transactions.map { newTx ->
             val existingTx = existingTransactions[newTx.hashString]
