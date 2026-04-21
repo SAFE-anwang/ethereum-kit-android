@@ -1,1 +1,3 @@
-include ':app', ':ethereumkit', ':erc20kit', ':uniswapkit', ':oneinchkit', ':nftkit', ':wsafekit'
+include ':app', ':ethereumkit', ':erc20kit', ':uniswapkit', ':oneinchkit', ':nftkit'
+include ':merkleiokit'
+include ':wsafekit'

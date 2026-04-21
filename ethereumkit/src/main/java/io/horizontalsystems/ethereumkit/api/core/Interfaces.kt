@@ -60,7 +60,7 @@ sealed class WebSocketState {
 interface IRpcApiProvider {
     val source: String
 
-    fun <T> single(rpc: JsonRpc<T>): Single<T>
+    fun <T: Any> single(rpc: JsonRpc<T>): Single<T>
 }
 
 interface IRpcSyncer {
@@ -71,7 +71,9 @@ interface IRpcSyncer {
 
     fun start()
     fun stop()
-    fun <T> single(rpc: JsonRpc<T>): Single<T>
+    fun pause()
+    fun resume()
+    fun <T: Any> single(rpc: JsonRpc<T>): Single<T>
 }
 
 interface IRpcSyncerListener {

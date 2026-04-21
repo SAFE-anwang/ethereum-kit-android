@@ -14,6 +14,7 @@ import com.anwang.types.safe3.LockedSafe3Info
 import com.anwang.types.snvote.SNVoteRetInfo
 import com.anwang.types.supernode.SuperNodeInfo
 import com.anwang.utils.Safe4Contract
+import io.horizontalsystems.ethereumkit.api.jsonrpc.BlockNumberJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.CallJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.DataJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpc.EstimateGasJsonRpc
@@ -30,6 +31,7 @@ import io.horizontalsystems.ethereumkit.core.EthereumKit.SyncState
 import io.horizontalsystems.ethereumkit.core.IApiStorage
 import io.horizontalsystems.ethereumkit.core.IBlockchain
 import io.horizontalsystems.ethereumkit.core.IBlockchainListener
+import io.horizontalsystems.ethereumkit.core.INonceProvider
 import io.horizontalsystems.ethereumkit.core.RpcApiProviderFactory
 import io.horizontalsystems.ethereumkit.core.Safe4TransactionBuilder
 import io.horizontalsystems.ethereumkit.core.eip1559.FeeHistory
@@ -71,7 +73,7 @@ class RpcBlockchainSafe4(
         private val syncer: IRpcSyncer,
         private val transactionBuilder: Safe4TransactionBuilder,
         val web3j: Web3j
-) : IBlockchain, IRpcSyncerListener, ISafeFourOperate {
+) : IBlockchain, IRpcSyncerListener, ISafeFourOperate, INonceProvider {
 
     val AccountManagerContractAddr4ac6 by lazy {
         if (Chain.SafeFour.isSafe4TestNetId) {
@@ -127,34 +129,25 @@ class RpcBlockchainSafe4(
     }
 
     private fun syncLastBlockHeight() {
-        Single.create { emitter ->
-            var error: Throwable
-            try {
-                val blockNumber = web3j.ethBlockNumber().send().blockNumber
-                emitter.onSuccess(blockNumber)
-                return@create
-            } catch (throwable: Throwable) {
-                error = throwable
+        syncer.single(BlockNumberJsonRpc())
+            .subscribeOn(Schedulers.io())
+            .observeOn(Schedulers.io())
+            .subscribe({ lastBlockNumber ->
+                onUpdateLastBlockHeight(lastBlockNumber)
+            }, {
+                syncState = SyncState.NotSynced(it)
+            }).let {
+                disposables.add(it)
             }
-            emitter.onError(error)
-        }.subscribeOn(Schedulers.io())
-                .observeOn(Schedulers.io())
-                .subscribe({ lastBlockNumber ->
-                    onUpdateLastBlockHeight(lastBlockNumber.toLong())
-                }, {
-                    syncState = SyncState.NotSynced(it)
-                }).let {
-                    disposables.add(it)
-                }
     }
 
     override fun syncAccountState() {
         Single.create { emitter ->
             var error: Throwable
             try {
-                val safe4Account = web3jSafe4.account.getTotalAmount(org.web3j.abi.datatypes.Address(address.hex)).amount
                 val balance = web3j.ethGetBalance(address.hex, DefaultBlockParameterName.LATEST).send().balance
                 val transactionCount = web3j.ethGetTransactionCount(address.hex, DefaultBlockParameterName.LATEST).send().transactionCount
+                val safe4Account = web3jSafe4.account.getTotalAmount(org.web3j.abi.datatypes.Address(address.hex)).amount
                 emitter.onSuccess(BalanceInfo(balance, transactionCount, safe4Account))
 //                return@create
             } catch (throwable: Throwable) {
@@ -239,6 +232,14 @@ class RpcBlockchainSafe4(
 
     override fun stop() {
         syncer.stop()
+    }
+
+    override fun pause() {
+        syncer.pause()
+    }
+
+    override fun resume() {
+        syncer.resume()
     }
 
     override fun send(rawTransaction: RawTransaction, signature: Signature, privateKey: BigInteger, lockTime: Int?): Single<Transaction> {
@@ -885,7 +886,7 @@ class RpcBlockchainSafe4(
         }
     }
 
-    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice, data: ByteArray?): Single<Long> {
+    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice?, data: ByteArray?): Single<Long> {
         return syncer.single(EstimateGasJsonRpc(address, to, amount, gasLimit, gasPrice, data))
     }
 
@@ -932,7 +933,7 @@ class RpcBlockchainSafe4(
                         transaction.nonce.toLong(),
                         transaction.blockHash.toByteArray(),
                         transaction.blockNumber.toLong(),
-                        transaction.transactionIndex.toInt(),
+                        transaction.transactionIndex.toLong(),
                         Address(transaction.from),
                         Address(transaction.to),
                         transaction.value,
@@ -1021,7 +1022,7 @@ class RpcBlockchainSafe4(
         return syncer.single(RpcBlockchain.callRpc(contractAddress, data, defaultBlockParameter))
     }
 
-    override fun <T> rpcSingle(rpc: JsonRpc<T>): Single<T> {
+    override fun <T : Any> rpcSingle(rpc: JsonRpc<T>): Single<T> {
         return syncer.single(rpc)
     }
 

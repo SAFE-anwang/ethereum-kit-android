@@ -9,9 +9,7 @@ import io.horizontalsystems.ethereumkit.core.retryWhenError
 import io.horizontalsystems.ethereumkit.core.toHexString
 import io.horizontalsystems.ethereumkit.models.Address
 import io.reactivex.Single
-import okhttp3.Interceptor
 import okhttp3.OkHttpClient
-import okhttp3.Request
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
@@ -20,13 +18,20 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 import java.net.InetSocketAddress
 import java.net.Proxy
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.logging.Logger
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSocketFactory
+import javax.net.ssl.X509TrustManager
 
 class EtherscanService(
     baseUrl: String,
-    private val apiKey: String,
+    private val apiKeys: List<String>,
     private val chainId: Int,
 ) {
+    private val apiKeysSize = apiKeys.size
+    private var apiKeyIndex = 0
 
     private val logger = Logger.getLogger("EtherscanService")
 
@@ -35,19 +40,23 @@ class EtherscanService(
     private val gson: Gson
 
     init {
-        val loggingInterceptor = HttpLoggingInterceptor(object : HttpLoggingInterceptor.Logger {
-            override fun log(message: String) {
-                logger.info(message)
-            }
-        }).setLevel(HttpLoggingInterceptor.Level.BASIC)
+        val loggingInterceptor = HttpLoggingInterceptor {
+            logger.info(it)
+        }.setLevel(HttpLoggingInterceptor.Level.BASIC)
 
         val httpClient = OkHttpClient.Builder()
-            .addInterceptor(Interceptor { chain ->
+            .connectTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+            // 允许所有 TLS 版本
+            .sslSocketFactory(createSSLSocketFactory(), createTrustManager())
+            // 或使用更宽松的主机名验证（仅测试环境）
+            .hostnameVerifier { _, _ -> true }
+            .addInterceptor { chain ->
                 val originalRequest = chain.request()
                 val originalUrl = originalRequest.url
 
                 val url = originalUrl.newBuilder()
-                    .addQueryParameter("apikey", apiKey)
+                    .addQueryParameter("apikey", getNextApiKey())
                     .addQueryParameter("chainid", chainId.toString())
                     .build()
 
@@ -57,7 +66,7 @@ class EtherscanService(
                     .build()
 
                 chain.proceed(request)
-            })
+            }
             .addInterceptor(loggingInterceptor)
 
         gson = GsonBuilder()
@@ -74,11 +83,31 @@ class EtherscanService(
         service = retrofit.create(EtherscanServiceAPI::class.java)
     }
 
+    private fun createSSLSocketFactory(): SSLSocketFactory {
+        val sslContext = SSLContext.getInstance("TLS")
+        sslContext.init(null, arrayOf(createTrustManager()), SecureRandom())
+        return sslContext.socketFactory
+    }
+
+    private fun createTrustManager(): X509TrustManager {
+        return object : X509TrustManager {
+            override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+            override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+            override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+        }
+    }
+
+    private fun getNextApiKey(): String {
+        if (apiKeyIndex >= apiKeysSize) apiKeyIndex = 0
+
+        return apiKeys[apiKeyIndex++]
+    }
+
     fun getTransactionList(address: Address, startBlock: Long): Single<EtherscanResponse> {
         return service.accountApi(
             action = "txlist",
             address = address.hex,
-            startBlock = startBlock
+            startBlock = startBlock,
         ).map {
             parseResponse(it)
         }.retryWhenError(RequestError.RateLimitExceed::class)
@@ -88,7 +117,7 @@ class EtherscanService(
         return service.accountApi(
             action = "txlistinternal",
             address = address.hex,
-            startBlock = startBlock
+            startBlock = startBlock,
         ).map {
             parseResponse(it)
         }.retryWhenError(RequestError.RateLimitExceed::class)
@@ -98,7 +127,7 @@ class EtherscanService(
         return service.accountApi(
             action = "tokentx",
             address = address.hex,
-            startBlock = startBlock
+            startBlock = startBlock,
         ).map {
             parseResponse(it)
         }.retryWhenError(RequestError.RateLimitExceed::class)
@@ -107,7 +136,7 @@ class EtherscanService(
     fun getInternalTransactionsAsync(transactionHash: ByteArray): Single<EtherscanResponse> {
         return service.accountApi(
             action = "txlistinternal",
-            txHash = transactionHash.toHexString()
+            txHash = transactionHash.toHexString(),
         ).map {
             parseResponse(it)
         }.retryWhenError(RequestError.RateLimitExceed::class)

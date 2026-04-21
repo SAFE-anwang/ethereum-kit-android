@@ -23,7 +23,7 @@ class Signer(
 ) {
 
     fun signature(rawTransaction: RawTransaction): Signature {
-        return transactionSigner.signatureLegacy(rawTransaction)
+        return transactionSigner.signature(rawTransaction)
     }
 
     fun signedTransaction(
@@ -42,7 +42,7 @@ class Signer(
             nonce,
             transactionInput
         )
-        val signature = transactionSigner.signatureLegacy(rawTransaction)
+        val signature = transactionSigner.signature(rawTransaction)
         return transactionBuilder.encode(rawTransaction, signature)
     }
 
@@ -87,7 +87,7 @@ class Signer(
             return address(Mnemonic().toSeed(words, passphrase), chain, isAnBaoWallet, isSafe3Wallet)
         }
 
-        fun address(seed: ByteArray, chain: Chain, isAnBaoWallet: Boolean, isSafe3Wallet: Boolean): Address {
+        fun address(seed: ByteArray, chain: Chain, isAnBaoWallet: Boolean = false, isSafe3Wallet: Boolean = false): Address {
             val privateKey = privateKey(seed, chain, isAnBaoWallet, isSafe3Wallet)
             return address(privateKey)
         }

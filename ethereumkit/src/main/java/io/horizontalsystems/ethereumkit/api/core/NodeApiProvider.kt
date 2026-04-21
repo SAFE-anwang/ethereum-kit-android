@@ -3,6 +3,8 @@ package io.horizontalsystems.ethereumkit.api.core
 import com.google.gson.Gson
 import io.horizontalsystems.ethereumkit.api.jsonrpc.JsonRpc
 import io.reactivex.Single
+import okhttp3.ConnectionPool
+import okhttp3.ConnectionSpec
 import okhttp3.Credentials
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -18,6 +20,8 @@ import retrofit2.http.Url
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.URI
+import java.util.Arrays
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.logging.Logger
 
@@ -44,6 +48,16 @@ class NodeApiProvider(
         }
 
         val httpClient = OkHttpClient.Builder()
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .dns(TimeoutDns(timeoutMillis = 12000))
+            .connectionSpecs(listOf(
+                ConnectionSpec.RESTRICTED_TLS,
+                ConnectionSpec.MODERN_TLS,
+                ConnectionSpec.COMPATIBLE_TLS
+            ))
+//            .addInterceptor(RetryInterceptor(maxRetries = 3))
 //            .proxy(Proxy( Proxy.Type.HTTP , InetSocketAddress("47.89.208.160", 58972) ))
                 .addInterceptor(loggingInterceptor)
                 .addInterceptor(headersInterceptor)
@@ -61,7 +75,7 @@ class NodeApiProvider(
 
     override val source: String = uris.first().host
 
-    override fun <T> single(rpc: JsonRpc<T>): Single<T> {
+    override fun <T: Any> single(rpc: JsonRpc<T>): Single<T> {
         rpc.id = currentRpcId.addAndGet(1)
 
         return Single.create { emitter ->

@@ -13,7 +13,13 @@ import io.horizontalsystems.ethereumkit.core.IBlockchainListener
 import io.horizontalsystems.ethereumkit.core.ISpvStorage
 import io.horizontalsystems.ethereumkit.core.TransactionBuilder
 import io.horizontalsystems.ethereumkit.crypto.ECKey
-import io.horizontalsystems.ethereumkit.models.*
+import io.horizontalsystems.ethereumkit.models.Address
+import io.horizontalsystems.ethereumkit.models.DefaultBlockParameter
+import io.horizontalsystems.ethereumkit.models.GasPrice
+import io.horizontalsystems.ethereumkit.models.RawTransaction
+import io.horizontalsystems.ethereumkit.models.Signature
+import io.horizontalsystems.ethereumkit.models.Transaction
+import io.horizontalsystems.ethereumkit.models.TransactionLog
 import io.horizontalsystems.ethereumkit.network.INetwork
 import io.horizontalsystems.ethereumkit.spv.helpers.RandomHelper
 import io.horizontalsystems.ethereumkit.spv.models.AccountStateSpv
@@ -22,7 +28,11 @@ import io.horizontalsystems.ethereumkit.spv.net.BlockHelper
 import io.horizontalsystems.ethereumkit.spv.net.BlockValidator
 import io.horizontalsystems.ethereumkit.spv.net.PeerGroup
 import io.horizontalsystems.ethereumkit.spv.net.PeerProvider
-import io.horizontalsystems.ethereumkit.spv.net.handlers.*
+import io.horizontalsystems.ethereumkit.spv.net.handlers.AccountStateTaskHandler
+import io.horizontalsystems.ethereumkit.spv.net.handlers.AnnouncedBlockHandler
+import io.horizontalsystems.ethereumkit.spv.net.handlers.BlockHeadersTaskHandler
+import io.horizontalsystems.ethereumkit.spv.net.handlers.HandshakeTaskHandler
+import io.horizontalsystems.ethereumkit.spv.net.handlers.SendTransactionTaskHandler
 import io.horizontalsystems.ethereumkit.spv.net.tasks.HandshakeTask
 import io.reactivex.Single
 import io.reactivex.subjects.PublishSubject
@@ -61,6 +71,14 @@ class SpvBlockchain(
         TODO("not implemented")
     }
 
+    override fun pause() {
+        TODO("Not yet implemented")
+    }
+
+    override fun resume() {
+        TODO("Not yet implemented")
+    }
+
     override fun refresh() {
         TODO("not implemented")
     }
@@ -94,7 +112,7 @@ class SpvBlockchain(
         TODO("not implemented")
     }
 
-    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice, data: ByteArray?): Single<Long> {
+    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice?, data: ByteArray?): Single<Long> {
         TODO("not implemented")
     }
 
@@ -122,7 +140,7 @@ class SpvBlockchain(
         TODO("not implemented")
     }
 
-    override fun <T> rpcSingle(rpc: JsonRpc<T>): Single<T> {
+    override fun <T: Any> rpcSingle(rpc: JsonRpc<T>): Single<T> {
         TODO("not implemented")
     }
 

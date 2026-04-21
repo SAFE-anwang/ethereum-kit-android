@@ -10,7 +10,7 @@ import io.horizontalsystems.oneinchkit.contracts.OneInchContractMethodFactories
 import io.horizontalsystems.oneinchkit.decorations.OneInchMethodDecorator
 import io.horizontalsystems.oneinchkit.decorations.OneInchTransactionDecorator
 import java.math.BigInteger
-import java.util.*
+import java.util.Objects
 
 class OneInchKit(
     private val service: OneInchService
@@ -24,6 +24,7 @@ class OneInchKit(
         fromToken: Address,
         toToken: Address,
         amount: BigInteger,
+        fee: Float? = null,
         protocols: List<String>? = null,
         gasPrice: GasPrice? = null,
         complexityLevel: Int? = null,
@@ -36,6 +37,7 @@ class OneInchKit(
         fromToken,
         toToken,
         amount,
+        fee,
         protocols,
         gasPrice,
         complexityLevel,
@@ -52,6 +54,8 @@ class OneInchKit(
         toToken: Address,
         amount: BigInteger,
         slippagePercentage: Float,
+        referrer: String? = null,
+        fee: Float? = null,
         protocols: List<String>? = null,
         recipient: Address? = null,
         gasPrice: GasPrice? = null,
@@ -69,6 +73,8 @@ class OneInchKit(
         amount,
         receiveAddress,
         slippagePercentage,
+        referrer,
+        fee,
         protocols,
         recipient,
         gasPrice,
@@ -99,7 +105,9 @@ class OneInchKit(
             Chain.ArbitrumOne,
             Chain.Gnosis,
             Chain.Fantom,
-            Chain.Avalanche -> Address("0x1111111254eeb25477b68fb85ed929f73a960582")
+            Chain.Avalanche,
+            Chain.Base,
+            -> Address("0x1111111254EEB25477B68fb85Ed929f73A960582")
 
             else -> throw IllegalArgumentException("Invalid Chain: ${chain.id}")
         }
