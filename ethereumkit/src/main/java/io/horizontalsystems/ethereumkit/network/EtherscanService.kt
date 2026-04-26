@@ -110,7 +110,7 @@ class EtherscanService(
             startBlock = startBlock,
         ).map {
             parseResponse(it)
-        }.retryWhenError(RequestError.RateLimitExceed::class)
+        }
     }
 
     fun getInternalTransactionList(address: Address, startBlock: Long): Single<EtherscanResponse> {
@@ -120,7 +120,7 @@ class EtherscanService(
             startBlock = startBlock,
         ).map {
             parseResponse(it)
-        }.retryWhenError(RequestError.RateLimitExceed::class)
+        }
     }
 
     fun getTokenTransactions(address: Address, startBlock: Long): Single<EtherscanResponse> {
@@ -130,7 +130,7 @@ class EtherscanService(
             startBlock = startBlock,
         ).map {
             parseResponse(it)
-        }.retryWhenError(RequestError.RateLimitExceed::class)
+        }
     }
 
     fun getInternalTransactionsAsync(transactionHash: ByteArray): Single<EtherscanResponse> {
@@ -139,7 +139,7 @@ class EtherscanService(
             txHash = transactionHash.toHexString(),
         ).map {
             parseResponse(it)
-        }.retryWhenError(RequestError.RateLimitExceed::class)
+        }
     }
 
     fun getEip721Transactions(address: Address, startBlock: Long): Single<EtherscanResponse> {
@@ -149,7 +149,7 @@ class EtherscanService(
             startBlock = startBlock,
         ).map {
             parseResponse(it)
-        }.retryWhenError(RequestError.RateLimitExceed::class)
+        }
     }
 
     fun getEip1155Transactions(address: Address, startBlock: Long): Single<EtherscanResponse> {
@@ -159,7 +159,7 @@ class EtherscanService(
             startBlock = startBlock,
         ).map {
             parseResponse(it)
-        }.retryWhenError(RequestError.RateLimitExceed::class)
+        }
     }
 
     fun getSafeAccountManagerTransactions(address: Address, startBlock: Long): Single<EtherscanResponse> {
