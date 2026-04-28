@@ -1,6 +1,5 @@
 package io.horizontalsystems.ethereumkit.transactionsyncers
 
-import android.util.Log
 import io.horizontalsystems.ethereumkit.core.ITransactionProvider
 import io.horizontalsystems.ethereumkit.core.ITransactionSyncer
 import io.horizontalsystems.ethereumkit.core.storage.TransactionSyncerStateStorage
@@ -25,7 +24,6 @@ class EthereumTransactionSyncer(
         return transactionProvider.getTransactions(lastTransactionBlockNumber + 1)
                 .doOnSuccess { providerTransactions -> handle(providerTransactions) }
                 .map { providerTransactions ->
-                    Log.d("longwen", "providerTransactions size=${providerTransactions.size}")
                     val array = providerTransactions.map { transaction ->
                         val isFailed = when {
                             transaction.txReceiptStatus != null -> {

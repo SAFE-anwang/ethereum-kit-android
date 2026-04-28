@@ -765,8 +765,7 @@ class EthereumKit(
             when (transactionSource.type) {
                 is TransactionSource.SourceType.Etherscan -> {
                     val service = EtherscanService(transactionSource.type.apiBaseUrl, transactionSource.type.apiKeys, chainId)
-                    val backupService = EtherscanService("https://safewallet.anwang.com/ethscan/v2/", transactionSource.type.apiKeys, chainId)
-                    return EtherscanTransactionProvider(service, backupService, address)
+                    return EtherscanTransactionProvider(service, address)
                 }
             }
         }
