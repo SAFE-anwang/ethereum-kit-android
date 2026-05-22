@@ -9,6 +9,11 @@ import io.horizontalsystems.uniswapkit.models.DexType
 import io.horizontalsystems.uniswapkit.models.Fraction
 import io.horizontalsystems.uniswapkit.v3.FeeAmount
 import kotlinx.coroutines.rx2.await
+import org.web3j.abi.FunctionEncoder
+import org.web3j.abi.FunctionReturnDecoder
+import org.web3j.abi.datatypes.Function
+import org.web3j.abi.datatypes.generated.Uint160
+import org.web3j.abi.datatypes.generated.Uint24
 import java.math.BigInteger
 
 class PoolManager(
@@ -50,6 +55,33 @@ class PoolManager(
             tokenA.hex < tokenB.hex -> price
             else -> price.invert()
         }
+    }
+
+    // get price of tokenA in tokenB
+    suspend fun getSqrtPriceX96(rpcSource: RpcSource, chain: Chain, tokenA: Address, tokenB: Address, fee: FeeAmount): BigInteger {
+        val poolAddress = getPoolAddress(rpcSource, chain, tokenA, tokenB, fee)
+        val callResponse = ethCall(rpcSource, poolAddress, Slot0Method().encodedABI())
+
+        // 使用 Web3j 的函数编码
+        val function = Function(
+            "slot0",
+            emptyList(),
+            listOf(
+                object : org.web3j.abi.TypeReference<Uint160>() {},
+                object : org.web3j.abi.TypeReference<Uint24>() {}
+                // 其他返回值可以忽略
+            )
+        )
+
+//        val encodedFunction = FunctionEncoder.encode(function)
+//
+//        val response = ethCall(rpcSource, poolAddress, encodedFunction)
+//
+//        // 使用 Web3j 解码
+//        val result = FunctionReturnDecoder.decode(callResponse, function.outputParameters)
+
+        val sqrtPriceX96 = callResponse.sliceArray(IntRange(0, 20)).toBigInteger()
+        return sqrtPriceX96
     }
 
     private suspend fun getPoolAddress(rpcSource: RpcSource, chain: Chain, tokenA: Address, tokenB: Address, fee: FeeAmount): Address {

@@ -132,7 +132,7 @@ object TickMath {
      */
     fun getTickAtSqrtRatio(sqrtPriceX96: BigInteger): Int {
         require(sqrtPriceX96 >= MIN_SQRT_RATIO && sqrtPriceX96 < MAX_SQRT_RATIO) {
-            "sqrtPriceX96 must be between $MIN_SQRT_RATIO and $MAX_SQRT_RATIO"
+            "sqrtPriceX96 must be between $MIN_SQRT_RATIO and $MAX_SQRT_RATIO, $sqrtPriceX96"
         }
 
         // 转换为 Q128.128 格式

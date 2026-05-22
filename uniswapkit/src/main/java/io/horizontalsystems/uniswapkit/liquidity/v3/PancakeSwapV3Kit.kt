@@ -58,22 +58,6 @@ class PancakeSwapV3Kit(
         return tradeManager.transactionData(receiveAddress, chain, tradeData)
     }
 
-    fun transactionLiquidityData(receiveAddress: Address, chain: Chain,
-                                 tokenIn: Token,
-                                 tokenOut: Token,
-                                 recipient: Address?,
-                                 tokenInAmount: BigInteger,
-                                 tokenOutAmount: BigInteger): TransactionData {
-        val (token0, token1) = if (tokenIn.sortsBefore(tokenOut)) Pair(tokenIn, tokenOut) else Pair(tokenOut, tokenIn)
-        // 1、获取Pool Address
-        // 2、获取SqrtPriceX96
-        return tradeManager.transactionLiquidityData(receiveAddress, chain,
-            token0, token1, recipient,
-            if (token0 == tokenIn) tokenInAmount else tokenOutAmount,
-            if (token0 == tokenIn) tokenOutAmount else tokenInAmount
-        )
-    }
-
     companion object {
         fun getInstance(): PancakeSwapV3Kit {
             val tradeManager = TradeManager()
