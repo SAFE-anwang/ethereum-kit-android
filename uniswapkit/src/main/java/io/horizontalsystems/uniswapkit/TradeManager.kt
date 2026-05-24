@@ -19,7 +19,6 @@ import io.horizontalsystems.uniswapkit.contract.SwapExactTokensForTokensMethod
 import io.horizontalsystems.uniswapkit.contract.SwapTokensForExactETHMethod
 import io.horizontalsystems.uniswapkit.contract.SwapTokensForExactTokensMethod
 import io.horizontalsystems.uniswapkit.liquidity.router.AddLiquidityMethod
-import io.horizontalsystems.uniswapkit.liquidity.router.MintMethod
 import io.horizontalsystems.uniswapkit.models.*
 import io.horizontalsystems.uniswapkit.models.Token.Erc20
 import io.horizontalsystems.uniswapkit.models.Token.Ether
@@ -181,12 +180,13 @@ class TradeManager {
                                    tokenOut: Token,
                                    recipient: Address?,
                                    tokenInAmount: BigInteger,
-                                   tokenOutAmount: BigInteger
+                                   tokenOutAmount: BigInteger,
+                                   fee: BigInteger = BigInteger.valueOf(2500)
     ): TransactionData {
         val routerAddress = liquidityRouterAddressV3(chain)
 
         return buildLiquidityV3Data(receiveAddress, tokenIn, tokenOut, tickLower, tickUpper,
-            recipient, tokenInAmount, tokenOutAmount, chain).let {
+            recipient, tokenInAmount, tokenOutAmount, chain, fee).let {
 
             TransactionData(routerAddress, it.value, it.input, isBothErc = it.isBothErc, isV3 = true)
         }
@@ -244,15 +244,16 @@ class TradeManager {
                                    recipient: Address?,
                                    tokenInAmount: BigInteger,
                                    tokenOutAmount: BigInteger,
-                                   chain: Chain): TransactionData {
+                                   chain: Chain,
+                                   fee: BigInteger = BigInteger.valueOf(2500)): TransactionData {
 
         val to = recipient ?: receiveAddress
         val deadline = (Date().time / 1000 + (60 * 20)).toBigInteger()
-        val slippagePercent = BigDecimal("0.5")
-        // 计算滑点保护最小值
-        val slippageFactor = BigDecimal.ONE.subtract(slippagePercent.divide(BigDecimal("100")))
-        val amount0Min = (BigDecimal(tokenInAmount) * slippageFactor).toBigInteger()
-        val amount1Min = (BigDecimal(tokenOutAmount) * slippageFactor).toBigInteger()
+        // V3 mint() 合约内部自动按当前池子价格比例计算实际使用的 amount0/amount1；
+        // desired 值只是上限，minimum 设为 0 避免因用户提供等额 token 但池子
+        // 价格 ratio ≠ 1:1 而触发 "Price slippage check" revert。
+        val amount0Min = BigInteger.ZERO
+        val amount1Min = BigInteger.ZERO
         val tokenInAddress = tokenIn.address.eip55.lowercase()
         val tokenOutAddress = tokenOut.address.eip55.lowercase()
         // 确保 token0 < token1（按地址排序）
@@ -274,28 +275,16 @@ class TradeManager {
             Pair(amount1Min, amount0Min)
         }
 
-        val method = MintMethod(
-            actualToken0.address,
-            actualToken1.address,
-            BigInteger.valueOf(2500),
-            tickLower,
-            tickUpper,
-            actualAmount0,
-            actualAmount1,
-            actualAmount0Min,
-            actualAmount1Min,
-            to, deadline
-        )
-        Log.e("addLiquidity", "tickLower=${tickLower}， tickUpper=${tickUpper}")
-        Log.e("addLiquidity", "encodedFunction=${method.encodedABI().toHexString()}")
-        // 使用
+        Log.e("addLiquidity", "tickLower=${tickLower}， tickUpper=${tickUpper}, fee=$fee")
+        Log.e("addLiquidity", "amount0=$actualAmount0, amount1=$actualAmount1, amount0Min=$actualAmount0Min, amount1Min=$actualAmount1Min")
+        // 使用 Web3j FunctionEncoder 构建
         val function = Function(
             "mint",
             listOf(
                 MintParams(
                     org.web3j.abi.datatypes.Address(actualToken0.address.eip55),
                     org.web3j.abi.datatypes.Address(actualToken1.address.eip55),
-                    Uint24(BigInteger.valueOf(2500)),
+                    Uint24(fee),
                     Int24(tickLower),
                     Int24(tickUpper),
                     Uint256(actualAmount0),

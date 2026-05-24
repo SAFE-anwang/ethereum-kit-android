@@ -57,30 +57,38 @@ class PoolManager(
         }
     }
 
-    // get price of tokenA in tokenB
+    // get sqrtPriceX96 in Q64.96 format (token1/token0 price representation)
     suspend fun getSqrtPriceX96(rpcSource: RpcSource, chain: Chain, tokenA: Address, tokenB: Address, fee: FeeAmount): BigInteger {
         val poolAddress = getPoolAddress(rpcSource, chain, tokenA, tokenB, fee)
-        val callResponse = ethCall(rpcSource, poolAddress, Slot0Method().encodedABI())
+        // If pool doesn't exist at this fee tier, factory returns zero address
+        val zeroAddress = Address("0x0000000000000000000000000000000000000000")
+        if (poolAddress == zeroAddress) {
+            android.util.Log.w("PoolManager", "Pool not found for $tokenA / $tokenB at fee $fee, returning ZERO")
+            return BigInteger.ZERO
+        }
 
-        // 使用 Web3j 的函数编码
+        val callResponse = ethCall(rpcSource, poolAddress, Slot0Method().encodedABI())
+        android.util.Log.d("PoolManager", "getSqrtPriceX96 callResponse.length=${callResponse.size} pool=$poolAddress")
+
+        // Decode using Web3j FunctionReturnDecoder for correctness
         val function = Function(
             "slot0",
             emptyList(),
             listOf(
                 object : org.web3j.abi.TypeReference<Uint160>() {},
                 object : org.web3j.abi.TypeReference<Uint24>() {}
-                // 其他返回值可以忽略
             )
         )
-
-//        val encodedFunction = FunctionEncoder.encode(function)
-//
-//        val response = ethCall(rpcSource, poolAddress, encodedFunction)
-//
-//        // 使用 Web3j 解码
-//        val result = FunctionReturnDecoder.decode(callResponse, function.outputParameters)
-
-        val sqrtPriceX96 = callResponse.sliceArray(IntRange(0, 20)).toBigInteger()
+        val decoded = FunctionReturnDecoder.decode(
+            org.web3j.utils.Numeric.toHexString(callResponse),
+            function.outputParameters
+        )
+        if (decoded.isEmpty()) {
+            android.util.Log.w("PoolManager", "Failed to decode slot0 response, returning ZERO")
+            return BigInteger.ZERO
+        }
+        val sqrtPriceX96 = (decoded[0] as Uint160).value
+        android.util.Log.d("PoolManager", "getSqrtPriceX96=$sqrtPriceX96")
         return sqrtPriceX96
     }
 

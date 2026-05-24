@@ -182,7 +182,8 @@ object TickMath {
 
         var log2 = (msb - 128).toBigInteger().shiftLeft(64)
 
-        // 使用牛顿法逼近 log2
+        // 使用牛顿法逼近 log2，每次迭代向 log2 填充 1 bit 小数精度
+        // 8 次迭代覆盖 log2 低 64 位的 bit 14–63 范围，精度足以支撑后续 tick 计算
         for (i in 0 until 8) {
             r = r.multiply(r).shiftRight(127)
             val f = r.shiftRight(128)
@@ -190,20 +191,22 @@ object TickMath {
             r = r.shiftRight(f.toInt())
         }
 
-        // 从 log2 计算 tick
-        // tick = floor((log2 * ln2) / ln1.0001)
-        // 简化计算: tick = (log2 * 13043817825332782212) >> 96
+        // 从 log2 计算 tick — 使用 Uniswap V3 原始公式
+        // log_sqrt10001 = log2 * 2^128 / log2(sqrt(1.0001))  =  log2 * 2^128 / (log2(1.0001) / 2)
+        val log_sqrt10001 = log2.multiply(BigInteger("255738958999603826347141"))
+        val corrLow  = BigInteger("3402992956809132418596140100660247210")
+        val corrHi = BigInteger("291339464771989622907027621153398088495")
 
-        // log2 是 Q64.64 格式，乘以 ln2/ln1.0001 的近似值
-        val tickNumerator = log2.multiply(BigInteger("13043817825332782212"))
-        var tick = tickNumerator.shiftRight(96).toLong()
+        val tickLow  = log_sqrt10001.subtract(corrLow).shiftRight(128).toInt()
+        val tickHi = log_sqrt10001.add(corrHi).shiftRight(128).toInt()
 
-        // 修正边界条件
-        if (getSqrtRatioAtTick(tick.toInt()) > sqrtPriceX96) {
-            tick--
+        val tick = if (tickLow == tickHi) {
+            tickLow
+        } else {
+            if (getSqrtRatioAtTick(tickHi) <= sqrtPriceX96) tickHi else tickLow
         }
 
-        return tick.toInt()
+        return tick
     }
 
     /**
