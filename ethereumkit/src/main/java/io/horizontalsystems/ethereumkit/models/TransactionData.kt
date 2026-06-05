@@ -15,6 +15,7 @@ data class TransactionData(
         val times: Int = -1,
         val spaceDay: Int = 0,
         val startDay: Int = 0,
+        val isV3: Boolean = false,
     var isCreatePool: Boolean = false,
     var isSafeUsdt: Boolean = false
 ) {

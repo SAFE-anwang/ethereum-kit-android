@@ -9,6 +9,11 @@ import io.horizontalsystems.uniswapkit.models.DexType
 import io.horizontalsystems.uniswapkit.models.Fraction
 import io.horizontalsystems.uniswapkit.v3.FeeAmount
 import kotlinx.coroutines.rx2.await
+import org.web3j.abi.FunctionEncoder
+import org.web3j.abi.FunctionReturnDecoder
+import org.web3j.abi.datatypes.Function
+import org.web3j.abi.datatypes.generated.Uint160
+import org.web3j.abi.datatypes.generated.Uint24
 import java.math.BigInteger
 
 class PoolManager(
@@ -50,6 +55,41 @@ class PoolManager(
             tokenA.hex < tokenB.hex -> price
             else -> price.invert()
         }
+    }
+
+    // get sqrtPriceX96 in Q64.96 format (token1/token0 price representation)
+    suspend fun getSqrtPriceX96(rpcSource: RpcSource, chain: Chain, tokenA: Address, tokenB: Address, fee: FeeAmount): BigInteger {
+        val poolAddress = getPoolAddress(rpcSource, chain, tokenA, tokenB, fee)
+        // If pool doesn't exist at this fee tier, factory returns zero address
+        val zeroAddress = Address("0x0000000000000000000000000000000000000000")
+        if (poolAddress == zeroAddress) {
+            android.util.Log.w("PoolManager", "Pool not found for $tokenA / $tokenB at fee $fee, returning ZERO")
+            return BigInteger.ZERO
+        }
+
+        val callResponse = ethCall(rpcSource, poolAddress, Slot0Method().encodedABI())
+        android.util.Log.d("PoolManager", "getSqrtPriceX96 callResponse.length=${callResponse.size} pool=$poolAddress")
+
+        // Decode using Web3j FunctionReturnDecoder for correctness
+        val function = Function(
+            "slot0",
+            emptyList(),
+            listOf(
+                object : org.web3j.abi.TypeReference<Uint160>() {},
+                object : org.web3j.abi.TypeReference<Uint24>() {}
+            )
+        )
+        val decoded = FunctionReturnDecoder.decode(
+            org.web3j.utils.Numeric.toHexString(callResponse),
+            function.outputParameters
+        )
+        if (decoded.isEmpty()) {
+            android.util.Log.w("PoolManager", "Failed to decode slot0 response, returning ZERO")
+            return BigInteger.ZERO
+        }
+        val sqrtPriceX96 = (decoded[0] as Uint160).value
+        android.util.Log.d("PoolManager", "getSqrtPriceX96=$sqrtPriceX96")
+        return sqrtPriceX96
     }
 
     private suspend fun getPoolAddress(rpcSource: RpcSource, chain: Chain, tokenA: Address, tokenB: Address, fee: FeeAmount): Address {

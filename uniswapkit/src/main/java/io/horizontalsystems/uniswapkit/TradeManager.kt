@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import io.horizontalsystems.ethereumkit.contracts.ContractMethod
 import io.horizontalsystems.ethereumkit.core.EthereumKit
+import io.horizontalsystems.ethereumkit.core.hexStringToByteArray
 import io.horizontalsystems.ethereumkit.core.toHexString
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.Chain
@@ -21,7 +22,15 @@ import io.horizontalsystems.uniswapkit.liquidity.router.AddLiquidityMethod
 import io.horizontalsystems.uniswapkit.models.*
 import io.horizontalsystems.uniswapkit.models.Token.Erc20
 import io.horizontalsystems.uniswapkit.models.Token.Ether
+import io.horizontalsystems.uniswapkit.v3.MintParams
 import io.reactivex.Single
+import org.web3j.abi.FunctionEncoder
+import org.web3j.abi.TypeReference
+import org.web3j.abi.datatypes.Function
+import org.web3j.abi.datatypes.generated.Int24
+import org.web3j.abi.datatypes.generated.Uint128
+import org.web3j.abi.datatypes.generated.Uint24
+import org.web3j.abi.datatypes.generated.Uint256
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.Date
@@ -31,12 +40,17 @@ class TradeManager {
     private val logger = Logger.getLogger(this.javaClass.simpleName)
 
     fun routerAddress(chain: Chain): Address = getRouterAddress(chain, Extensions.isSafeSwap || chain == Chain.SafeFour)
+    fun routerAddressV3(chain: Chain): Address = getRouterV3Address(chain, Extensions.isSafeSwap || chain == Chain.SafeFour)
     fun factoryAddressString(chain: Chain): String = getFactoryAddressString(chain, Extensions.isSafeSwap || chain == Chain.SafeFour)
     fun initCodeHashString(chain: Chain): String = getInitCodeHashString(chain, Extensions.isSafeSwap || chain == Chain.SafeFour)
 
     fun  liquidityRouterAddress(chain: Chain): Address = getLiquidityRouterAddress(chain)
     fun liquidityFactoryAddressString(chain: Chain): String = getLiquidityFactoryAddressString(chain)
     fun liquidityInitCodeHashString(chain: Chain): String = getLiquidityInitCodeHashString(chain)
+
+    fun liquidityRouterAddressV3(chain: Chain): Address = getLiquidityRouterAddressV3(chain)
+    fun liquidityFactoryAddressStringV3(chain: Chain): String = getLiquidityFactoryAddressStringV3(chain)
+    fun liquidityInitCodeHashStringV3(chain: Chain): String = getLiquidityInitCodeHashStringV3(chain)
 
     sealed class UnsupportedChainError : Throwable() {
         object NoRouterAddress : UnsupportedChainError()
@@ -75,11 +89,12 @@ class TradeManager {
     }
 
 
-    fun liquidityPair(rpcSource: RpcSource, chain: Chain, tokenA: Token, tokenB: Token): Single<Pair> {
+    fun liquidityPair(rpcSource: RpcSource, chain: Chain, tokenA: Token, tokenB: Token, isV3: Boolean = false): Single<Pair> {
 
         val (token0, token1) = if (tokenA.sortsBefore(tokenB)) Pair(tokenA, tokenB) else Pair(tokenB, tokenA)
-
-        val pairAddress = Pair.address(token0, token1, liquidityFactoryAddressString(chain), liquidityInitCodeHashString(chain))
+        val factory = if (isV3) liquidityFactoryAddressStringV3(chain) else liquidityFactoryAddressString(chain)
+        val initCodeHash = if (isV3) liquidityInitCodeHashStringV3(chain) else liquidityInitCodeHashString(chain)
+        val pairAddress = Pair.address(token0, token1, factory, initCodeHash)
 
         logger.info("pairAddress: ${pairAddress.hex}")
 
@@ -157,6 +172,26 @@ class TradeManager {
         }
     }
 
+    fun transactionLiquidityV3Data(receiveAddress: Address,
+                                   chain: Chain,
+                                   tickLower: BigInteger,
+                                   tickUpper: BigInteger,
+                                   tokenIn: Token,
+                                   tokenOut: Token,
+                                   recipient: Address?,
+                                   tokenInAmount: BigInteger,
+                                   tokenOutAmount: BigInteger,
+                                   fee: BigInteger = BigInteger.valueOf(2500)
+    ): TransactionData {
+        val routerAddress = liquidityRouterAddressV3(chain)
+
+        return buildLiquidityV3Data(receiveAddress, tokenIn, tokenOut, tickLower, tickUpper,
+            recipient, tokenInAmount, tokenOutAmount, chain, fee).let {
+
+            TransactionData(routerAddress, it.value, it.input, isBothErc = it.isBothErc, isV3 = true)
+        }
+    }
+
 
     private fun buildLiquidityData(receiveAddress: Address,
                                    tokenIn: Token,
@@ -196,6 +231,80 @@ class TradeManager {
         ).divide(BigInteger("1000"))
         val method = buildMethodForLiquidityOut(tokenIn, tokenOut, to, deadline, tokenInAmount, tokenOutAmount, amount0Min, amount1Min, amountETHMin)
         return TransactionData(liquidityRouterAddress(chain), method.second, method.first.encodedABI(),
+            isBothErc = tokenIn is Erc20 && tokenOut is Erc20)
+    }
+
+
+
+    private fun buildLiquidityV3Data(receiveAddress: Address,
+                                   tokenIn: Token,
+                                   tokenOut: Token,
+                                     tickLower: BigInteger,
+                                     tickUpper: BigInteger,
+                                   recipient: Address?,
+                                   tokenInAmount: BigInteger,
+                                   tokenOutAmount: BigInteger,
+                                   chain: Chain,
+                                   fee: BigInteger = BigInteger.valueOf(2500)): TransactionData {
+
+        val to = recipient ?: receiveAddress
+        val deadline = (Date().time / 1000 + (60 * 20)).toBigInteger()
+        // V3 mint() 合约内部自动按当前池子价格比例计算实际使用的 amount0/amount1；
+        // desired 值只是上限，minimum 设为 0 避免因用户提供等额 token 但池子
+        // 价格 ratio ≠ 1:1 而触发 "Price slippage check" revert。
+        val amount0Min = BigInteger.ZERO
+        val amount1Min = BigInteger.ZERO
+        val tokenInAddress = tokenIn.address.eip55.lowercase()
+        val tokenOutAddress = tokenOut.address.eip55.lowercase()
+        // 确保 token0 < token1（按地址排序）
+        val (actualToken0, actualToken1) = if (tokenInAddress < tokenOutAddress) {
+            Pair(tokenIn, tokenOut)
+        } else {
+            Pair(tokenOut, tokenIn)
+        }
+
+        val (actualAmount0, actualAmount1) = if (tokenInAddress < tokenOutAddress) {
+            Pair(tokenInAmount, tokenOutAmount)
+        } else {
+            Pair(tokenOutAmount, tokenInAmount)
+        }
+
+        val (actualAmount0Min, actualAmount1Min) = if (tokenInAddress < tokenOutAddress) {
+            Pair(amount0Min, amount1Min)
+        } else {
+            Pair(amount1Min, amount0Min)
+        }
+
+        Log.e("addLiquidity", "tickLower=${tickLower}， tickUpper=${tickUpper}, fee=$fee")
+        Log.e("addLiquidity", "amount0=$actualAmount0, amount1=$actualAmount1, amount0Min=$actualAmount0Min, amount1Min=$actualAmount1Min")
+        // 使用 Web3j FunctionEncoder 构建
+        val function = Function(
+            "mint",
+            listOf(
+                MintParams(
+                    org.web3j.abi.datatypes.Address(actualToken0.address.eip55),
+                    org.web3j.abi.datatypes.Address(actualToken1.address.eip55),
+                    Uint24(fee),
+                    Int24(tickLower),
+                    Int24(tickUpper),
+                    Uint256(actualAmount0),
+                    Uint256(actualAmount1),
+                    Uint256(actualAmount0Min),
+                    Uint256(actualAmount1Min),
+                    org.web3j.abi.datatypes.Address(to.eip55),
+                    Uint256(deadline)
+                )
+            ),
+            listOf(
+                TypeReference.create(Uint256::class.java),
+                TypeReference.create(Uint128::class.java),
+                TypeReference.create(Uint256::class.java),
+                TypeReference.create(Uint256::class.java)
+            )
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+        Log.d("addLiquidity", "encodedFunction=${encodedFunction.hexStringToByteArray()}")
+        return TransactionData(liquidityRouterAddressV3(chain), tokenInAmount, encodedFunction.hexStringToByteArray(),
             isBothErc = tokenIn is Erc20 && tokenOut is Erc20)
     }
 
@@ -342,6 +451,51 @@ class TradeManager {
                 }
             }
 
+        private fun getFactoryV3AddressString(chain: Chain, isSafeSwap: Boolean) =
+            if (isSafeSwap) {
+                when (chain) {
+                    Chain.Ethereum, Chain.EthereumGoerli -> "0xB3c827077312163c53E3822defE32cAffE574B42"
+                    Chain.SafeFour -> safeSwapv2Safe4Factory
+                    Chain.BinanceSmartChain -> "0xB3c827077312163c53E3822defE32cAffE574B42"
+                    Chain.Polygon -> "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32"
+                    Chain.Avalanche -> "0x9Ad6C38BE94206cA50bb0d90783181662f0Cfa10"
+                    Chain.Base -> "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6"
+                    else -> throw UnsupportedChainError.NoFactoryAddress
+                }
+            } else {
+                when (chain) {
+                    Chain.Ethereum,
+                    Chain.SafeFour,
+                    Chain.EthereumGoerli -> "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+                    Chain.BinanceSmartChain -> "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865"
+                    else -> throw UnsupportedChainError.NoFactoryAddress
+                }
+            }
+
+
+        fun getRouterV3Address(chain: Chain, isSafeSwap: Boolean) =
+            if (isSafeSwap) {
+                when (chain) {
+                    Chain.Ethereum, Chain.EthereumGoerli -> Address(
+                        "0x6476008C612dF9F8Db166844fFE39D24aEa12271"
+                    )
+                    Chain.BinanceSmartChain -> Address("0x6476008C612dF9F8Db166844fFE39D24aEa12271")
+                    Chain.SafeFour -> Address(safeSwapv2Safe4Router)
+                    Chain.Polygon -> Address("0x8cFe327CEc66d1C090Dd72bd0FF11d690C33a2Eb")
+                    Chain.Avalanche -> Address("0x60aE616a2155Ee3d9A68541Ba4544862310933d4")
+                    Chain.Base -> Address("0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24")
+                    else -> throw UnsupportedChainError.NoRouterAddress
+                }
+            } else {
+                when (chain) {
+                    Chain.Ethereum, Chain.EthereumGoerli -> Address(
+                        "0xC36442b4a4522E871399CD717aBDD847Ab11FE88"
+                    )
+                    Chain.BinanceSmartChain -> Address("0x46A15B0b27311cedF172AB29E4f4766fbE7F4364")
+                    else -> throw UnsupportedChainError.NoRouterAddress
+                }
+            }
+
         private fun getInitCodeHashString(chain: Chain, isSafeSwap: Boolean) =
             if (isSafeSwap) {
                 when (chain) {
@@ -379,11 +533,44 @@ class TradeManager {
                 else -> throw UnsupportedChainError.NoRouterAddress
             }
 
+        private fun getLiquidityRouterAddressV3(chain: Chain) =
+            when (chain) {
+                Chain.SafeFour -> Address(safeSwapv2Safe4Router)
+                Chain.Ethereum, Chain.EthereumGoerli -> Address(
+                "0xC36442b4a4522E871399CD717aBDD847Ab11FE88"
+                )
+                Chain.BinanceSmartChain -> Address("0x46A15B0b27311cedF172AB29E4f4766fbE7F4364")
+                Chain.Polygon -> Address("0x8cFe327CEc66d1C090Dd72bd0FF11d690C33a2Eb")
+                Chain.Avalanche -> Address("0x60aE616a2155Ee3d9A68541Ba4544862310933d4")
+                else -> throw UnsupportedChainError.NoRouterAddress
+            }
+
+        /*private fun getLiquidityRouterAddressV3(chain: Chain) =
+            when (chain) {
+                Chain.SafeFour -> Address(safeSwapv2Safe4Router)
+                Chain.Ethereum, Chain.EthereumGoerli -> Address(
+                    "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+                )
+                Chain.BinanceSmartChain -> Address("0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c")
+                Chain.Polygon -> Address("0x8cFe327CEc66d1C090Dd72bd0FF11d690C33a2Eb")
+                Chain.Avalanche -> Address("0x60aE616a2155Ee3d9A68541Ba4544862310933d4")
+                else -> throw UnsupportedChainError.NoRouterAddress
+            }*/
+
         private fun getLiquidityFactoryAddressString(chain: Chain) =
             when (chain) {
                 Chain.SafeFour -> safeSwapv2Safe4Factory
                 Chain.Ethereum, Chain.EthereumGoerli -> "0x5c69bee701ef814a2b6a3edd4b1652cb9cc5aa6f"
                 Chain.BinanceSmartChain -> "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73"
+                Chain.Polygon -> "0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E"
+                Chain.Avalanche -> "0x9Ad6C38BE94206cA50bb0d90783181662f0Cfa10"
+                else -> throw UnsupportedChainError.NoFactoryAddress
+            }
+        private fun getLiquidityFactoryAddressStringV3(chain: Chain) =
+            when (chain) {
+                Chain.SafeFour -> safeSwapv2Safe4Factory
+                Chain.Ethereum, Chain.EthereumGoerli -> "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+                Chain.BinanceSmartChain -> "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865"
                 Chain.Polygon -> "0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E"
                 Chain.Avalanche -> "0x9Ad6C38BE94206cA50bb0d90783181662f0Cfa10"
                 else -> throw UnsupportedChainError.NoFactoryAddress
@@ -394,6 +581,14 @@ class TradeManager {
                     Chain.SafeFour -> safeSwapv2Safe4CodeHash
                     Chain.Ethereum, Chain.EthereumGoerli, Chain.Polygon, Chain.Avalanche -> "0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f"
                     Chain.BinanceSmartChain -> "0x00fb7f630766e6a796048ea87d01acd3068e8ff67d078148a3fa3f4a84f69bd5"
+                    else -> throw UnsupportedChainError.NoInitCodeHash
+                }
+
+        private fun getLiquidityInitCodeHashStringV3(chain: Chain) =
+                when (chain) {
+                    Chain.SafeFour -> safeSwapv2Safe4CodeHash
+                    Chain.Ethereum, Chain.EthereumGoerli, Chain.Polygon, Chain.Avalanche -> "0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54"
+                    Chain.BinanceSmartChain -> "0x6ce8eb472fa82df5469c6ab6d485f17c3ad13c8cd7af59b3d4a8026f5c8f5cc1"
                     else -> throw UnsupportedChainError.NoInitCodeHash
                 }
 

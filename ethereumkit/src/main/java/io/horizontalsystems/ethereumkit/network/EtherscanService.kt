@@ -9,6 +9,8 @@ import io.horizontalsystems.ethereumkit.core.retryWhenError
 import io.horizontalsystems.ethereumkit.core.toHexString
 import io.horizontalsystems.ethereumkit.models.Address
 import io.reactivex.Single
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -16,8 +18,6 @@ import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
-import java.net.InetSocketAddress
-import java.net.Proxy
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.util.logging.Logger
@@ -30,6 +30,10 @@ class EtherscanService(
     private val apiKeys: List<String>,
     private val chainId: Int,
 ) {
+    companion object {
+        var isUserProxy = false
+    }
+
     private val apiKeysSize = apiKeys.size
     private var apiKeyIndex = 0
 
@@ -45,15 +49,25 @@ class EtherscanService(
         }.setLevel(HttpLoggingInterceptor.Level.BASIC)
 
         val httpClient = OkHttpClient.Builder()
-            .connectTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
             // 允许所有 TLS 版本
             .sslSocketFactory(createSSLSocketFactory(), createTrustManager())
             // 或使用更宽松的主机名验证（仅测试环境）
             .hostnameVerifier { _, _ -> true }
             .addInterceptor { chain ->
                 val originalRequest = chain.request()
-                val originalUrl = originalRequest.url
+                var originalUrl = originalRequest.url
+                val needChangeUrl = isUserProxy && originalUrl.host == "api.etherscan.io"
+                if (needChangeUrl) {
+                    // 构建新 URL
+                    val newUrl: HttpUrl = originalUrl.newBuilder()
+                        .scheme("https")
+                        .host("safewallet.anwang.com")
+                        .build()
+                    originalUrl = newUrl.toString()
+                        .replace("/v2/api", "/ethscan/v2/api").toHttpUrl()
+                }
 
                 val url = originalUrl.newBuilder()
                     .addQueryParameter("apikey", getNextApiKey())
