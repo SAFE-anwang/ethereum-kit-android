@@ -73,6 +73,7 @@ class UsdtSafeManager(
     private fun getContractAddress(chain: Chain): Address {
         val wethAddressHex =
             when (chain) {
+                Chain.SafeFourTestNet,
                 Chain.SafeFour -> "0x9C1246a4BB3c57303587e594a82632c3171662C9"
                 Chain.Ethereum -> "0xdAC17F958D2ee523a2206206994597C13D831ec7"
 //            Chain.EthereumRopsten -> "0x32885f2faf83aeee39e2cfe7f302e3bb884869f4"
@@ -93,6 +94,7 @@ class UsdtSafeManager(
     private fun getSafeAddress(chain: Chain): String {
         val safeAddressHex =
             when (chain) {
+                Chain.SafeFourTestNet,
                 Chain.SafeFour -> "0xcF5B813482d29232604ff7c93564fc44202f5998"
                 Chain.Ethereum -> "0xbB92E5E0120fe5345D5b5d36fcCdAfA391976622"
                 Chain.BinanceSmartChain -> "0xbB92E5E0120fe5345D5b5d36fcCdAfA391976622" //BSC正式环境

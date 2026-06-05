@@ -106,6 +106,7 @@ class WSafeManager(
             Chain.BinanceSmartChain -> "mainnet" //BSC正式环境
             Chain.Polygon -> "mainnet"
             Chain.SafeFour -> "mainnet"
+            Chain.SafeFourTestNet -> "Testnet"
 //            Chain.BinanceSmartChain -> "testnet" //BSC测试环境
             else -> throw UnsupportedChainError.NoSafeNetType
         }

@@ -82,9 +82,9 @@ sealed class RpcSource {
         }
 
 
-        fun safeFourHttp(): Http {
+        fun safeFourHttp(isTestNet: Boolean): Http {
             return Http(
-                if (Chain.SafeFour.isSafe4TestNetId) {
+                if (isTestNet) {
                     listOf(
                         URI(getCacheRpc("safe4-testnet") ?: "https://safe4testnet.anwang.com/rpc")
                     )
