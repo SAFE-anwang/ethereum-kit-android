@@ -39,10 +39,10 @@ import java.util.logging.Logger
 class TradeManager {
     private val logger = Logger.getLogger(this.javaClass.simpleName)
 
-    fun routerAddress(chain: Chain): Address = getRouterAddress(chain, Extensions.isSafeSwap || chain == Chain.SafeFour)
-    fun routerAddressV3(chain: Chain): Address = getRouterV3Address(chain, Extensions.isSafeSwap || chain == Chain.SafeFour)
-    fun factoryAddressString(chain: Chain): String = getFactoryAddressString(chain, Extensions.isSafeSwap || chain == Chain.SafeFour)
-    fun initCodeHashString(chain: Chain): String = getInitCodeHashString(chain, Extensions.isSafeSwap || chain == Chain.SafeFour)
+    fun routerAddress(chain: Chain): Address = getRouterAddress(chain, Extensions.isSafeSwap || chain == Chain.SafeFour || chain == Chain.SafeFourTestNet)
+    fun routerAddressV3(chain: Chain): Address = getRouterV3Address(chain, Extensions.isSafeSwap || chain == Chain.SafeFour || chain == Chain.SafeFourTestNet)
+    fun factoryAddressString(chain: Chain): String = getFactoryAddressString(chain, Extensions.isSafeSwap || chain == Chain.SafeFour || chain == Chain.SafeFourTestNet)
+    fun initCodeHashString(chain: Chain): String = getInitCodeHashString(chain, Extensions.isSafeSwap || chain == Chain.SafeFour || chain == Chain.SafeFourTestNet)
 
     fun  liquidityRouterAddress(chain: Chain): Address = getLiquidityRouterAddress(chain)
     fun liquidityFactoryAddressString(chain: Chain): String = getLiquidityFactoryAddressString(chain)
@@ -408,6 +408,7 @@ class TradeManager {
                         "0x6476008C612dF9F8Db166844fFE39D24aEa12271"
                     )
                     Chain.BinanceSmartChain -> Address("0x6476008C612dF9F8Db166844fFE39D24aEa12271")
+                    Chain.SafeFourTestNet,
                     Chain.SafeFour -> Address(safeSwapv2Safe4Router)
                     Chain.Polygon -> Address("0x8cFe327CEc66d1C090Dd72bd0FF11d690C33a2Eb")
                     Chain.Avalanche -> Address("0x60aE616a2155Ee3d9A68541Ba4544862310933d4")
@@ -431,6 +432,7 @@ class TradeManager {
             if (isSafeSwap) {
                 when (chain) {
                     Chain.Ethereum, Chain.EthereumGoerli -> "0xB3c827077312163c53E3822defE32cAffE574B42"
+                    Chain.SafeFourTestNet,
                     Chain.SafeFour -> safeSwapv2Safe4Factory
                     Chain.BinanceSmartChain -> "0xB3c827077312163c53E3822defE32cAffE574B42"
                     Chain.Polygon -> "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32"
@@ -455,6 +457,7 @@ class TradeManager {
             if (isSafeSwap) {
                 when (chain) {
                     Chain.Ethereum, Chain.EthereumGoerli -> "0xB3c827077312163c53E3822defE32cAffE574B42"
+                    Chain.SafeFourTestNet,
                     Chain.SafeFour -> safeSwapv2Safe4Factory
                     Chain.BinanceSmartChain -> "0xB3c827077312163c53E3822defE32cAffE574B42"
                     Chain.Polygon -> "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32"
@@ -480,6 +483,7 @@ class TradeManager {
                         "0x6476008C612dF9F8Db166844fFE39D24aEa12271"
                     )
                     Chain.BinanceSmartChain -> Address("0x6476008C612dF9F8Db166844fFE39D24aEa12271")
+                    Chain.SafeFourTestNet,
                     Chain.SafeFour -> Address(safeSwapv2Safe4Router)
                     Chain.Polygon -> Address("0x8cFe327CEc66d1C090Dd72bd0FF11d690C33a2Eb")
                     Chain.Avalanche -> Address("0x60aE616a2155Ee3d9A68541Ba4544862310933d4")
@@ -505,6 +509,7 @@ class TradeManager {
                     Chain.Avalanche,
                     Chain.Base -> "0xad0e51aa7a058efb9eb40fd6385473f0175ee7419e8d4f91a4e0294ec12b2d13"
                     Chain.BinanceSmartChain -> "0xad0e51aa7a058efb9eb40fd6385473f0175ee7419e8d4f91a4e0294ec12b2d13"
+                    Chain.SafeFourTestNet,
                     Chain.SafeFour -> safeSwapv2Safe4CodeHash
                     else -> throw UnsupportedChainError.NoInitCodeHash
                 }
@@ -515,6 +520,7 @@ class TradeManager {
                     Chain.Polygon,
                     Chain.Avalanche,
                     Chain.Base,
+                    Chain.SafeFourTestNet,
                     Chain.SafeFour -> "0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f"
                     Chain.BinanceSmartChain -> "0x00fb7f630766e6a796048ea87d01acd3068e8ff67d078148a3fa3f4a84f69bd5"
                     else -> throw UnsupportedChainError.NoInitCodeHash
@@ -523,6 +529,7 @@ class TradeManager {
 
         private fun getLiquidityRouterAddress(chain: Chain) =
             when (chain) {
+                Chain.SafeFourTestNet,
                 Chain.SafeFour -> Address(safeSwapv2Safe4Router)
                 Chain.Ethereum, Chain.EthereumGoerli -> Address(
                     "0x7a250d5630b4cf539739df2c5dacb4c659f2488d"
@@ -535,6 +542,7 @@ class TradeManager {
 
         private fun getLiquidityRouterAddressV3(chain: Chain) =
             when (chain) {
+                Chain.SafeFourTestNet,
                 Chain.SafeFour -> Address(safeSwapv2Safe4Router)
                 Chain.Ethereum, Chain.EthereumGoerli -> Address(
                 "0xC36442b4a4522E871399CD717aBDD847Ab11FE88"
@@ -559,6 +567,7 @@ class TradeManager {
 
         private fun getLiquidityFactoryAddressString(chain: Chain) =
             when (chain) {
+                Chain.SafeFourTestNet,
                 Chain.SafeFour -> safeSwapv2Safe4Factory
                 Chain.Ethereum, Chain.EthereumGoerli -> "0x5c69bee701ef814a2b6a3edd4b1652cb9cc5aa6f"
                 Chain.BinanceSmartChain -> "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73"
@@ -568,6 +577,7 @@ class TradeManager {
             }
         private fun getLiquidityFactoryAddressStringV3(chain: Chain) =
             when (chain) {
+                Chain.SafeFourTestNet,
                 Chain.SafeFour -> safeSwapv2Safe4Factory
                 Chain.Ethereum, Chain.EthereumGoerli -> "0x1F98431c8aD98523631AE4a59f267346ea31F984"
                 Chain.BinanceSmartChain -> "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865"
@@ -578,6 +588,7 @@ class TradeManager {
 
         private fun getLiquidityInitCodeHashString(chain: Chain) =
                 when (chain) {
+                    Chain.SafeFourTestNet,
                     Chain.SafeFour -> safeSwapv2Safe4CodeHash
                     Chain.Ethereum, Chain.EthereumGoerli, Chain.Polygon, Chain.Avalanche -> "0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f"
                     Chain.BinanceSmartChain -> "0x00fb7f630766e6a796048ea87d01acd3068e8ff67d078148a3fa3f4a84f69bd5"
@@ -586,6 +597,7 @@ class TradeManager {
 
         private fun getLiquidityInitCodeHashStringV3(chain: Chain) =
                 when (chain) {
+                    Chain.SafeFourTestNet,
                     Chain.SafeFour -> safeSwapv2Safe4CodeHash
                     Chain.Ethereum, Chain.EthereumGoerli, Chain.Polygon, Chain.Avalanche -> "0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54"
                     Chain.BinanceSmartChain -> "0x6ce8eb472fa82df5469c6ab6d485f17c3ad13c8cd7af59b3d4a8026f5c8f5cc1"

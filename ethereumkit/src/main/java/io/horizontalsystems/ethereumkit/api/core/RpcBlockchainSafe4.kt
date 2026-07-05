@@ -76,14 +76,14 @@ class RpcBlockchainSafe4(
 ) : IBlockchain, IRpcSyncerListener, ISafeFourOperate, INonceProvider {
 
     val AccountManagerContractAddr4ac6 by lazy {
-        if (Chain.SafeFour.isSafe4TestNetId) {
+        if (transactionBuilder.chainId == Chain.SafeFourTestNet.id) {
             "0xA7DBB85CB123106B0d227a317D00A53574694aC6"
         } else {
             "0xF80D63cE916850CF131a4760853B9d685F8ec65a"
         }
     }
     val AccountManagerContractAddr91b2 by lazy {
-        if (Chain.SafeFour.isSafe4TestNetId) {
+        if (transactionBuilder.chainId == Chain.SafeFourTestNet.id) {
             "0xF6A2C019beF11825E73ed219c7b0582324dE91b2"
         } else {
             "0x5A9CDa846D12e047d87c06f633f2c4f344b33C97"
@@ -91,7 +91,7 @@ class RpcBlockchainSafe4(
     }
 
     val SRC20LockContract by lazy {
-        if (Chain.SafeFour.isSafe4TestNetId) {
+        if (transactionBuilder.chainId == Chain.SafeFourTestNet.id) {
             "0x4f203092FB68732D8484c099a72dDc5a195f26f9"
         } else {
             "0x6A6dFAF83cc1741FE08A9EFDea596dEad68f7420"
@@ -102,20 +102,20 @@ class RpcBlockchainSafe4(
 
     private val disposables = CompositeDisposable()
 
-    private val web3jSafe4: Safe4 = Safe4(web3j, Chain.SafeFour.id.toLong())
+    private val web3jSafe4: Safe4 = Safe4(web3j, transactionBuilder.chainId.toLong())
     private val accountManagerContract4ac6 = AccountManagerCustomContract(
         web3j,
-        Chain.SafeFour.id.toLong(),
+        transactionBuilder.chainId.toLong(),
         AccountManagerContractAddr4ac6
     )
     private val accountManagerContract91b2 = AccountManagerCustomContract(
         web3j,
-        Chain.SafeFour.id.toLong(),
+        transactionBuilder.chainId.toLong(),
         AccountManagerContractAddr91b2
     )
 
     val src20LockFactory by lazy {
-        SRC20LockFactory(web3j, Chain.SafeFour.id.toLong(), SRC20LockContract)
+        SRC20LockFactory(web3j, transactionBuilder.chainId.toLong(), SRC20LockContract)
     }
 
     private fun onUpdateLastBlockHeight(lastBlockHeight: Long) {
@@ -1099,12 +1099,9 @@ class RpcBlockchainSafe4(
     fun src20ToSafe4(privateKey: BigInteger, transaction: TransactionData): Single<String> {
         return Single.create<String> { emitter ->
             try {
-                val function = Function(
-                    "withdraw",
-                    Arrays.asList<Type<*>>(Uint256(transaction.value)),
-                    listOf<TypeReference<*>>(object : TypeReference<Uint256?>() {})
-                )
-                val result = call(privateKey, BigInteger.ZERO, function)
+                // 使用 transaction.input 中预先编码的 ABI 数据 (withdraw(evmAmount))
+                // 而不是 transaction.value (值为0)，transaction.value 仅用于原生代币转账金额
+                val result = call(privateKey, BigInteger.ZERO, Numeric.toHexString(transaction.input))
                 emitter.onSuccess(result)
             } catch (e: Throwable) {
                 Log.e("src20ToSafe4", "e=$e")
@@ -1138,9 +1135,13 @@ class RpcBlockchainSafe4(
     }
 
     private fun call(privateKey: BigInteger, value: BigInteger, function: Function): String {
+        val data = FunctionEncoder.encode(function)
+        return call(privateKey, value, data)
+    }
+
+    private fun call(privateKey: BigInteger, value: BigInteger, dataHex: String): String {
         val nonce = getNonce(DefaultBlockParameter.Latest).blockingGet().toBigInteger()
         val gasPrice: BigInteger = web3j.ethGasPrice().send().gasPrice
-        val data = FunctionEncoder.encode(function)
         val ethEstimateGas = web3j.ethEstimateGas(
             org.web3j.protocol.core.methods.request.Transaction.createFunctionCallTransaction(
                 address.hex,
@@ -1149,7 +1150,7 @@ class RpcBlockchainSafe4(
                 java.math.BigInteger.ZERO,
                 safe4SwapContractAddress,
                 value,
-                data
+                dataHex
             )
         ).send()
         if (ethEstimateGas.error != null) {
@@ -1163,13 +1164,14 @@ class RpcBlockchainSafe4(
             gasLimit,
             safe4SwapContractAddress,
             value,
-            data
+            dataHex
         )
         val credentials: Credentials = Credentials.create(privateKey.toHexString())
+        val chain = if (Chain.SafeFour.isSafe4TestNetId) Chain.SafeFourTestNet else Chain.SafeFour
         val signedTransactionData = Numeric.toHexString(
             TransactionEncoder.signMessage(
                 rawTransaction,
-                Chain.SafeFour.id.toLong(),
+                chain.id.toLong(),
                 credentials
             )
         )

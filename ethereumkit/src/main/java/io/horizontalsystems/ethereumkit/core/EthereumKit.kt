@@ -682,7 +682,7 @@ class EthereumKit(
                 is RpcSource.Http -> {
                     val apiProvider = RpcApiProviderFactory.nodeApiProvider(rpcSource)
 
-                    if (chain == Chain.SafeFour) {
+                    if (chain == Chain.SafeFour || chain == Chain.SafeFourTestNet) {
                         val index = Random().nextInt(rpcSource.uris.size)
                         val httpClientBuilder = getOkHttpClientBuilder()
                         httpClientBuilder.connectTimeout(60, TimeUnit.SECONDS)
@@ -702,7 +702,7 @@ class EthereumKit(
             val apiDatabase = EthereumDatabaseManager.getEthereumApiDatabase(application, walletId, chain)
             val storage = ApiStorage(apiDatabase)
 
-            val blockchain = if(chain == Chain.SafeFour)
+            val blockchain = if(chain == Chain.SafeFour || chain == Chain.SafeFourTestNet)
                 RpcBlockchainSafe4.instance(address, storage, syncer, Safe4TransactionBuilder(address, chain.id), web3j!!)
             else
                 RpcBlockchain.instance(address, storage, syncer, TransactionBuilder(address, chain.id))
@@ -727,7 +727,7 @@ class EthereumKit(
             val nonceProvider = NonceProvider()
             nonceProvider.addProvider(blockchain)
 
-            if (chain == Chain.SafeFour) {
+            if (chain == Chain.SafeFour || chain == Chain.SafeFourTestNet) {
                 val safe4TransactionSyncer = Safe4TransactionSyncer(address.hex, transactionProvider, transactionSyncerStateStorage)
                 transactionSyncManager.add(safe4TransactionSyncer)
             }
@@ -750,7 +750,7 @@ class EthereumKit(
             blockchain.listener = ethereumKit
 
             decorationManager.addTransactionDecorator(EthereumDecorator(address))
-            if (chain == Chain.SafeFour) {
+            if (chain == Chain.SafeFour || chain == Chain.SafeFourTestNet) {
                 decorationManager.addTransactionDecorator(SafeFourDecorator(address))
                 ethereumKit.addMethodDecorator(SafeFourMethodDecorator(SafeFourContractMethodFactories))
             }

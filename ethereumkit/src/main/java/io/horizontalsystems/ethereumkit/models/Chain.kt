@@ -22,13 +22,16 @@ enum class Chain(
     EthereumRopsten(3, 1, 2_000_000, 15, true),
     TRON(1, 195, 2_000_000, 15, true),
     SOL(3, 1, 2_000_000, 15, true),
-    SafeFour(6666665, 60, 300000000, 15, false);
-//    SafeFour(6666666, 60, 300000000, 15, false); // Test
+    SafeFour(6666665, 60, 300000000, 15, false),
+    SafeFourTestNet(6666666, 60, 300000000, 15, false); // Test
 
     val isMainNet = coinType != 1
 
-//    val isSafeFourTestNet = id == 6666666
-    val isSafeFourTestNet = false
+    companion object {
+        @Volatile
+        var isSafe4TestMode: Boolean = false
+    }
 
-    val isSafe4TestNetId = id == 6666666
+    val isSafe4TestNetId: Boolean
+        get() = isSafe4TestMode || id == 6666666
 }

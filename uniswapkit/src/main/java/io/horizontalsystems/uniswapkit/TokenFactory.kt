@@ -32,6 +32,7 @@ class TokenFactory {
                 Chain.Base -> "0x4200000000000000000000000000000000000006"
                 Chain.ZkSync -> "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91"
 //                Chain.SafeFour -> "0x64c5aB0DFeCCe653751B463AFb05352085c5f2f9" // Test
+                Chain.SafeFourTestNet,
                 Chain.SafeFour -> "0x0000000000000000000000000000000000001101"
                  else -> throw UnsupportedChainError.NoWethAddress
             }
