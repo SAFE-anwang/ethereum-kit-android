@@ -58,7 +58,13 @@ sealed class RpcSource {
         }
 
         fun polygonRpcHttp(): Http {
-            return Http(listOf(URI(getCacheRpc("polygon") ?: "https://polygon-mainnet.core.chainstack.com/e9c77e1e564c041e111132211eb0df0f")), null)
+            return Http(
+                listOf(
+                    URI(getCacheRpc("polygon") ?: "https://polygon-mainnet.core.chainstack.com/e9c77e1e564c041e111132211eb0df0f"),
+                    URI("https://polygon.drpc.org"),
+                    URI("https://1rpc.io/matic")
+                ),
+                null)
         }
 
         fun optimismRpcHttp(): Http {
