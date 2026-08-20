@@ -128,6 +128,7 @@ class OneInchService(
         complexityLevel: Int? = null,
         connectorTokens: List<String>? = null,
         allowPartialFill: Boolean? = null,
+        disableEstimate: Boolean? = null,
         gasLimit: Long? = null,
         parts: Int? = null,
         mainRouteParts: Int? = null
@@ -149,6 +150,7 @@ class OneInchService(
             complexityLevel = complexityLevel,
             connectorTokens = connectorTokens?.joinToString(","),
             allowPartialFill = allowPartialFill,
+            disableEstimate = disableEstimate,
             gasLimit = gasLimit,
             parts = parts,
             mainRouteParts = mainRouteParts
@@ -170,6 +172,7 @@ class OneInchService(
             complexityLevel = complexityLevel,
             connectorTokens = connectorTokens?.joinToString(","),
             allowPartialFill = allowPartialFill,
+            disableEstimate = disableEstimate,
             gasLimit = gasLimit,
             parts = parts,
             mainRouteParts = mainRouteParts
@@ -225,6 +228,7 @@ class OneInchService(
             @Query("complexityLevel ") complexityLevel: Int? = null,
             @Query("connectorTokens") connectorTokens: String? = null,
             @Query("allowPartialFill") allowPartialFill: Boolean? = null,
+            @Query("disableEstimate") disableEstimate: Boolean? = null,
             @Query("gasLimit") gasLimit: Long? = null,
             @Query("parts") parts: Int? = null,
             @Query("mainRouteParts") mainRouteParts: Int? = null,
