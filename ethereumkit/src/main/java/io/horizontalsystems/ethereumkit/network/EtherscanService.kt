@@ -30,9 +30,6 @@ class EtherscanService(
     private val apiKeys: List<String>,
     private val chainId: Int,
 ) {
-    companion object {
-        var isUserProxy = false
-    }
 
     private val apiKeysSize = apiKeys.size
     private var apiKeyIndex = 0
@@ -57,19 +54,7 @@ class EtherscanService(
             .hostnameVerifier { _, _ -> true }
             .addInterceptor { chain ->
                 val originalRequest = chain.request()
-                var originalUrl = originalRequest.url
-                val needChangeUrl = isUserProxy && originalUrl.host == "api.etherscan.io"
-                if (needChangeUrl) {
-                    // 构建新 URL
-                    val newUrl: HttpUrl = originalUrl.newBuilder()
-                        .scheme("https")
-                        .host("safewallet.anwang.com")
-                        .build()
-                    originalUrl = newUrl.toString()
-                        .replace("/v2/api", "/ethscan/v2/api").toHttpUrl()
-                }
-
-                val url = originalUrl.newBuilder()
+                val url = originalRequest.url.newBuilder()
                     .addQueryParameter("apikey", getNextApiKey())
                     .addQueryParameter("chainid", chainId.toString())
                     .build()

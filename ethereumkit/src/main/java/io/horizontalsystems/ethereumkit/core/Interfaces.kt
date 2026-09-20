@@ -142,6 +142,16 @@ interface ITransactionDecorator {
 }
 
 interface ITransactionProvider {
+    /**
+     * 最近一次查询实际扫描到的最高区块高度，用于驱动增量同步进度。
+     *
+     * 基于索引 API（如 Etherscan）的实现不适用该字段，返回 -1 表示忽略；
+     * 基于区块扫描的实现（如 Chainstack）会在扫描完成后返回本次扫描到的最高区块，
+     * 使同步进度在「本次区间内没有任何相关交易」时也能正常推进。
+     */
+    val lastScannedBlockHeight: Long
+        get() = -1L
+
     fun getTransactions(startBlock: Long): Single<List<ProviderTransaction>>
     fun getInternalTransactions(startBlock: Long): Single<List<ProviderInternalTransaction>>
     fun getInternalTransactionsAsync(hash: ByteArray): Single<List<ProviderInternalTransaction>>

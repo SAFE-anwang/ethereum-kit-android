@@ -22,7 +22,10 @@ class EthereumTransactionSyncer(
         val initial = lastTransactionBlockNumber == 0L
 
         return transactionProvider.getTransactions(lastTransactionBlockNumber + 1)
-                .doOnSuccess { providerTransactions -> handle(providerTransactions) }
+                .map { providerTransactions ->
+                    handle(providerTransactions)
+                    providerTransactions
+                }
                 .map { providerTransactions ->
                     val array = providerTransactions.map { transaction ->
                         val isFailed = when {
@@ -62,7 +65,17 @@ class EthereumTransactionSyncer(
     }
 
     private fun handle(transactions: List<ProviderTransaction>) {
-        val maxBlockNumber = transactions.maxOfOrNull { it.blockNumber } ?: return
+        // 优先使用交易中的最高区块；区块扫描类 Provider（如 Chainstack）会额外上报
+        // 本次扫描到达的最高区块，保证「区间内没有相关交易」时进度也能推进，
+        // 避免每次同步都重复扫描同一区间导致同步卡住。
+        val maxTransactionBlock = transactions.maxOfOrNull { it.blockNumber }
+        val scannedBlock = transactionProvider.lastScannedBlockHeight
+
+        val maxBlockNumber = listOfNotNull(
+            maxTransactionBlock,
+            scannedBlock.takeIf { it > 0 }
+        ).maxOrNull() ?: return
+
         val syncerState = TransactionSyncerState(SyncerId, maxBlockNumber)
 
         storage.save(syncerState)

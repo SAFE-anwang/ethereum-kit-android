@@ -5,10 +5,17 @@ class TransactionSource(val name: String, val type: SourceType) {
     fun transactionUrl(hash: String) =
         when (type) {
             is SourceType.Etherscan -> "${type.txBaseUrl}/tx/$hash"
+            is SourceType.Chainstack -> "${type.txBaseUrl}/tx/$hash"
         }
 
     sealed class SourceType {
         class Etherscan(val apiBaseUrl: String, val txBaseUrl: String, val apiKeys: List<String>) : SourceType()
+
+        /**
+         * 通过 Chainstack RPC 节点的区块扫描同步交易（不依赖 Etherscan 等浏览器 API）。
+         * [rpcUrls] 为同一链的多个可用 RPC 端点，用于负载与容错；[txBaseUrl] 仅用于拼接交易详情链接。
+         */
+        class Chainstack(val rpcUrls: List<String>, val txBaseUrl: String) : SourceType()
     }
 
     companion object {
@@ -71,6 +78,17 @@ class TransactionSource(val name: String, val type: SourceType) {
                         SourceType.Etherscan("https://safe4.anwang.com/", "https://safe4.anwang.com", listOf(apiKey))
                     }
 
+            )
+        }
+
+        /**
+         * Chainstack RPC 区块扫描数据源。
+         * 名称统一为 "chainstack"，配合各链的浏览器地址用于展示交易详情链接。
+         */
+        fun chainstack(rpcUrls: List<String>, explorerUrl: String): TransactionSource {
+            return TransactionSource(
+                "chainstack",
+                SourceType.Chainstack(rpcUrls, explorerUrl)
             )
         }
     }
