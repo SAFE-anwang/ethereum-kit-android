@@ -697,7 +697,6 @@ class EthereumKit(
             }
 
             val transactionBuilder = TransactionBuilder(address, chain.id)
-            val transactionProvider = transactionProvider(transactionSource, address, chain.id)
 
             val apiDatabase = EthereumDatabaseManager.getEthereumApiDatabase(application, walletId, chain)
             val storage = ApiStorage(apiDatabase)
@@ -706,6 +705,8 @@ class EthereumKit(
                 RpcBlockchainSafe4.instance(address, storage, syncer, Safe4TransactionBuilder(address, chain.id), web3j!!)
             else
                 RpcBlockchain.instance(address, storage, syncer, TransactionBuilder(address, chain.id))
+
+            val transactionProvider = transactionProvider(transactionSource, address, chain.id, blockchain)
 
             val transactionDatabase = EthereumDatabaseManager.getTransactionDatabase(application, walletId, chain)
             val transactionStorage = TransactionStorage(transactionDatabase)
@@ -761,11 +762,26 @@ class EthereumKit(
             EthereumDatabaseManager.clear(context, chain, walletId)
         }
 
-        private fun transactionProvider(transactionSource: TransactionSource, address: Address, chainId: Int): ITransactionProvider {
+        private fun transactionProvider(
+            transactionSource: TransactionSource,
+            address: Address,
+            chainId: Int,
+            blockchain: IBlockchain
+        ): ITransactionProvider {
             when (transactionSource.type) {
                 is TransactionSource.SourceType.Etherscan -> {
                     val service = EtherscanService(transactionSource.type.apiBaseUrl, transactionSource.type.apiKeys, chainId)
                     return EtherscanTransactionProvider(service, address)
+                }
+
+                is TransactionSource.SourceType.Chainstack -> {
+                    // 通过 Chainstack RPC 节点做区块扫描同步交易
+                    android.util.Log.d(
+                        ChainstackTransactionProvider.TAG,
+                        "create ChainstackTransactionProvider: address=${address.hex} " +
+                                "rpcUrls=${transactionSource.type.rpcUrls}"
+                    )
+                    return ChainstackTransactionProvider(blockchain, address)
                 }
             }
         }
