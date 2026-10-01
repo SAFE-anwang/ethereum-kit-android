@@ -87,6 +87,8 @@ interface IBlockchainListener {
 interface ITransactionStorage {
     fun getTransactions(hashes: List<ByteArray>): List<Transaction>
     fun getTransaction(hash: ByteArray): Transaction?
+    /** 本地最后一条交易记录的区块高度，无记录时为 null */
+    fun getLastTransactionBlockNumber(): Long?
     fun getTransactionsBeforeAsync(tags: List<List<String>>, hash: ByteArray?, limit: Int?): Single<List<Transaction>>
     fun save(transactions: List<Transaction>)
 

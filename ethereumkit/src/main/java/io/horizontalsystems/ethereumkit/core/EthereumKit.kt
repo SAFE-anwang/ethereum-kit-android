@@ -706,11 +706,19 @@ class EthereumKit(
             else
                 RpcBlockchain.instance(address, storage, syncer, TransactionBuilder(address, chain.id))
 
-            val transactionProvider = transactionProvider(transactionSource, address, chain.id, blockchain)
-
             val transactionDatabase = EthereumDatabaseManager.getTransactionDatabase(application, walletId, chain)
             val transactionStorage = TransactionStorage(transactionDatabase)
             val transactionSyncerStateStorage = TransactionSyncerStateStorage(transactionDatabase)
+
+            val transactionProvider = transactionProvider(
+                transactionSource,
+                address,
+                chain.id,
+                blockchain,
+                // 仅 Chainstack（区块扫描类）Provider 使用：startBlock 超前于本地记录
+                // 最高区块时回退重扫，防止历史区间交易丢失
+                localMaxBlockProvider = { transactionStorage.getLastTransactionBlockNumber() ?: 0L }
+            )
 
             val erc20Database = EthereumDatabaseManager.getErc20Database(application, walletId, chain)
             val erc20Storage = Eip20Storage(erc20Database)
@@ -766,7 +774,8 @@ class EthereumKit(
             transactionSource: TransactionSource,
             address: Address,
             chainId: Int,
-            blockchain: IBlockchain
+            blockchain: IBlockchain,
+            localMaxBlockProvider: (() -> Long)? = null
         ): ITransactionProvider {
             when (transactionSource.type) {
                 is TransactionSource.SourceType.Etherscan -> {
@@ -781,7 +790,7 @@ class EthereumKit(
                         "create ChainstackTransactionProvider: address=${address.hex} " +
                                 "rpcUrls=${transactionSource.type.rpcUrls}"
                     )
-                    return ChainstackTransactionProvider(blockchain, address)
+                    return ChainstackTransactionProvider(blockchain, address, localMaxBlockProvider)
                 }
             }
         }

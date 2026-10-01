@@ -43,6 +43,15 @@ import java.util.concurrent.atomic.AtomicInteger
 class ChainstackTransactionProvider(
     private val blockchain: IBlockchain,
     private val address: Address,
+    /**
+     * 本地交易记录最高区块的读取器（本地记录中的最大 blockNumber，无记录时为 null）。
+     *
+     * 仅区块扫描类同步需要：startBlock 超前于「本地记录最高区块」与本 Provider
+     * 实际扫描进度二者的较大值时，说明该进度指向的区间从未真正扫描过
+     * （如状态被历史残留数据推进），回退后重新扫描，避免区间内交易永久丢失。
+     * 索引类 Provider（如 Etherscan）按地址查询、无扫描区间概念，不适用。
+     */
+    private val localMaxBlockProvider: (() -> Long)? = null
 ) : ITransactionProvider {
 
     companion object {
@@ -486,12 +495,33 @@ class ChainstackTransactionProvider(
 
     /** 计算本次扫描的区块区间：首次同步限制最近范围，增量同步限制单次上限 */
     private fun scanRange(startBlock: Long, latestBlock: Long): LongRange? {
+        // 可信进度 = max(本地记录最高区块, 本 Provider 实际扫描进度)：
+        // - 扫描进度（进程内）反映本 Provider 真正扫描到的位置；
+        // - 本地记录最高区块在进程重启后仍有效，覆盖扫描进度丢失的场景。
+        // startBlock 超前于该值时，说明其指向的区间从未真正扫描过
+        // （如状态被历史残留数据推进），回退后重新扫描，否则区间内交易将永久丢失。
+        // 正常增量时 startBlock ≤ 可信进度 + 1，不受影响。
+        val localMaxBlock = maxOf(
+            localMaxBlockProvider?.invoke() ?: 0L,
+            if (scannedBlockHeight > 0) scannedBlockHeight else 0L
+        )
+        val trustedStart = if (localMaxBlock > 0 && startBlock > localMaxBlock + 1) {
+            Log.w(
+                TAG,
+                "scanRange: startBlock=$startBlock ahead of local max block " +
+                        "$localMaxBlock, fallback to it"
+            )
+            localMaxBlock + 1
+        } else {
+            startBlock
+        }
+
         // startBlock 由上层 syncer 传入（lastBlockNumber + 1），首次同步时为 1
-        val isFirstSync = startBlock <= 1L
+        val isFirstSync = trustedStart <= 1L
         val fromBlock = if (isFirstSync) {
             latestBlock - FIRST_SYNC_BLOCK_RANGE + 1
         } else {
-            startBlock
+            trustedStart
         }.coerceAtLeast(1L)
 
         // 增量同步时限制单次最大跨度，避免落后时一次拉取过多区块
@@ -613,7 +643,7 @@ class ChainstackTransactionProvider(
             if (matchedTransactions.isEmpty()) {
                 Single.just(emptyList())
             } else {
-                Log.d(TAG, "scanBlocksTransactions: block $blockNumber matched ${matchedTransactions.size} txs")
+                Log.d(TAG, "scanBlocksTransactions: block $blockNumber matched ${matchedTransactions.size} txs, ${matchedTransactions.map { it }}")
                 // 并发拉取收据以补齐 gasUsed / status（并发度由 throttled 全局闸门控制）
                 Observable.fromIterable(matchedTransactions)
                     .subscribeOn(Schedulers.io())

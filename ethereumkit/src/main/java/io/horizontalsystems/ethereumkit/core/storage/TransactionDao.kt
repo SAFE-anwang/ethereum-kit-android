@@ -15,6 +15,10 @@ interface TransactionDao {
     @Query("SELECT * FROM `InternalTransaction` ORDER BY blockNumber DESC LIMIT 1")
     fun getLastInternalTransaction() : InternalTransaction?
 
+    /** 本地最后一条交易记录的区块高度（含 pending，NULL 区块高度的记录不参与计算） */
+    @Query("SELECT MAX(blockNumber) FROM `Transaction`")
+    fun getLastTransactionBlockNumber(): Long?
+
     @Query("SELECT * FROM `Transaction` WHERE hash IN (:hashes)")
     fun getTransactions(hashes: List<ByteArray>): List<Transaction>
 

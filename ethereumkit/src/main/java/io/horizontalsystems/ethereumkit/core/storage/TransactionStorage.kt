@@ -19,6 +19,9 @@ class TransactionStorage(database: TransactionDatabase) : ITransactionStorage {
     override fun getTransaction(hash: ByteArray): Transaction? =
         transactionDao.getTransaction(hash)
 
+    override fun getLastTransactionBlockNumber(): Long? =
+        transactionDao.getLastTransactionBlockNumber()
+
     override fun getTransactionsBeforeAsync(tags: List<List<String>>, hash: ByteArray?, limit: Int?): Single<List<Transaction>> {
         val whereConditions = mutableListOf<String>()
 
