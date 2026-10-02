@@ -715,9 +715,8 @@ class EthereumKit(
                 address,
                 chain.id,
                 blockchain,
-                // 仅 Chainstack（区块扫描类）Provider 使用：startBlock 超前于本地记录
-                // 最高区块时回退重扫，防止历史区间交易丢失
-                localMaxBlockProvider = { transactionStorage.getLastTransactionBlockNumber() ?: 0L }
+                // 扫描进度持久化缓存（仅 Chainstack）：首轮成功后缓存最新高度，后续从缓存高度继续
+                scanProgressCache = transactionSyncerStateStorage
             )
 
             val erc20Database = EthereumDatabaseManager.getErc20Database(application, walletId, chain)
@@ -775,7 +774,7 @@ class EthereumKit(
             address: Address,
             chainId: Int,
             blockchain: IBlockchain,
-            localMaxBlockProvider: (() -> Long)? = null
+            scanProgressCache: TransactionSyncerStateStorage? = null
         ): ITransactionProvider {
             when (transactionSource.type) {
                 is TransactionSource.SourceType.Etherscan -> {
@@ -790,7 +789,12 @@ class EthereumKit(
                         "create ChainstackTransactionProvider: address=${address.hex} " +
                                 "rpcUrls=${transactionSource.type.rpcUrls}"
                     )
-                    return ChainstackTransactionProvider(blockchain, address, localMaxBlockProvider)
+                    return ChainstackTransactionProvider(
+                        blockchain,
+                        address,
+                        // 扫描进度持久化缓存：首轮成功后缓存最新高度，后续从缓存高度继续
+                        scanProgressCache
+                    )
                 }
             }
         }

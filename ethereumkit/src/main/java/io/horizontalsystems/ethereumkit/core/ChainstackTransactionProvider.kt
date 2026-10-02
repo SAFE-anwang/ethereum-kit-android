@@ -14,6 +14,8 @@ import io.horizontalsystems.ethereumkit.models.ProviderTokenTransaction
 import io.horizontalsystems.ethereumkit.models.ProviderTransaction
 import io.horizontalsystems.ethereumkit.models.Safe4AccountManagerTransaction
 import io.horizontalsystems.ethereumkit.models.TransactionLog
+import io.horizontalsystems.ethereumkit.core.storage.TransactionSyncerStateStorage
+import io.horizontalsystems.ethereumkit.models.TransactionSyncerState
 import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.schedulers.Schedulers
@@ -34,8 +36,9 @@ import java.util.concurrent.atomic.AtomicInteger
  *   from/to 两个方向各查一次，节点只返回本地址相关日志（几十条）。绝不能只按 topic0
  *   全量拉取——ETH 主网 500 块的 Transfer 事件可达 5~15 万条（响应体 30~100MB），
  *   会直接 OOM；
- * - 首次同步只扫描最近 [FIRST_SYNC_BLOCK_RANGE] 个区块，之后由上层 syncer 传入的
- *   startBlock 驱动增量同步；区间无相关交易时也通过 [lastScannedBlockHeight] 推进进度。
+ * - 首次同步只扫描最近 [FIRST_SYNC_BLOCK_RANGE] 个区块；扫描成功后把到达的最新高度
+ *   写入持久化缓存（[updateScanProgress]），后续每轮从缓存高度之后继续、成功后更新，
+ *   重启后不依赖上层 syncer 状态即可接着上次位置同步。
  *
  * 说明：trace/日志扫描无法拿到 tokenName/tokenSymbol/nonce/gasPrice 等信息，
  * 这些字段由 DecorationManager 在本地解析补全。
@@ -44,14 +47,10 @@ class ChainstackTransactionProvider(
     private val blockchain: IBlockchain,
     private val address: Address,
     /**
-     * 本地交易记录最高区块的读取器（本地记录中的最大 blockNumber，无记录时为 null）。
-     *
-     * 仅区块扫描类同步需要：startBlock 超前于「本地记录最高区块」与本 Provider
-     * 实际扫描进度二者的较大值时，说明该进度指向的区间从未真正扫描过
-     * （如状态被历史残留数据推进），回退后重新扫描，避免区间内交易永久丢失。
-     * 索引类 Provider（如 Etherscan）按地址查询、无扫描区间概念，不适用。
+     * 扫描进度持久化缓存：切换为 Chainstack 同步后，首轮成功扫描即缓存当前最新高度，
+     * 后续每轮从缓存高度之后继续、成功后更新，App 重启后无需依赖上层 syncer 状态。
      */
-    private val localMaxBlockProvider: (() -> Long)? = null
+    private val scanProgressCache: TransactionSyncerStateStorage? = null
 ) : ITransactionProvider {
 
     companion object {
@@ -140,6 +139,9 @@ class ChainstackTransactionProvider(
         // keccak256("TransferSingle(address,address,address,uint256,uint256)")
         private const val TRANSFER_SINGLE_TOPIC =
             "c3d58168c5ae7397731d063d5bbf3d657854427343f4c083240f7aacaa2d0f62"
+
+        /** 扫描进度在持久化缓存中的 key（复用 TransactionSyncerState 表，独立 ID） */
+        private const val SCAN_PROGRESS_CACHE_ID = "chainstack-scan-progress"
     }
 
     private val addressHex = address.hex.lowercase()
@@ -175,6 +177,25 @@ class ChainstackTransactionProvider(
     /** 最近一次扫描实际到达的最高区块，用于驱动增量同步进度 */
     @Volatile
     private var scannedBlockHeight: Long = -1L
+
+    /**
+     * 持久化扫描进度 = 进程内进度与缓存高度的较大者。
+     *
+     * 缓存在切换为 Chainstack 同步后的首轮成功扫描时写入当前最新高度，
+     * 之后每轮成功扫描后更新；App 重启后从这里恢复，无需依赖上层 syncer 状态。
+     */
+    private val cachedScanProgress: Long
+        get() = maxOf(
+            scannedBlockHeight,
+            scanProgressCache?.get(SCAN_PROGRESS_CACHE_ID)?.lastBlockNumber ?: 0L
+        )
+
+    /** 扫描成功后推进进度：更新进程内变量并写入持久化缓存 */
+    private fun updateScanProgress(height: Long) {
+        scannedBlockHeight = maxOf(scannedBlockHeight, height)
+        scanProgressCache?.save(TransactionSyncerState(SCAN_PROGRESS_CACHE_ID, scannedBlockHeight))
+        Log.d(TAG, "updateScanProgress: $scannedBlockHeight")
+    }
 
     /**
      * 同一轮同步内的 eth_getLogs 请求去重缓存（按 chunk + 方向粒度）。
@@ -360,7 +381,7 @@ class ChainstackTransactionProvider(
             }
             .doOnSuccess { result ->
                 if (failedChunks.get() == 0) {
-                    scannedBlockHeight = maxOf(scannedBlockHeight, range.last)
+                    updateScanProgress(range.last)
                 } else {
                     Log.w(TAG, "scanTraces: ${failedChunks.get()} chunks failed, skip progress update")
                 }
@@ -495,26 +516,17 @@ class ChainstackTransactionProvider(
 
     /** 计算本次扫描的区块区间：首次同步限制最近范围，增量同步限制单次上限 */
     private fun scanRange(startBlock: Long, latestBlock: Long): LongRange? {
-        // 可信进度 = max(本地记录最高区块, 本 Provider 实际扫描进度)：
-        // - 扫描进度（进程内）反映本 Provider 真正扫描到的位置；
-        // - 本地记录最高区块在进程重启后仍有效，覆盖扫描进度丢失的场景。
-        // startBlock 超前于该值时，说明其指向的区间从未真正扫描过
-        // （如状态被历史残留数据推进），回退后重新扫描，否则区间内交易将永久丢失。
-        // 正常增量时 startBlock ≤ 可信进度 + 1，不受影响。
-        val localMaxBlock = maxOf(
-            localMaxBlockProvider?.invoke() ?: 0L,
-            if (scannedBlockHeight > 0) scannedBlockHeight else 0L
-        )
-        val trustedStart = if (localMaxBlock > 0 && startBlock > localMaxBlock + 1) {
-            Log.w(
-                TAG,
-                "scanRange: startBlock=$startBlock ahead of local max block " +
-                        "$localMaxBlock, fallback to it"
-            )
-            localMaxBlock + 1
-        } else {
-            startBlock
+        // 后续同步从缓存高度开始：上层传入的 startBlock 落后于已缓存进度时
+        // （如状态丢失/重置），以缓存高度之后继续，避免重复扫描已扫描区间。
+        // 其余情况直接使用上层传入的 startBlock——它就是当前数据源
+        // （如 Etherscan）已同步到的本地最新位置。
+        var trustedStart = startBlock
+        if (cachedScanProgress > 0 && trustedStart <= cachedScanProgress) {
+            Log.d(TAG, "scanRange: startBlock=$startBlock behind cached progress " +
+                    "$cachedScanProgress, resume from cache")
+            trustedStart = cachedScanProgress + 1
         }
+        Log.d(TAG, "scanRange: startBlock=$startBlock latestBlock=$latestBlock trustedStart=$trustedStart")
 
         // startBlock 由上层 syncer 传入（lastBlockNumber + 1），首次同步时为 1
         val isFirstSync = trustedStart <= 1L
@@ -618,7 +630,7 @@ class ChainstackTransactionProvider(
             .doOnSuccess { result ->
                 // 记录扫描进度：即使区间内没有相关交易，进度也要推进，避免每次重复扫描同一区间
                 if (failedBlocks.get() == 0) {
-                    scannedBlockHeight = range.last
+                    updateScanProgress(range.last)
                 } else {
                     // 存在失败区块时只推进到成功扫描的最高区块，下次可重试失败部分
                     Log.w(TAG, "scanBlocks: ${failedBlocks.get()} blocks failed, skip progress update")
@@ -822,7 +834,7 @@ class ChainstackTransactionProvider(
             .doOnSuccess { result ->
                 // 全部分块成功时才推进扫描进度
                 if (failedChunks.get() == 0) {
-                    scannedBlockHeight = maxOf(scannedBlockHeight, range.last)
+                    updateScanProgress(range.last)
                 } else {
                     Log.w(TAG, "scanAddressLogs: ${failedChunks.get()} chunks failed, skip progress update")
                 }
