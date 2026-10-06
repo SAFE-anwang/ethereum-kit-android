@@ -2,6 +2,7 @@ package io.horizontalsystems.nftkit.core.db
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.nftkit.models.NftBalance
@@ -11,6 +12,12 @@ import java.math.BigInteger
 
 @Dao
 interface NftBalanceDao {
+
+    // 说明：新增记录用 IGNORE。
+    // 实时（websocket 直查）与区间扫描会重复投递同一笔 NFT 交易，
+    // 两次「查库 → 判断不存在 → 插入」存在竞争，普通 INSERT 会因主键
+    // (contractAddress, tokenId) 冲突抛 SQLiteConstraintException 导致崩溃；
+    // IGNORE 下已存在的记录保持原值（真实余额），由后续余额同步刷新。
 
     @Query("SELECT * FROM NftBalanceRecord WHERE type = :type")
     fun nftBalances(type: NftType): List<NftBalance>
@@ -30,6 +37,6 @@ interface NftBalanceDao {
     @Query("UPDATE NftBalanceRecord SET synced = 0 WHERE contractAddress = :contractAddress AND tokenId = :tokenId")
     fun setNotSynced(contractAddress: Address, tokenId: BigInteger)
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insertAll(balances: List<NftBalanceRecord>)
 }
