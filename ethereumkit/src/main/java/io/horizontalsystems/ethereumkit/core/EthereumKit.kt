@@ -762,7 +762,16 @@ class EthereumKit(
             val erc20Database = EthereumDatabaseManager.getErc20Database(application, walletId, chain)
             val erc20Storage = Eip20Storage(erc20Database)
 
-            val ethereumTransactionSyncer = EthereumTransactionSyncer(transactionProvider, transactionSyncerStateStorage)
+            // 同步进度按数据源隔离：切换数据源时新的数据源没有进度 → 从 0 开始完整同步。
+            // Chainstack 的区块扫描会把进度推进到链头，若切到 Etherscan 后沿用该进度，
+            // Etherscan 只会查链头附近区块，恢复钱包的历史交易将永远同步不下来。
+            val sourceStateSuffix = "|" + transactionSource.sourceStateKey()
+
+            val ethereumTransactionSyncer = EthereumTransactionSyncer(
+                transactionProvider,
+                transactionSyncerStateStorage,
+                EthereumTransactionSyncer.SyncerId + sourceStateSuffix
+            )
             val internalTransactionsSyncer = InternalTransactionSyncer(transactionProvider, transactionStorage)
 
             val decorationManager = DecorationManager(address, transactionStorage)
@@ -776,7 +785,12 @@ class EthereumKit(
             nonceProvider.addProvider(blockchain)
 
             if (chain == Chain.SafeFour || chain == Chain.SafeFourTestNet) {
-                val safe4TransactionSyncer = Safe4TransactionSyncer(address.hex, transactionProvider, transactionSyncerStateStorage)
+                val safe4TransactionSyncer = Safe4TransactionSyncer(
+                    address.hex,
+                    transactionProvider,
+                    transactionSyncerStateStorage,
+                    Safe4TransactionSyncer.SyncerId + sourceStateSuffix
+                )
                 transactionSyncManager.add(safe4TransactionSyncer)
             }
 
@@ -817,6 +831,18 @@ class EthereumKit(
 
         fun clear(context: Context, chain: Chain, walletId: String) {
             EthereumDatabaseManager.clear(context, chain, walletId)
+        }
+
+        /**
+         * 数据源标识，用于隔离同步进度状态。
+         *
+         * 取值稳定（不受展示名变化影响），两类数据源的同步机制不同：
+         * Etherscan 按地址索引查询、可从 0 拉全量历史；
+         * Chainstack 按区块扫描、进度会推进到链头。二者进度不可混用。
+         */
+        private fun TransactionSource.sourceStateKey(): String = when (type) {
+            is TransactionSource.SourceType.Etherscan -> "etherscan"
+            is TransactionSource.SourceType.Chainstack -> "chainstack"
         }
 
         /**

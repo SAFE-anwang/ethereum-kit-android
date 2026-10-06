@@ -13,7 +13,16 @@ private const val TAG = "EthereumTxSyncer"
 
 class EthereumTransactionSyncer(
         private val transactionProvider: ITransactionProvider,
-        private val storage: TransactionSyncerStateStorage
+        private val storage: TransactionSyncerStateStorage,
+        /**
+         * 进度状态 key。
+         *
+         * 上层按数据源隔离（见 EthereumKit）：Chainstack 扫描会把进度推进到链头，
+         * 若切换到 Etherscan 后沿用该进度，Etherscan 只会查询链头附近的区块，
+         * 恢复钱包的历史交易将永远同步不下来。隔离后每个数据源各用各的进度，
+         * 新数据源没有进度 → 从 0 开始，从而完整拉取历史。
+         */
+        private val syncerId: String = SyncerId
 ) : ITransactionSyncer {
 
     companion object {
@@ -21,7 +30,7 @@ class EthereumTransactionSyncer(
     }
 
     override fun getTransactionsSingle(): Single<Pair<List<Transaction>, Boolean>> {
-        val lastTransactionBlockNumber = storage.get(SyncerId)?.lastBlockNumber ?: 0
+        val lastTransactionBlockNumber = storage.get(syncerId)?.lastBlockNumber ?: 0
         val initial = lastTransactionBlockNumber == 0L
 
         Log.i(TAG, "getTransactionsSingle: start, startBlock=${lastTransactionBlockNumber + 1}")
@@ -63,7 +72,7 @@ class EthereumTransactionSyncer(
             scannedBlock.takeIf { it > 0 }
         ).maxOrNull() ?: return
 
-        val syncerState = TransactionSyncerState(SyncerId, maxBlockNumber)
+        val syncerState = TransactionSyncerState(syncerId, maxBlockNumber)
 
         storage.save(syncerState)
     }

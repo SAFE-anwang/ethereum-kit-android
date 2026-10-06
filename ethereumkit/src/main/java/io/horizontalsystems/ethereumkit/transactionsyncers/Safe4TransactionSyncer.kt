@@ -14,7 +14,9 @@ import io.reactivex.Single
 class Safe4TransactionSyncer(
         private val address: String,
         private val transactionProvider: ITransactionProvider,
-        private val storage: TransactionSyncerStateStorage
+        private val storage: TransactionSyncerStateStorage,
+        /** 进度状态 key：与 [EthereumTransactionSyncer] 一致，按数据源隔离 */
+        private val syncerId: String = SyncerId
 ) : ITransactionSyncer {
 
     companion object {
@@ -22,7 +24,7 @@ class Safe4TransactionSyncer(
     }
 
     override fun getTransactionsSingle(): Single<Pair<List<Transaction>, Boolean>> {
-        val lastTransactionBlockNumber = storage.get(SyncerId)?.lastBlockNumber ?: 0
+        val lastTransactionBlockNumber = storage.get(syncerId)?.lastBlockNumber ?: 0
         val initial = lastTransactionBlockNumber == 0L
         return transactionProvider.getSafeAccountManagerTransactions(lastTransactionBlockNumber + 1)
                 .doOnSuccess { providerTransactions -> handle(providerTransactions) }
@@ -39,7 +41,7 @@ class Safe4TransactionSyncer(
 
     private fun handle(transactions: List<Safe4AccountManagerTransaction>) {
         val maxBlockNumber = transactions.maxOfOrNull { it.blockNumber } ?: return
-        val syncerState = TransactionSyncerState(SyncerId, maxBlockNumber)
+        val syncerState = TransactionSyncerState(syncerId, maxBlockNumber)
 
         storage.save(syncerState)
     }
