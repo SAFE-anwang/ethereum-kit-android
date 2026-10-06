@@ -38,39 +38,8 @@ class EthereumTransactionSyncer(
                     providerTransactions
                 }
                 .map { providerTransactions ->
-                    val array = providerTransactions.map { transaction ->
-                        val isFailed = when {
-                            transaction.txReceiptStatus != null -> {
-                                transaction.txReceiptStatus != 1
-                            }
-                            transaction.isError != null -> {
-                                transaction.isError != 0
-                            }
-                            transaction.gasUsed != null -> {
-                                transaction.gasUsed == transaction.gasLimit
-                            }
-                            else -> {
-                                false
-                            }
-                        }
-
-                        Transaction(
-                                hash = transaction.hash,
-                                timestamp = transaction.timestamp,
-                                isFailed = isFailed,
-                                blockNumber = transaction.blockNumber,
-                                transactionIndex = transaction.transactionIndex,
-                                from = transaction.from,
-                                to = transaction.to,
-                                value = transaction.value,
-                                input = transaction.input,
-                                nonce = transaction.nonce,
-                                gasPrice = transaction.gasPrice,
-                                gasUsed = transaction.gasUsed
-                        )
-                    }
-
-                    Pair(array, initial)
+                    // 与按区块直查路径共用同一映射
+                    Pair(providerTransactions.map { it.toTransaction() }, initial)
                 }
                 // 失败不再被吞成「空列表 + 成功」：此前 Provider 已扫描到交易时，
                 // 收据获取/状态存储等任何一环出错都会被转成空数据，

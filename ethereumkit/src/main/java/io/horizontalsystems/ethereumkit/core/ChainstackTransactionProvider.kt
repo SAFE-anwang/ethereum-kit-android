@@ -231,6 +231,42 @@ class ChainstackTransactionProvider(
     override val lastScannedBlockHeight: Long
         get() = scannedBlockHeight
 
+    /**
+     * 直接查询指定区块中与本地址相关的普通交易。
+     *
+     * 用于 websocket 新区块通知后的快速补齐：只拉这一个区块（fullTx=true）+ 命中交易的收据，
+     * 相比按区间扫描（trace_filter 分块或逐块扫描）更快更省；不推进扫描进度，
+     * 区间扫描仍由常规同步负责，两者结果按交易哈希在存储层去重。
+     */
+    override fun getTransactionsInBlock(blockNumber: Long): Single<List<ProviderTransaction>> {
+        Log.d(TAG, "getTransactionsInBlock: start, block=$blockNumber address=$addressHex")
+
+        return throttled(blockchain.rpcSingle(GetBlockWithTransactionsJsonRpc(blockNumber)))
+            .map { block ->
+                block.transactions.filter { isRelated(it) } to block.timestamp
+            }
+            .flatMap { (matchedTransactions, blockTimestamp) ->
+                if (matchedTransactions.isEmpty()) {
+                    Single.just(emptyList())
+                } else {
+                    Observable.fromIterable(matchedTransactions)
+                        .subscribeOn(Schedulers.io())
+                        .flatMap(
+                            { tx -> receiptSingle(tx, blockNumber, blockTimestamp).toObservable() },
+                            RECEIPT_FETCH_CONCURRENCY
+                        )
+                        .toList()
+                }
+            }
+            .doOnSuccess { result ->
+                Log.d(TAG, "getTransactionsInBlock: done, block=$blockNumber matched=${result.size}")
+            }
+            .onErrorReturn { e ->
+                Log.w(TAG, "getTransactionsInBlock: block=$blockNumber failed: $e")
+                emptyList()
+            }
+    }
+
     override fun getTransactions(startBlock: Long): Single<List<ProviderTransaction>> {
         Log.d(TAG, "getTransactions: start, startBlock=$startBlock")
         // 优先 trace_filter（一次请求覆盖全区间，节点端地址过滤，含普通转账），

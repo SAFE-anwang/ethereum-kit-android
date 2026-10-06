@@ -14,8 +14,13 @@ class TransactionSource(val name: String, val type: SourceType) {
         /**
          * 通过 Chainstack RPC 节点的区块扫描同步交易（不依赖 Etherscan 等浏览器 API）。
          * [rpcUrls] 为同一链的多个可用 RPC 端点，用于负载与容错；[txBaseUrl] 仅用于拼接交易详情链接。
+         * [wsUrls] 为 websocket 端点（实时订阅新区块/日志用），为空时由 [rpcUrls] 推导。
          */
-        class Chainstack(val rpcUrls: List<String>, val txBaseUrl: String) : SourceType()
+        class Chainstack(
+            val rpcUrls: List<String>,
+            val txBaseUrl: String,
+            val wsUrls: List<String> = emptyList()
+        ) : SourceType()
     }
 
     companion object {

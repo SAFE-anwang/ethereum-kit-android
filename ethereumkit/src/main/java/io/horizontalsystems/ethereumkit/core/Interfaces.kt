@@ -153,6 +153,16 @@ interface ITransactionProvider {
         get() = -1L
 
     fun getTransactions(startBlock: Long): Single<List<ProviderTransaction>>
+
+    /**
+     * 直接获取指定区块中与本地址相关的普通交易（新区块实时通知后的快速补齐）。
+     *
+     * 与 [getTransactions] 的区间扫描相互独立：本方法只查单个区块，不推进扫描进度，
+     * 由上层直接入库，用于新交易出现后立刻刷新交易列表。
+     * 索引类 Provider（如 Etherscan）不支持按区块直查，默认返回空列表。
+     */
+    fun getTransactionsInBlock(blockNumber: Long): Single<List<ProviderTransaction>> =
+        Single.just(emptyList())
     fun getInternalTransactions(startBlock: Long): Single<List<ProviderInternalTransaction>>
     fun getInternalTransactionsAsync(hash: ByteArray): Single<List<ProviderInternalTransaction>>
     fun getTokenTransactions(startBlock: Long): Single<List<ProviderTokenTransaction>>
