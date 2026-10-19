@@ -59,6 +59,7 @@ import io.horizontalsystems.ethereumkit.transactionsyncers.EthereumTransactionSy
 import io.horizontalsystems.ethereumkit.transactionsyncers.InternalTransactionSyncer
 import io.horizontalsystems.ethereumkit.transactionsyncers.Safe4TransactionSyncer
 import io.horizontalsystems.ethereumkit.transactionsyncers.TransactionSyncManager
+import io.horizontalsystems.ethereumkit.transactionsyncers.toTransaction
 import io.horizontalsystems.hdwalletkit.Mnemonic
 import io.reactivex.BackpressureStrategy
 import io.reactivex.Flowable
@@ -91,7 +92,9 @@ class EthereumKit(
     val eip20Storage: IEip20Storage,
     private val decorationManager: DecorationManager,
     private val state: EthereumKitState = EthereumKitState(),
-    private val isAnBaoWallet: Boolean = false
+    private val isAnBaoWallet: Boolean = false,
+    /** Chainstack 数据源的 websocket 实时监听（新区块/日志出现时立即触发同步） */
+    private val realtimeSync: ChainstackRealtimeSync? = null
 ) : IBlockchainListener {
 
     private val logger = Logger.getLogger("EthereumKit")
@@ -161,21 +164,58 @@ class EthereumKit(
 
         blockchain.start()
         transactionSyncManager.sync()
+        realtimeSync?.start()
     }
 
     fun stop() {
         started = false
+        realtimeSync?.stop()
         blockchain.stop()
         state.clear()
         connectionManager.stop()
     }
 
+    /**
+     * websocket 新区块通知的处理：直接拉取该区块中与本地址相关的交易并立即入库。
+     *
+     * 与区间扫描（增量同步）互补：
+     * - 本方法保证新区块里的交易第一时间出现在列表中；
+     * - 随后刷新链头，由常规同步补齐被合并/跳过的区间（如后台期间产生的区块）。
+     */
+    fun handleNewBlock(blockNumber: Long) {
+        transactionProvider.getTransactionsInBlock(blockNumber)
+            .subscribeOn(Schedulers.io())
+            .subscribe({ providerTransactions ->
+                if (providerTransactions.isNotEmpty()) {
+                    android.util.Log.i(
+                        ChainstackRealtimeSync.TAG,
+                        "block $blockNumber: ${providerTransactions.size} tx(s) matched, handle immediately"
+                    )
+                    transactionManager.handle(providerTransactions.map { it.toTransaction() })
+                }
+            }, { e ->
+                android.util.Log.w(
+                    ChainstackRealtimeSync.TAG,
+                    "handle new block $blockNumber failed: ${e.message}"
+                )
+            })
+            .let {
+                disposables.add(it)
+            }
+
+        // 刷新链头：更新余额，并让区间扫描补齐可能跳过的区块
+        blockchain.refresh()
+    }
+
     fun onEnterForeground() {
         blockchain.resume()
+        realtimeSync?.start()
     }
 
     fun onEnterBackground() {
         blockchain.pause()
+        // 退到后台断开 websocket，避免常驻连接耗电
+        realtimeSync?.stop()
     }
 
     fun getAnBaoAllAddressInfo(seed: ByteArray) {
@@ -697,7 +737,6 @@ class EthereumKit(
             }
 
             val transactionBuilder = TransactionBuilder(address, chain.id)
-            val transactionProvider = transactionProvider(transactionSource, address, chain.id)
 
             val apiDatabase = EthereumDatabaseManager.getEthereumApiDatabase(application, walletId, chain)
             val storage = ApiStorage(apiDatabase)
@@ -711,10 +750,28 @@ class EthereumKit(
             val transactionStorage = TransactionStorage(transactionDatabase)
             val transactionSyncerStateStorage = TransactionSyncerStateStorage(transactionDatabase)
 
+            val transactionProvider = transactionProvider(
+                transactionSource,
+                address,
+                chain.id,
+                blockchain,
+                // 扫描进度持久化缓存（仅 Chainstack）：首轮成功后缓存最新高度，后续从缓存高度继续
+                scanProgressCache = transactionSyncerStateStorage
+            )
+
             val erc20Database = EthereumDatabaseManager.getErc20Database(application, walletId, chain)
             val erc20Storage = Eip20Storage(erc20Database)
 
-            val ethereumTransactionSyncer = EthereumTransactionSyncer(transactionProvider, transactionSyncerStateStorage)
+            // 同步进度按数据源隔离：切换数据源时新的数据源没有进度 → 从 0 开始完整同步。
+            // Chainstack 的区块扫描会把进度推进到链头，若切到 Etherscan 后沿用该进度，
+            // Etherscan 只会查链头附近区块，恢复钱包的历史交易将永远同步不下来。
+            val sourceStateSuffix = "|" + transactionSource.sourceStateKey()
+
+            val ethereumTransactionSyncer = EthereumTransactionSyncer(
+                transactionProvider,
+                transactionSyncerStateStorage,
+                EthereumTransactionSyncer.SyncerId + sourceStateSuffix
+            )
             val internalTransactionsSyncer = InternalTransactionSyncer(transactionProvider, transactionStorage)
 
             val decorationManager = DecorationManager(address, transactionStorage)
@@ -728,8 +785,21 @@ class EthereumKit(
             nonceProvider.addProvider(blockchain)
 
             if (chain == Chain.SafeFour || chain == Chain.SafeFourTestNet) {
-                val safe4TransactionSyncer = Safe4TransactionSyncer(address.hex, transactionProvider, transactionSyncerStateStorage)
+                val safe4TransactionSyncer = Safe4TransactionSyncer(
+                    address.hex,
+                    transactionProvider,
+                    transactionSyncerStateStorage,
+                    Safe4TransactionSyncer.SyncerId + sourceStateSuffix
+                )
                 transactionSyncManager.add(safe4TransactionSyncer)
+            }
+
+            // Chainstack 数据源：websocket 订阅新区块/日志。
+            // 收到通知后直接拉取该区块中与本地址相关的交易并立即入库，
+            // 同时刷新链头驱动余额更新与区间扫描兜底。
+            var ethereumKitRef: EthereumKit? = null
+            val realtimeSync = createRealtimeSync(transactionSource, address, blockchain) { blockNumber ->
+                ethereumKitRef?.handleNewBlock(blockNumber)
             }
 
             val ethereumKit = EthereumKit(
@@ -744,8 +814,10 @@ class EthereumKit(
                 transactionProvider,
                 erc20Storage,
                 decorationManager,
-                isAnBaoWallet = isAnBaoWallet
+                isAnBaoWallet = isAnBaoWallet,
+                realtimeSync = realtimeSync
             )
+            ethereumKitRef = ethereumKit
 
             blockchain.listener = ethereumKit
 
@@ -761,11 +833,75 @@ class EthereumKit(
             EthereumDatabaseManager.clear(context, chain, walletId)
         }
 
-        private fun transactionProvider(transactionSource: TransactionSource, address: Address, chainId: Int): ITransactionProvider {
+        /**
+         * 数据源标识，用于隔离同步进度状态。
+         *
+         * 取值稳定（不受展示名变化影响），两类数据源的同步机制不同：
+         * Etherscan 按地址索引查询、可从 0 拉全量历史；
+         * Chainstack 按区块扫描、进度会推进到链头。二者进度不可混用。
+         */
+        private fun TransactionSource.sourceStateKey(): String = when (type) {
+            is TransactionSource.SourceType.Etherscan -> "etherscan"
+            is TransactionSource.SourceType.Chainstack -> "chainstack"
+        }
+
+        /**
+         * 创建 Chainstack 实时监听（其它数据源不支持，返回 null）。
+         *
+         * websocket 端点优先取数据源显式配置的 [TransactionSource.SourceType.Chainstack.wsUrls]，
+         * 否则由 HTTP RPC 地址推导。创建失败（如端点不可用）时返回 null，
+         * 退化为原有的轮询同步，不影响功能。
+         */
+        private fun createRealtimeSync(
+            transactionSource: TransactionSource,
+            address: Address,
+            blockchain: IBlockchain,
+            onNewBlock: (Long) -> Unit
+        ): ChainstackRealtimeSync? {
+            val source = transactionSource.type as? TransactionSource.SourceType.Chainstack
+                ?: return null
+
+            val wsUrl = source.wsUrls.firstOrNull()
+                ?: source.rpcUrls.firstOrNull()?.let { ChainstackRealtimeSync.wsUrlFrom(it) }
+                ?: return null
+
+            return try {
+                ChainstackRealtimeSync(wsUrl, address, onNewBlock)
+            } catch (e: Throwable) {
+                android.util.Log.w(
+                    ChainstackRealtimeSync.TAG,
+                    "create realtime sync failed for $wsUrl: $e"
+                )
+                null
+            }
+        }
+
+        private fun transactionProvider(
+            transactionSource: TransactionSource,
+            address: Address,
+            chainId: Int,
+            blockchain: IBlockchain,
+            scanProgressCache: TransactionSyncerStateStorage? = null
+        ): ITransactionProvider {
             when (transactionSource.type) {
                 is TransactionSource.SourceType.Etherscan -> {
                     val service = EtherscanService(transactionSource.type.apiBaseUrl, transactionSource.type.apiKeys, chainId)
                     return EtherscanTransactionProvider(service, address)
+                }
+
+                is TransactionSource.SourceType.Chainstack -> {
+                    // 通过 Chainstack RPC 节点做区块扫描同步交易
+                    android.util.Log.d(
+                        ChainstackTransactionProvider.TAG,
+                        "create ChainstackTransactionProvider: address=${address.hex} " +
+                                "rpcUrls=${transactionSource.type.rpcUrls}"
+                    )
+                    return ChainstackTransactionProvider(
+                        blockchain,
+                        address,
+                        // 扫描进度持久化缓存：首轮成功后缓存最新高度，后续从缓存高度继续
+                        scanProgressCache
+                    )
                 }
             }
         }

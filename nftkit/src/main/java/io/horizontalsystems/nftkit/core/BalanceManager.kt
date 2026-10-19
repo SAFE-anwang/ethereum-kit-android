@@ -32,7 +32,17 @@ class BalanceManager(
     private suspend fun handleNftsFromTransactions(type: NftType, nfts: List<Nft>) {
         val existingBalances = storage.nftBalances(type)
         val existingNfts = existingBalances.map { it.nft }
-        val newNfts = nfts.filter { !existingNfts.contains(it) }
+
+        // 按数据库主键 (contractAddress, tokenId) 去重：
+        // 实时直查与区间扫描会重复投递同一笔 NFT 交易，同一批内也可能出现重复，
+        // 不去重会触发 NftBalanceRecord 主键冲突导致写入崩溃。
+        val newNfts = nfts
+            .distinctBy { it.contractAddress to it.tokenId }
+            .filterNot { nft ->
+                existingBalances.any {
+                    it.nft.contractAddress == nft.contractAddress && it.nft.tokenId == nft.tokenId
+                }
+            }
 
         storage.setNotSynced(existingNfts)
         storage.saveNftBalances(newNfts.map { NftBalance(it, 0, false) })
