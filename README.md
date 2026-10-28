@@ -5,17 +5,16 @@
 ## Core Features
 
 - [x] Restore with **mnemonic phrase**, **BIP39 Seed**, **EVM private key**, or simply an **Ethereum address**
-- [x] Local storage of account data (ETH, Token/NFT balance and transactions)
+- [x] Local storage of account data (ETH, Token balance and transactions)
 - [x] Synchronization over **HTTP/WebSocket**
 - [x] **Watch accounts**. Restore with any address
 - [x] Ethereum Name Service **(ENS) support**
 - [x] **EIP-1559** Gas Prices with live updates
-- [x] Reactive-functional API by [`RxAndroid`](https://github.com/ReactiveX/RxAndroid)
+- [x] Asynchronous API built on [Kotlin coroutines](https://github.com/Kotlin/kotlinx.coroutines) (`suspend` functions and `Flow`)
 - [x] Implementation of Ethereum's JSON-RPC API
 - [x] Support for Infura and Etherscan
 - [x] Can be extended to natively support any smart contract
 - [x] EIP20 token standard support
-- [x] EIP721 and EIP1155 non-fungible tokens(NFT)
 - [x] Uniswap (PancakeSwap, QuickSwap, Trader Joe) support
 - [x] 1Inch support
 
@@ -73,22 +72,26 @@ evmKit.accountState?.let { state ->
 evmKit.lastBlockHeight
 ```
 
-You also can subscribe to Rx observables of those and more:
+You also can collect Kotlin `Flow`s of those and more (inside a `CoroutineScope`):
 
 ```kotlin
-evmKit.accountStateFlowable.subscribe { state -> println("balance: ${state.balance}); nonce: ${state.nonce}") }
-evmKit.lastBlockHeightFlowable.subscribe { height -> println(height) }
-evmKit.syncStateFlowable.subscribe { state -> println(state) }
-evmKit.transactionsSyncStateFlowable.subscribe { state -> println(state) }
+scope.launch { evmKit.accountStateFlow.collect { state -> println("balance: ${state.balance}); nonce: ${state.nonce}") } }
+scope.launch { evmKit.lastBlockHeightFlow.collect { height -> println(height) } }
+scope.launch { evmKit.syncStateFlow.collect { state -> println(state) } }
+scope.launch { evmKit.transactionsSyncStateFlow.collect { state -> println(state) } }
 
-// Subscribe to ETH transactions synced by the kit
-evmKit.getFullTransactionsFlowable(listOf(listOf("ETH"))).subscribe { transactions -> 
-    println(transactions.size) 
+// Collect ETH transactions synced by the kit
+scope.launch {
+    evmKit.getFullTransactionsFlow(listOf(listOf("ETH"))).collect { transactions ->
+        println(transactions.size)
+    }
 }
 
-// Subscribe to all EVM transactions
-evmKit.allTransactionsFlowable.subscribe { transactionsPair -> 
-    println(transactionsPair.first.size) 
+// Collect all EVM transactions
+scope.launch {
+    evmKit.allTransactionsFlow.collect { transactionsPair ->
+        println(transactionsPair.first.size)
+    }
 }
 ```
 
@@ -113,34 +116,25 @@ val gasPrice = GasPrice.Legacy(50_000_000_000)
 // Construct TransactionData which is the key payload of any EVM transaction
 val transactionData = ethereumKit.transferTransactionData(toAddress, amount)
 
-// Estimate gas for the transaction
-val estimateGasSingle = ethereumKit.estimateGas(transactionData, gasPrice)
+// All network calls are suspend functions, so run them inside a coroutine
+scope.launch {
+    // Estimate gas for the transaction
+    val gasLimit = ethereumKit.estimateGas(transactionData, gasPrice)
 
-// Generate a raw transaction which is ready to be signed. This step also synchronizes the nonce
-val rawTransactionSingle = estimateGasSingle.flatMap { estimateGasSingle ->
-    ethereumKit.rawTransaction(transactionData, gasPrice, estimateGasSingle)
-}
+    // Generate a raw transaction which is ready to be signed. This step also synchronizes the nonce
+    val rawTransaction = ethereumKit.rawTransaction(transactionData, gasPrice, gasLimit)
 
-val sendSingle = rawTransactionSingle.flatMap { rawTransaction ->
     // Sign the transaction
     val signature = signer.signature(rawTransaction)
 
     // Send the transaction to RPC node
-    ethereumKit.send(rawTransaction, signature)
-}
-
-// This step is needed for Rx reactive code to run
-val disposables = CompositeDisposable()
-
-sendSingle.subscribe { fullTransaction ->
     // ethereumKit.send returns FullTransaction object that contains transaction and a transaction decoration
+    val fullTransaction = ethereumKit.send(rawTransaction, signature)
     val transaction = fullTransaction.transaction
 
     println("Transaction sent: ${transaction.hash.toHexString()}")
     println("To: ${transaction.to?.let { it.eip55 }}")
     println("Amount: ${transaction.value?.let { it.toString(10) }}")
-}.let {
-    disposables.add(it)
 }
 ```
 
@@ -149,28 +143,26 @@ sendSingle.subscribe { fullTransaction ->
 The following code retrieves the transactions that have `ETH` coin incoming or outgoing, including the transactions where `ETH` is received in internal transactions.
 
 ```kotlin
-ethereumKit.getFullTransactionsAsync(listOf(listOf("ETH")))
-        .subscribe { fullTransactions ->
-            for (fullTransaction in fullTransactions) {
-                println("Transaction hash: ${fullTransaction.transaction.hash.toHexString()}")
+scope.launch {
+    val fullTransactions = ethereumKit.getFullTransactionsAsync(listOf(listOf("ETH")))
+    for (fullTransaction in fullTransactions) {
+        println("Transaction hash: ${fullTransaction.transaction.hash.toHexString()}")
 
-                when (val decoration = fullTransaction.decoration) {
-                    is IncomingDecoration -> {
-                        println("From: ${decoration.from.eip55}")
-                        println("Amount: ${decoration.value.toString(10)}")
-                    }
-
-                    is OutgoingDecoration -> {
-                        println("To: ${decoration.to.eip55}")
-                        println("Amount: ${decoration.value.toString(10)}")
-                    }
-                    
-                    else -> {}
-                }
+        when (val decoration = fullTransaction.decoration) {
+            is IncomingDecoration -> {
+                println("From: ${decoration.from.eip55}")
+                println("Amount: ${decoration.value.toString(10)}")
             }
-        }.let {
-            disposables.add(it)
+
+            is OutgoingDecoration -> {
+                println("To: ${decoration.to.eip55}")
+                println("Amount: ${decoration.value.toString(10)}")
+            }
+            
+            else -> {}
         }
+    }
+}
 ```
 
 ## EIP20 tokens
@@ -206,52 +198,45 @@ val gasPrice = GasPrice.Legacy(50_000_000_000)
 // Construct TransactionData which calls a `Transfer` method of the EIP20 compatible smart contract
 val transactionData = erc20Kit.buildTransferTransactionData(toAddress, amount)
 
-ethereumKit.estimateGas(transactionData, gasPrice)
-        .flatMap { estimateGasSingle ->
-            ethereumKit.rawTransaction(transactionData, gasPrice, estimateGasSingle)
-        }
-        .flatMap { rawTransaction ->
-            val signature = signer.signature(rawTransaction)
-            ethereumKit.send(rawTransaction, signature)
-        }
-        .subscribe { fullTransaction ->
-            println("Transaction sent: ${fullTransaction.transaction.hash.toHexString()}")
+scope.launch {
+    val gasLimit = ethereumKit.estimateGas(transactionData, gasPrice)
+    val rawTransaction = ethereumKit.rawTransaction(transactionData, gasPrice, gasLimit)
+    val signature = signer.signature(rawTransaction)
+    val fullTransaction = ethereumKit.send(rawTransaction, signature)
 
-            val decoration = fullTransaction.decoration as? OutgoingDecoration ?: return@subscribe
-                    
-            println("To: ${decoration.to.eip55}")
-            println("Amount: ${decoration.value.toString(10)}")
-        }.let {
-            disposables.add(it)
-        }
+    println("Transaction sent: ${fullTransaction.transaction.hash.toHexString()}")
+
+    val decoration = fullTransaction.decoration as? OutgoingDecoration ?: return@launch
+
+    println("To: ${decoration.to.eip55}")
+    println("Amount: ${decoration.value.toString(10)}")
+}
 ```
 
 
 ### Get Erc20 transactions
 
 ```kotlin
-ethereumKit.getFullTransactionsAsync(listOf(listOf(contractAddress.eip55)))
-        .subscribe { fullTransactions ->
-            for (fullTransaction in fullTransactions) {
-                println("Transaction sent: ${fullTransaction.transaction.hash.toHexString()}")
+scope.launch {
+    val fullTransactions = ethereumKit.getFullTransactionsAsync(listOf(listOf(contractAddress.eip55)))
+    for (fullTransaction in fullTransactions) {
+        println("Transaction sent: ${fullTransaction.transaction.hash.toHexString()}")
 
-                when (val decoration = fullTransaction.decoration) {
-                    is IncomingDecoration -> {
-                        println("From: ${decoration.from.eip55}")
-                        println("Amount: ${decoration.value.toString(10)}")
-                    }
-
-                    is OutgoingDecoration -> {
-                        println("To: ${decoration.to.eip55}")
-                        println("Amount: ${decoration.value.toString(10)}")
-                    }
-
-                    else -> {}
-                }
+        when (val decoration = fullTransaction.decoration) {
+            is IncomingDecoration -> {
+                println("From: ${decoration.from.eip55}")
+                println("Amount: ${decoration.value.toString(10)}")
             }
-        }.let {
-            disposables.add(it)
+
+            is OutgoingDecoration -> {
+                println("To: ${decoration.to.eip55}")
+                println("Amount: ${decoration.value.toString(10)}")
+            }
+
+            else -> {}
         }
+    }
+}
 ```
 
 ## Uniswap
@@ -275,29 +260,22 @@ val amount = BigDecimal(1)
 val gasPrice = GasPrice.Legacy(50_000_000_000)
 
 // Get SwapData. SwapData is a list of pairs available in Uniswap smart contract at the moment
-uniswapKit.swapData(tokenIn, tokenOut)
-        .map { swapData ->
-            // Get TradeData. TradeData is the best swap route evaluated by UniswapKit
-            val tradeData = uniswapKit.bestTradeExactIn(swapData, amount)
+scope.launch {
+    val swapData = uniswapKit.swapData(tokenIn, tokenOut)
 
-            // Convert TradeData to EvmKit TransactionData
-            uniswapKit.transactionData(tradeData)
-        }
-        .flatMap { transactionData ->
-            ethereumKit.estimateGas(transactionData, gasPrice)
-                    .flatMap { estimateGasSingle ->
-                        ethereumKit.rawTransaction(transactionData, gasPrice, estimateGasSingle)
-                    }
-        }
-        .flatMap { rawTransaction ->
-            val signature = signer.signature(rawTransaction)
-            ethereumKit.send(rawTransaction, signature)
-        }
-        .subscribe { fullTransaction ->
-            println("Transaction sent: ${fullTransaction.transaction.hash.toHexString()}")
-        }.let {
-            disposables.add(it)
-        }
+    // Get TradeData. TradeData is the best swap route evaluated by UniswapKit
+    val tradeData = uniswapKit.bestTradeExactIn(swapData, amount)
+
+    // Convert TradeData to EvmKit TransactionData
+    val transactionData = uniswapKit.transactionData(tradeData)
+
+    val gasLimit = ethereumKit.estimateGas(transactionData, gasPrice)
+    val rawTransaction = ethereumKit.rawTransaction(transactionData, gasPrice, gasLimit)
+    val signature = signer.signature(rawTransaction)
+    val fullTransaction = ethereumKit.send(rawTransaction, signature)
+
+    println("Transaction sent: ${fullTransaction.transaction.hash.toHexString()}")
+}
 ```
 
 ### ExactIn/ExactOut
@@ -330,87 +308,27 @@ val tokenToAddress = Address("0x..to..token..address")
 val amount = BigInteger("100000000000000000")
 val gasPrice = GasPrice.Legacy(50_000_000_000)
 
-// Get Swap object, evaluated transaction data by 1Inch aggregator
-oneInchKit.getSwapAsync(
-        fromToken = tokenFromAddress,
-        toToken = tokenToAddress,
-        amount = amount,
-        slippagePercentage = 1F,
-        recipient = null,
-        gasPrice = gasPrice
-)
-        .flatMap { swap ->
-            val tx = swap.transaction
-            val transactionData = TransactionData(tx.to, tx.value, tx.data)
+scope.launch {
+    // Get Swap object, evaluated transaction data by 1Inch aggregator
+    val swap = oneInchKit.getSwapAsync(
+            fromToken = tokenFromAddress,
+            toToken = tokenToAddress,
+            amount = amount,
+            slippagePercentage = 1F,
+            recipient = null,
+            gasPrice = gasPrice
+    )
 
-            ethereumKit.rawTransaction(transactionData, gasPrice, tx.gasLimit)
-        }
-        .flatMap { rawTransaction ->
-            val signature = signer.signature(rawTransaction)
-            ethereumKit.send(rawTransaction, signature)
-        }
-        .subscribe { fullTransaction ->
-            println("Transaction sent: ${fullTransaction.transaction.hash.toHexString()}")
-        }.let {
-            disposables.add(it)
-        }
-```
+    val tx = swap.transaction
+    val transactionData = TransactionData(tx.to, tx.value, tx.data)
 
-## NFTs
+    val rawTransaction = ethereumKit.rawTransaction(transactionData, gasPrice, tx.gasLimit)
+    val signature = signer.signature(rawTransaction)
+    val fullTransaction = ethereumKit.send(rawTransaction, signature)
 
-NftKit support EIP721 and EIP1155
-
-### Initialization
-
-```kotlin
-val nftKit = NftKit.getInstance(App.instance, ethereumKit)
-
-nftKit.addEip721Decorators()
-nftKit.addEip1155Decorators()
-
-nftKit.addEip721TransactionSyncer()
-nftKit.addEip1155TransactionSyncer()
-```
-
-### Get NFTs owned by the user
-
-```kotlin
-val nftBalances = nftKit.nftBalances
-
-for (nftBalance in nftBalances) {
-    println("---- ${nftBalance.balance} pieces of ${nftBalance.nft.tokenName} ---")
-    println("Contract Address: ${nftBalance.nft.contractAddress.eip55}")
-    println("TokenID: ${nftBalance.nft.tokenId.toString(10)}")
+    println("Transaction sent: ${fullTransaction.transaction.hash.toHexString()}")
 }
 ```
-
-
-### Send an NFT
-
-```kotlin
-val nftContractAddress = Address("0x..contract..address")
-val tokenId = BigInteger("234123894712031638516723498")
-val to = Address("0x..recipient..address")
-val gasPrice = GasPrice.Legacy(50_000_000_000)
-
-// Construct a TransactionData
-val transactionData = nftKit.transferEip721TransactionData(nftContractAddress, to, tokenId)
-
-ethereumKit.estimateGas(transactionData, gasPrice)
-        .flatMap { estimateGasSingle ->
-            ethereumKit.rawTransaction(transactionData, gasPrice, estimateGasSingle)
-        }
-        .flatMap { rawTransaction ->
-            val signature = signer.signature(rawTransaction)
-            ethereumKit.send(rawTransaction, signature)
-        }
-        .subscribe { fullTransaction ->
-            println("Transaction sent: ${fullTransaction.transaction.hash.toHexString()}")
-        }.let {
-            disposables.add(it)
-        }
-```
-
 
 ## Extending
 

@@ -14,7 +14,6 @@ import io.horizontalsystems.uniswapkit.v3.FeeAmount
 import io.horizontalsystems.uniswapkit.v3.SwapPath
 import io.horizontalsystems.uniswapkit.v3.SwapPathItem
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.rx2.await
 import java.math.BigInteger
 import kotlin.coroutines.coroutineContext
 
@@ -35,18 +34,19 @@ class QuoterV2(
         Chain.Polygon,
         Chain.Optimism,
         Chain.ArbitrumOne,
-        Chain.BinanceSmartChain,
-        Chain.Base -> "0x88F1905197cCb1A94a1EA906F4e973bF6F2248dB"
-
-        Chain.ZkSync -> "0x8Cb537fc92E26d8EBBb760E632c95484b6Ea3e28"
         Chain.EthereumGoerli -> "0x61fFE014bA17989E743c5F6cB21bF9697530B21e"
+
+        Chain.BinanceSmartChain -> "0x78D78E420Da98ad378D7799bE8f4AF69033EB077"
+        Chain.Base -> "0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a"
+        Chain.ZkSync -> "0x8Cb537fc92E26d8EBBb760E632c95484b6Ea3e28"
+        Chain.RobinhoodChain -> "0x33e885ed0ec9bf04ecfb19341582aadcb4c8a9e7"
         else -> throw IllegalStateException("Not supported Uniswap chain $chain")
     }
 
     private fun getPancakeSwapQuoterAddress(chain: Chain) = when (chain) {
         Chain.BinanceSmartChain,
         Chain.Base,
-        Chain.Ethereum -> "0xc9b8E9513D71c7Ce8B5482242545e18036Effff3"
+        Chain.Ethereum -> "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997"
         Chain.ZkSync -> "0x3d146FcE6c1006857750cBe8aF44f76a28041CCc"
         Chain.Polygon -> "0x3d146FcE6c1006857750cBe8aF44f76a28041CCc"
 
@@ -273,6 +273,6 @@ class QuoterV2(
 
     private suspend fun ethCall(rpcSource: RpcSource, chain: Chain, data: ByteArray): ByteArray {
         val quoterAddress = Address(quoterAddress(chain))
-        return EthereumKit.call(rpcSource, quoterAddress, data).await()
+        return EthereumKit.call(rpcSource, quoterAddress, data)
     }
 }
