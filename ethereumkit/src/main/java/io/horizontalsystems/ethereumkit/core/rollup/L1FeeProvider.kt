@@ -7,6 +7,7 @@ import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.GasPrice
 import io.horizontalsystems.ethereumkit.models.RawTransaction
 import io.horizontalsystems.ethereumkit.spv.core.toBigInteger
+import io.reactivex.Single
 import java.math.BigInteger
 
 class L1FeeProvider(
@@ -19,12 +20,13 @@ class L1FeeProvider(
         override fun getArguments() = listOf(transaction)
     }
 
-    suspend fun getL1Fee(gasPrice: GasPrice, gasLimit: Long, to: Address, value: BigInteger, data: ByteArray): BigInteger {
+    fun getL1Fee(gasPrice: GasPrice, gasLimit: Long, to: Address, value: BigInteger, data: ByteArray): Single<BigInteger> {
         val rawTransaction = RawTransaction(gasPrice, gasLimit, to, value, 1, data)
         val encoded = TransactionBuilder.encode(rawTransaction, null, evmKit.chain.id)
         val feeMethodABI = L1FeeMethod(encoded).encodedABI()
 
-        return evmKit.call(contractAddress, feeMethodABI).sliceArray(IntRange(0, 31)).toBigInteger()
+        return evmKit.call(contractAddress, feeMethodABI)
+                .map { it.sliceArray(IntRange(0, 31)).toBigInteger() }
     }
 
 }

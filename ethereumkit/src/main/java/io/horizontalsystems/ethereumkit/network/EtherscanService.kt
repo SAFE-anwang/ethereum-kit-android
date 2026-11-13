@@ -14,10 +14,10 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
-import java.util.concurrent.atomic.AtomicInteger
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.util.logging.Logger
@@ -30,7 +30,9 @@ class EtherscanService(
     private val apiKeys: List<String>,
     private val chainId: Int,
 ) {
-    private val apiKeyIndex = AtomicInteger(0)
+
+    private val apiKeysSize = apiKeys.size
+    private var apiKeyIndex = 0
 
     private val logger = Logger.getLogger("EtherscanService")
 
@@ -72,6 +74,7 @@ class EtherscanService(
 
         val retrofit = Retrofit.Builder()
             .baseUrl(baseUrl)
+            .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
             .addConverterFactory(GsonConverterFactory.create(gson))
             .client(httpClient.build())
             .build()
@@ -94,51 +97,68 @@ class EtherscanService(
     }
 
     private fun getNextApiKey(): String {
-        val index = apiKeyIndex.getAndUpdate { (it + 1) % apiKeys.size }
-        return apiKeys[index]
+        if (apiKeyIndex >= apiKeysSize) apiKeyIndex = 0
+
+        return apiKeys[apiKeyIndex++]
     }
 
-    suspend fun getTransactionList(address: Address, startBlock: Long): EtherscanResponse {
-        return retryWhenError(RequestError.RateLimitExceed::class) {
-            val response = service.accountApi(
-                action = "txlist",
-                address = address.hex,
-                startBlock = startBlock,
-            )
-            parseResponse(response)
-        }
+    fun getTransactionList(address: Address, startBlock: Long): Single<EtherscanResponse> {
+        return service.accountApi(
+            action = "txlist",
+            address = address.hex,
+            startBlock = startBlock,
+        ).map {
+            parseResponse(it)
+        }.retryWhenError(RequestError.RateLimitExceed::class)
     }
 
-    suspend fun getInternalTransactionList(address: Address, startBlock: Long): EtherscanResponse {
-        return retryWhenError(RequestError.RateLimitExceed::class) {
-            val response = service.accountApi(
-                action = "txlistinternal",
-                address = address.hex,
-                startBlock = startBlock,
-            )
-            parseResponse(response)
-        }
+    fun getInternalTransactionList(address: Address, startBlock: Long): Single<EtherscanResponse> {
+        return service.accountApi(
+            action = "txlistinternal",
+            address = address.hex,
+            startBlock = startBlock,
+        ).map {
+            parseResponse(it)
+        }.retryWhenError(RequestError.RateLimitExceed::class)
     }
 
-    suspend fun getTokenTransactions(address: Address, startBlock: Long): EtherscanResponse {
-        return retryWhenError(RequestError.RateLimitExceed::class) {
-            val response = service.accountApi(
-                action = "tokentx",
-                address = address.hex,
-                startBlock = startBlock,
-            )
-            parseResponse(response)
-        }
+    fun getTokenTransactions(address: Address, startBlock: Long): Single<EtherscanResponse> {
+        return service.accountApi(
+            action = "tokentx",
+            address = address.hex,
+            startBlock = startBlock,
+        ).map {
+            parseResponse(it)
+        }.retryWhenError(RequestError.RateLimitExceed::class)
     }
 
-    suspend fun getInternalTransactionsAsync(transactionHash: ByteArray): EtherscanResponse {
-        return retryWhenError(RequestError.RateLimitExceed::class) {
-            val response = service.accountApi(
-                action = "txlistinternal",
-                txHash = transactionHash.toHexString(),
-            )
-            parseResponse(response)
-        }
+    fun getInternalTransactionsAsync(transactionHash: ByteArray): Single<EtherscanResponse> {
+        return service.accountApi(
+            action = "txlistinternal",
+            txHash = transactionHash.toHexString(),
+        ).map {
+            parseResponse(it)
+        }.retryWhenError(RequestError.RateLimitExceed::class)
+    }
+
+    fun getEip721Transactions(address: Address, startBlock: Long): Single<EtherscanResponse> {
+        return service.accountApi(
+            action = "tokennfttx",
+            address = address.hex,
+            startBlock = startBlock,
+        ).map {
+            parseResponse(it)
+        }.retryWhenError(RequestError.RateLimitExceed::class)
+    }
+
+    fun getEip1155Transactions(address: Address, startBlock: Long): Single<EtherscanResponse> {
+        return service.accountApi(
+            action = "token1155tx",
+            address = address.hex,
+            startBlock = startBlock,
+        ).map {
+            parseResponse(it)
+        }.retryWhenError(RequestError.RateLimitExceed::class)
     }
 
     fun getSafeAccountManagerTransactions(address: Address, startBlock: Long): Single<EtherscanResponse> {
@@ -158,15 +178,8 @@ class EtherscanService(
             val message = responseObj["message"].asJsonPrimitive.asString
 
             if (status == "0" && message != "No transactions found") {
-                val resultElement = responseObj["result"]
-                val result = if (resultElement != null && resultElement.isJsonPrimitive) resultElement.asString else null
-
-                // Etherscan signals throttling with message "NOTOK" / result "Max rate limit reached";
-                // Blockscout uses "Too many requests" with a null result. Surface both as
-                // RateLimitExceed so retryWhenError backs off instead of failing the whole sync.
-                val rateLimited = (message == "NOTOK" && result == "Max rate limit reached") ||
-                        message.contains("Too many requests", ignoreCase = true)
-                if (rateLimited) {
+                val result = responseObj["result"].asJsonPrimitive.asString
+                if (message == "NOTOK" && result == "Max rate limit reached") {
                     throw RequestError.RateLimitExceed()
                 }
             }
@@ -187,7 +200,7 @@ class EtherscanService(
 
     private interface EtherscanServiceAPI {
         @GET("api")
-        suspend fun accountApi(
+        fun accountApi(
             @Query("module") module: String = "account",
             @Query("action") action: String,
             @Query("address") address: String? = null,
@@ -195,7 +208,7 @@ class EtherscanService(
             @Query("startblock") startBlock: Long? = null,
             @Query("endblock") endBlock: Long? = null,
             @Query("sort") sort: String? = "desc"
-        ): JsonElement
+        ): Single<JsonElement>
     }
 
 }

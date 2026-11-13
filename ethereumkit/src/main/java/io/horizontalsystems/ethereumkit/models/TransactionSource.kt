@@ -9,15 +9,7 @@ class TransactionSource(val name: String, val type: SourceType) {
         }
 
     sealed class SourceType {
-        abstract val apiBaseUrl: String
-        abstract val txBaseUrl: String
-        abstract val apiKeys: List<String>
-
-        class Etherscan(
-            override val apiBaseUrl: String,
-            override val txBaseUrl: String,
-            override val apiKeys: List<String>,
-        ) : SourceType()
+        class Etherscan(val apiBaseUrl: String, val txBaseUrl: String, val apiKeys: List<String>) : SourceType()
 
         /**
          * 通过 Chainstack RPC 节点的区块扫描同步交易（不依赖 Etherscan 等浏览器 API）。
@@ -25,9 +17,9 @@ class TransactionSource(val name: String, val type: SourceType) {
          * [wsUrls] 为 websocket 端点（实时订阅新区块/日志用），为空时由 [rpcUrls] 推导。
          */
         class Chainstack(
-            override val apiBaseUrl: String,
-            override val txBaseUrl: String,
-            override val apiKeys: List<String>,
+            val rpcUrls: List<String>,
+            val txBaseUrl: String,
+            val wsUrls: List<String> = emptyList()
         ) : SourceType()
     }
 
@@ -35,16 +27,6 @@ class TransactionSource(val name: String, val type: SourceType) {
         private fun etherscan(name: String, explorerUrl: String, apiKeys: List<String>): TransactionSource {
             return TransactionSource(
                 name, SourceType.Etherscan("https://api.etherscan.io/v2/", explorerUrl, apiKeys)
-            )
-        }
-
-        // Blockscout PRO API: an Etherscan V2-compatible multichain endpoint for chains that
-        // Etherscan does not index. It takes the same `chainid` parameter and requires a
-        // `proapi_` key. Public Blockscout instances also expose an Etherscan-like /api, but
-        // they hard-throttle it, so it is not usable for syncing.
-        private fun blockscoutPro(name: String, explorerUrl: String, apiKeys: List<String>): TransactionSource {
-            return TransactionSource(
-                name, SourceType.Etherscan("https://api.blockscout.com/v2/", explorerUrl, apiKeys)
             )
         }
 
@@ -84,19 +66,8 @@ class TransactionSource(val name: String, val type: SourceType) {
             return etherscan("ftmscan.com", "https://ftmscan.com", apiKeys)
         }
 
-        // ZkSync Era is not supported by the Etherscan V2 multichain API, and the old
-        // Etherscan-family explorer (era.zksync.network) was shut down.
         fun zkSync(apiKeys: List<String>): TransactionSource {
-            return blockscoutPro("zksync.blockscout.com", "https://zksync.blockscout.com", apiKeys)
-        }
-
-        // Robinhood Chain is an Arbitrum Orbit L2 not indexed by Etherscan.
-        fun robinhood(apiKeys: List<String>): TransactionSource {
-            return blockscoutPro("robinhoodchain.blockscout.com", "https://robinhoodchain.blockscout.com", apiKeys)
-        }
-
-        fun arc(apiKeys: List<String>): TransactionSource {
-            return etherscan("arc.etherscan.io", "https://arc.etherscan.io", apiKeys)
+            return etherscan("era.zksync.network", "https://era.zksync.network", apiKeys)
         }
 
         fun safeFourscan(apiKey: String): TransactionSource {

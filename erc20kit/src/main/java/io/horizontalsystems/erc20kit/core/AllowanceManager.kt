@@ -7,6 +7,7 @@ import io.horizontalsystems.ethereumkit.core.toRawHexString
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.DefaultBlockParameter
 import io.horizontalsystems.ethereumkit.models.TransactionData
+import io.reactivex.Single
 import java.math.BigInteger
 
 class AllowanceManager(
@@ -15,10 +16,12 @@ class AllowanceManager(
         private val address: Address
 ) {
 
-    suspend fun allowance(spenderAddress: Address, defaultBlockParameter: DefaultBlockParameter): BigInteger {
-        val result = ethereumKit
+    fun allowance(spenderAddress: Address, defaultBlockParameter: DefaultBlockParameter): Single<BigInteger> {
+        return ethereumKit
                 .call(contractAddress, AllowanceMethod(address, spenderAddress).encodedABI(), defaultBlockParameter)
-        return BigInteger(result.sliceArray(0..31).toRawHexString(), 16)
+                .map { result ->
+                    BigInteger(result.sliceArray(0..31).toRawHexString(), 16)
+                }
     }
 
     fun approveTransactionData(spenderAddress: Address, amount: BigInteger): TransactionData {

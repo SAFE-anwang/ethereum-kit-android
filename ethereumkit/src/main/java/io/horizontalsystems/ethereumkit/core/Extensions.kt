@@ -1,8 +1,11 @@
 package io.horizontalsystems.ethereumkit.core
 
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
+import io.reactivex.Flowable
+import io.reactivex.Single
 import java.math.BigInteger
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.reflect.KClass
 
 
@@ -88,20 +91,14 @@ fun Long.toByteArray(): ByteArray {
     return array
 }
 
-/**
- * Runs [block], retrying up to [maxRetries] times (with a linearly increasing delay of 1s, 2s, 3s...)
- * whenever it throws an exception of exactly class [errorForRetry]. Any other error is rethrown immediately.
- */
-suspend fun <T> retryWhenError(errorForRetry: KClass<*>, maxRetries: Int = 3, block: suspend () -> T): T {
-    var retryCounter = 0L
-    while (true) {
-        try {
-            return block()
-        } catch (error: Throwable) {
+fun <T> Single<T>.retryWhenError(errorForRetry: KClass<*>, maxRetries: Int = 3): Single<T> {
+    return retryWhen { errors ->
+        var retryCounter = 0L
+        errors.flatMap { error ->
             if (errorForRetry == error::class && retryCounter++ < maxRetries) {
-                delay(retryCounter * 1000)
+                Flowable.timer(retryCounter, TimeUnit.SECONDS)
             } else {
-                throw error
+                Flowable.error(error)
             }
         }
     }
@@ -116,29 +113,22 @@ data class RetryOptions<T : Any>(
         val mustRetry: (T) -> Boolean
 )
 
-/**
- * Waits [RetryOptions.delayTime] seconds, runs [block], and re-runs it (with the delay multiplied by
- * [RetryOptions.delayTimeIncreaseFactor] each time) while [RetryOptions.mustRetry] returns true for the result,
- * at most [RetryOptions.maxRetryCount] times in total.
- */
-suspend fun <T : Any> retryWith(options: RetryOptions<T>, block: suspend () -> T): T {
-    var delayTime = options.delayTime
-    var retryCount = 1
+fun <T : Any> Single<T>.retryWith(options: RetryOptions<T>): Single<T> {
+    val retryCount = AtomicInteger(1)
 
-    delay(delayTime * 1000)
-    while (true) {
-        val result = block()
-        if (options.mustRetry(result) && retryCount++ < options.maxRetryCount) {
-            delayTime *= options.delayTimeIncreaseFactor
-            delay(delayTime * 1000)
-        } else {
-            return result
-        }
-    }
+    return delay(options.delayTime, TimeUnit.SECONDS)
+            .map {
+                if (options.mustRetry(it) && retryCount.getAndIncrement() < options.maxRetryCount)
+                    throw MustRetry
+                it
+            }
+            .retryWhen { errors ->
+                val delayTime = AtomicLong(options.delayTime)
+
+                errors.takeWhile { it == MustRetry }
+                        .flatMap {
+                            delayTime.set(delayTime.get() * options.delayTimeIncreaseFactor)
+                            Flowable.timer(delayTime.get(), TimeUnit.SECONDS)
+                        }
+            }
 }
-
-/**
- * Equivalent of an RxJava `PublishSubject.toFlowable(BackpressureStrategy.BUFFER)`: emissions are dropped when
- * there are no collectors, buffered without limit otherwise, and [MutableSharedFlow.tryEmit] never fails.
- */
-fun <T> bufferedSharedFlow(): MutableSharedFlow<T> = MutableSharedFlow(extraBufferCapacity = Int.MAX_VALUE)

@@ -1,11 +1,8 @@
 package io.horizontalsystems.erc20kit.core
 
 import io.horizontalsystems.ethereumkit.models.Address
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.schedulers.Schedulers
 import java.math.BigInteger
 
 class BalanceManager(private val contractAddress: Address,
@@ -13,7 +10,7 @@ class BalanceManager(private val contractAddress: Address,
                      private val storage: ITokenBalanceStorage,
                      private val dataProvider: IDataProvider) : IBalanceManager {
 
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val disposables = CompositeDisposable()
 
     override var listener: IBalanceManagerListener? = null
 
@@ -21,17 +18,17 @@ class BalanceManager(private val contractAddress: Address,
         get() = storage.getBalance()
 
     override fun sync() {
-        scope.launch {
-            try {
-                val balance = dataProvider.getBalance(contractAddress, address)
+        dataProvider.getBalance(contractAddress, address)
+            .subscribeOn(Schedulers.io())
+            .subscribe({ balance ->
                 storage.save(balance)
                 listener?.onSyncBalanceSuccess(balance)
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Throwable) {
-                listener?.onSyncBalanceError(error)
+            }, {
+                listener?.onSyncBalanceError(it)
+            })
+            .let {
+                disposables.add(it)
             }
-        }
     }
 
 }

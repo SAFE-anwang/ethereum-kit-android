@@ -7,8 +7,7 @@ import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.InternalTransaction
 import io.horizontalsystems.ethereumkit.models.Transaction
 import io.horizontalsystems.ethereumkit.models.TransactionTag
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import io.reactivex.Single
 
 class TransactionStorage(database: TransactionDatabase) : ITransactionStorage {
     private val transactionDao = database.transactionDao()
@@ -20,7 +19,7 @@ class TransactionStorage(database: TransactionDatabase) : ITransactionStorage {
     override fun getTransaction(hash: ByteArray): Transaction? =
         transactionDao.getTransaction(hash)
 
-    override suspend fun getTransactionsBeforeAsync(tags: List<List<String>>, hash: ByteArray?, limit: Int?): List<Transaction> = withContext(Dispatchers.IO) {
+    override fun getTransactionsBeforeAsync(tags: List<List<String>>, hash: ByteArray?, limit: Int?): Single<List<Transaction>> {
         val whereConditions = mutableListOf<String>()
 
         if (tags.isNotEmpty()) {
@@ -73,7 +72,7 @@ class TransactionStorage(database: TransactionDatabase) : ITransactionStorage {
                       $limitClause
                       """
 
-        transactionDao.getTransactionsByRawQuery(SimpleSQLiteQuery(sqlQuery))
+        return transactionDao.getTransactionsByRawQuery(SimpleSQLiteQuery(sqlQuery))
     }
 
     override fun save(transactions: List<Transaction>) {
@@ -145,7 +144,7 @@ class TransactionStorage(database: TransactionDatabase) : ITransactionStorage {
         return tagsDao.getDistinctTokenContractAddresses()
     }
 
-    override suspend fun getTransactionsAfter(hash: ByteArray?): List<Transaction> = withContext(Dispatchers.IO) {
+    override fun getTransactionsAfterSingle(hash: ByteArray?): Single<List<Transaction>> {
         val whereConditions = mutableListOf<String>()
         hash?.let { transactionDao.getTransaction(hash) }?.let { fromTransaction ->
             val transactionIndex = fromTransaction.transactionIndex ?: 0
@@ -177,6 +176,6 @@ class TransactionStorage(database: TransactionDatabase) : ITransactionStorage {
                       $orderClause
                       """
 
-        transactionDao.getTransactionsByRawQuery(SimpleSQLiteQuery(sqlQuery))
+        return transactionDao.getTransactionsByRawQuery(SimpleSQLiteQuery(sqlQuery))
     }
 }

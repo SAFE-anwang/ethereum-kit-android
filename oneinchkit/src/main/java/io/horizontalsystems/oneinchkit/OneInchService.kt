@@ -11,6 +11,7 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -54,6 +55,7 @@ class OneInchService(
 
         val retrofit = Retrofit.Builder()
             .baseUrl(url)
+            .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
             .addConverterFactory(GsonConverterFactory.create(gson))
             .client(httpClient.build())
             .build()
@@ -61,10 +63,10 @@ class OneInchService(
         service = retrofit.create(OneInchServiceApi::class.java)
     }
 
-    suspend fun getApproveCallDataAsync(chain: Chain, tokenAddress: Address, amount: BigInteger) =
+    fun getApproveCallDataAsync(chain: Chain, tokenAddress: Address, amount: BigInteger) =
         service.getApproveCallData(chainId = chain.id, tokenAddress = tokenAddress.hex, amount = amount)
 
-    suspend fun getQuoteAsync(
+    fun getQuoteAsync(
         chain: Chain,
         fromToken: Address,
         toToken: Address,
@@ -110,7 +112,7 @@ class OneInchService(
         )
     }
 
-    suspend fun getSwapAsync(
+    fun getSwapAsync(
         chain: Chain,
         fromTokenAddress: Address,
         toTokenAddress: Address,
@@ -179,15 +181,15 @@ class OneInchService(
 
     private interface OneInchServiceApi {
         @GET("{chain_id}/approve/calldata")
-        suspend fun getApproveCallData(
+        fun getApproveCallData(
             @Path("chain_id") chainId: Int,
             @Query("tokenAddress") tokenAddress: String,
             @Query("amount") amount: BigInteger? = null,
             @Query("infinity") infinity: Boolean? = null
-        ): ApproveCallData
+        ): Single<ApproveCallData>
 
         @GET("{chain_id}/quote")
-        suspend fun getQuote(
+        fun getQuote(
             @Path("chain_id") chainId: Int,
             @Query("src") fromTokenAddress: String,
             @Query("dst") toTokenAddress: String,
@@ -205,10 +207,10 @@ class OneInchService(
             @Query("includeTokensInfo") includeTokensInfo: Boolean = true,
             @Query("includeProtocols") includeProtocols: Boolean = true,
             @Query("includeGas") includeGas: Boolean = true
-        ): Quote
+        ): Single<Quote>
 
         @GET("{chain_id}/swap")
-        suspend fun getSwap(
+        fun getSwap(
             @Path("chain_id") chainId: Int,
             @Query("src") fromTokenAddress: String,
             @Query("dst") toTokenAddress: String,
@@ -233,7 +235,7 @@ class OneInchService(
             @Query("includeTokensInfo") includeTokensInfo: Boolean = true,
             @Query("includeProtocols") includeProtocols: Boolean = true,
             @Query("includeGas") includeGas: Boolean = true
-        ): Swap
+        ): Single<Swap>
     }
 
 }

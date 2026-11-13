@@ -5,43 +5,42 @@ import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.FullTransaction
 import io.horizontalsystems.ethereumkit.models.TransactionData
-import io.horizontalsystems.ethereumkit.core.bufferedSharedFlow
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelChildren
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import io.reactivex.BackpressureStrategy
+import io.reactivex.Flowable
+import io.reactivex.Single
+import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.schedulers.Schedulers
+import io.reactivex.subjects.PublishSubject
 import java.math.BigInteger
 
 class TransactionManager(
         private val contractAddress: Address,
         private val ethereumKit: EthereumKit
 ) {
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val transactionsSubject = bufferedSharedFlow<List<FullTransaction>>()
+    private val disposables = CompositeDisposable()
+    private val transactionsSubject = PublishSubject.create<List<FullTransaction>>()
     private val tags: List<List<String>> = listOf(listOf(contractAddress.hex))
 
-    val transactionsFlow: Flow<List<FullTransaction>> = transactionsSubject
+    val transactionsAsync: Flowable<List<FullTransaction>> = transactionsSubject.toFlowable(BackpressureStrategy.BUFFER)
 
     init {
-        ethereumKit.getFullTransactionsFlow(tags)
-                .onEach {
+        ethereumKit.getFullTransactionsFlowable(tags)
+                .subscribeOn(Schedulers.io())
+                .subscribe {
                     processTransactions(it)
                 }
-                .launchIn(scope)
+                .let { disposables.add(it) }
     }
 
     fun stop() {
-        scope.coroutineContext.cancelChildren()
+        disposables.clear()
     }
 
     fun buildTransferTransactionData(to: Address, value: BigInteger): TransactionData {
         return TransactionData(to = contractAddress, value = BigInteger.ZERO, TransferMethod(to, value).encodedABI())
     }
 
-    suspend fun getTransactionsAsync(fromHash: ByteArray?, limit: Int?): List<FullTransaction> {
+    fun getTransactionsAsync(fromHash: ByteArray?, limit: Int?): Single<List<FullTransaction>> {
         return ethereumKit.getFullTransactionsAsync(tags, fromHash, limit)
     }
 
@@ -51,7 +50,7 @@ class TransactionManager(
 
     private fun processTransactions(erc20Transactions: List<FullTransaction>) {
         if (erc20Transactions.isNotEmpty()) {
-            transactionsSubject.tryEmit(erc20Transactions)
+            transactionsSubject.onNext(erc20Transactions)
         }
     }
 

@@ -2,8 +2,7 @@ package io.horizontalsystems.erc20kit.core
 
 import io.horizontalsystems.ethereumkit.core.EthereumKit.SyncError
 import io.horizontalsystems.ethereumkit.core.EthereumKit.SyncState
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
+import io.reactivex.subjects.PublishSubject
 import java.math.BigInteger
 
 class KitState {
@@ -11,7 +10,7 @@ class KitState {
         set(value) {
             if (field != value) {
                 field = value
-                syncStateSubject.tryEmit(value)
+                syncStateSubject.onNext(value)
             }
         }
 
@@ -19,10 +18,10 @@ class KitState {
         set(value) {
             if (value != null && field != value) {
                 field = value
-                balanceSubject.tryEmit(value)
+                balanceSubject.onNext(value)
             }
         }
 
-    val syncStateSubject = MutableSharedFlow<SyncState>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-    val balanceSubject = MutableSharedFlow<BigInteger>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val syncStateSubject = PublishSubject.create<SyncState>()
+    val balanceSubject = PublishSubject.create<BigInteger>()
 }

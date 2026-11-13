@@ -31,7 +31,6 @@ class TokenFactory {
                 Chain.ArbitrumOne -> "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
                 Chain.Base -> "0x4200000000000000000000000000000000000006"
                 Chain.ZkSync -> "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91"
-                Chain.RobinhoodChain -> "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
 //                Chain.SafeFour -> "0x64c5aB0DFeCCe653751B463AFb05352085c5f2f9" // Test
                 Chain.SafeFourTestNet,
                 Chain.SafeFour -> "0x0000000000000000000000000000000000001101"

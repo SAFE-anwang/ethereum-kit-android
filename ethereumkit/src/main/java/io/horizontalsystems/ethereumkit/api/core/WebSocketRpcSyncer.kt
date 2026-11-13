@@ -6,12 +6,10 @@ import io.horizontalsystems.ethereumkit.api.jsonrpc.SubscribeJsonRpc
 import io.horizontalsystems.ethereumkit.api.jsonrpcsubscription.NewHeadsRpcSubscription
 import io.horizontalsystems.ethereumkit.api.jsonrpcsubscription.RpcSubscription
 import io.horizontalsystems.ethereumkit.core.EthereumKit
-import kotlinx.coroutines.suspendCancellableCoroutine
+import io.reactivex.Single
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.logging.Logger
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 class WebSocketRpcSyncer(
         private val rpcSocket: IRpcWebSocket,
@@ -52,20 +50,17 @@ class WebSocketRpcSyncer(
 
     override fun resume() = Unit
 
-    override suspend fun <T: Any> execute(rpc: JsonRpc<T>): T {
-        return suspendCancellableCoroutine { continuation ->
+    override fun <T: Any> single(rpc: JsonRpc<T>): Single<T> {
+        return Single.create { emitter ->
             send(
                     rpc = rpc,
                     onSuccess = {
-                        if (continuation.isActive) continuation.resume(it)
+                        emitter.onSuccess(it)
                     },
                     onError = {
-                        if (continuation.isActive) continuation.resumeWithException(it)
+                        emitter.onError(it)
                     }
             )
-            continuation.invokeOnCancellation {
-                rpcHandlers.remove(rpc.id)
-            }
         }
     }
     //endregion

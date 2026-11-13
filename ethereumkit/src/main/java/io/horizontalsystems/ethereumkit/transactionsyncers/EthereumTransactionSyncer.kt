@@ -7,7 +7,7 @@ import io.horizontalsystems.ethereumkit.core.storage.TransactionSyncerStateStora
 import io.horizontalsystems.ethereumkit.models.ProviderTransaction
 import io.horizontalsystems.ethereumkit.models.Transaction
 import io.horizontalsystems.ethereumkit.models.TransactionSyncerState
-import kotlinx.coroutines.CancellationException
+import io.reactivex.Single
 
 private const val TAG = "EthereumTxSyncer"
 
@@ -29,52 +29,34 @@ class EthereumTransactionSyncer(
         const val SyncerId = "ethereum-transaction-syncer"
     }
 
-    override suspend fun getTransactions(): Pair<List<Transaction>, Boolean> {
-        val lastTransactionBlockNumber = storage.get(SyncerId)?.lastBlockNumber ?: 0
+    override fun getTransactionsSingle(): Single<Pair<List<Transaction>, Boolean>> {
+        val lastTransactionBlockNumber = storage.get(syncerId)?.lastBlockNumber ?: 0
         val initial = lastTransactionBlockNumber == 0L
 
-        return try {
-            val providerTransactions = transactionProvider.getTransactions(lastTransactionBlockNumber + 1)
-            handle(providerTransactions)
+        Log.i(TAG, "getTransactionsSingle: start, startBlock=${lastTransactionBlockNumber + 1}")
 
-            val array = providerTransactions.map { transaction ->
-                        val isFailed = when {
-                            transaction.txReceiptStatus != null -> {
-                                transaction.txReceiptStatus != 1
-                            }
-                            transaction.isError != null -> {
-                                transaction.isError != 0
-                            }
-                            transaction.gasUsed != null -> {
-                                transaction.gasUsed == transaction.gasLimit
-                            }
-                            else -> {
-                                false
-                            }
-                        }
-
-                Transaction(
-                        hash = transaction.hash,
-                        timestamp = transaction.timestamp,
-                        isFailed = isFailed,
-                        blockNumber = transaction.blockNumber,
-                        transactionIndex = transaction.transactionIndex,
-                        from = transaction.from,
-                        to = transaction.to,
-                        value = transaction.value,
-                        input = transaction.input,
-                        nonce = transaction.nonce,
-                        gasPrice = transaction.gasPrice,
-                        gasUsed = transaction.gasUsed
-                )
-            }
-
-            Pair(array, initial)
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Throwable) {
-            Pair(listOf(), initial)
-        }
+        return transactionProvider.getTransactions(lastTransactionBlockNumber + 1)
+                .map { providerTransactions ->
+                    Log.i(
+                        TAG,
+                        "getTransactionsSingle: received ${providerTransactions.size} txs " +
+                                "(startBlock=${lastTransactionBlockNumber + 1}, " +
+                                "maxBlock=${providerTransactions.maxOfOrNull { it.blockNumber }})"
+                    )
+                    handle(providerTransactions)
+                    providerTransactions
+                }
+                .map { providerTransactions ->
+                    // 与按区块直查路径共用同一映射
+                    Pair(providerTransactions.map { it.toTransaction() }, initial)
+                }
+                // 失败不再被吞成「空列表 + 成功」：此前 Provider 已扫描到交易时，
+                // 收据获取/状态存储等任何一环出错都会被转成空数据，
+                // 同步状态还被标记为 Synced 导致不再重试，交易凭空丢失。
+                // 现在交由 TransactionSyncManager 记录错误并置为 NotSynced，等待下次 sync() 重试。
+                .doOnError { e ->
+                    Log.e(TAG, "getTransactionsSingle: failed: $e")
+                }
     }
 
     private fun handle(transactions: List<ProviderTransaction>) {

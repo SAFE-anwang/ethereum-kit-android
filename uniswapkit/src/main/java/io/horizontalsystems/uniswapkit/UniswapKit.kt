@@ -8,9 +8,7 @@ import io.horizontalsystems.ethereumkit.models.TransactionData
 import io.horizontalsystems.ethereumkit.models.TransactionLiquidityData
 import io.horizontalsystems.uniswapkit.contract.SwapContractMethodFactories
 import io.horizontalsystems.uniswapkit.models.*
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import io.reactivex.Single
 import java.math.BigDecimal
 import java.util.logging.Logger
 
@@ -32,15 +30,16 @@ class UniswapKit(
         return tokenFactory.token(contractAddress, decimals)
     }
 
-    suspend fun swapData(rpcSource: RpcSource, chain: Chain, tokenIn: Token, tokenOut: Token): SwapData {
+    fun swapData(rpcSource: RpcSource, chain: Chain, tokenIn: Token, tokenOut: Token): Single<SwapData> {
         val tokenPairs = pairSelector.tokenPairs(chain, tokenIn, tokenOut)
-        val pairs = coroutineScope {
-            tokenPairs.map { (tokenA, tokenB) ->
-                async { tradeManager.pair(rpcSource, chain, tokenA, tokenB) }
-            }.awaitAll()
+        val singles = tokenPairs.map { (tokenA, tokenB) ->
+            tradeManager.pair(rpcSource, chain, tokenA, tokenB)
         }
 
-        return SwapData(pairs, tokenIn, tokenOut)
+        return Single.zip(singles) { array ->
+            val pairs = array.map { it as Pair }
+            SwapData(pairs, tokenIn, tokenOut)
+        }
     }
 
     fun bestTradeExactIn(swapData: SwapData, amountIn: BigDecimal, options: TradeOptions = TradeOptions()): TradeData {

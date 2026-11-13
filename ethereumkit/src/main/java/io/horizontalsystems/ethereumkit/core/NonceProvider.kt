@@ -1,9 +1,7 @@
 package io.horizontalsystems.ethereumkit.core
 
 import io.horizontalsystems.ethereumkit.models.DefaultBlockParameter
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import io.reactivex.Single
 
 class NonceProvider : INonceProvider {
     private val providers = mutableListOf<INonceProvider>()
@@ -12,18 +10,27 @@ class NonceProvider : INonceProvider {
         providers.add(provider)
     }
 
-    override suspend fun getNonce(defaultBlockParameter: DefaultBlockParameter): Long {
-        val nonces = coroutineScope {
-            providers.map { provider ->
-                async { provider.getNonce(defaultBlockParameter) }
-            }.awaitAll()
+    override fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long> {
+        val singles = providers.map {
+            it.getNonce(defaultBlockParameter)
         }
 
-        val maxNonce = nonces.fold(-1L) { acc, nonce -> maxOf(acc, nonce) }
-
-        if (maxNonce == -1L) {
-            throw IllegalStateException("Could not fetch nonce. None of the providers returned a value.")
-        }
-        return maxNonce
+        return Single
+            .zip(singles) { objects: Array<Any> ->
+                var maxNonce = -1L
+                for (obj in objects) {
+                    if (obj is Long) {
+                        maxNonce = maxOf(maxNonce, obj)
+                    }
+                }
+                maxNonce
+            }
+            .flatMap { nonce: Long ->
+                if (nonce == -1L) {
+                    Single.error(IllegalStateException("Could not fetch nonce. None of the providers returned a value."))
+                } else {
+                    Single.just(nonce)
+                }
+            }
     }
 }

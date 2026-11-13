@@ -21,8 +21,8 @@ object EIP55 {
         result.append("0x")
 
         for (i in lowercaseAddress.indices) {
-            if (Character.digit(addressHash[i], 16) >= 8) {
-                result.append(lowercaseAddress[i].uppercaseChar())
+            if (Integer.parseInt(addressHash[i].toString(), 16) >= 8) {
+                result.append(lowercaseAddress[i].toString().uppercase(Locale.ENGLISH))
             } else {
                 result.append(lowercaseAddress[i])
             }

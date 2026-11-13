@@ -12,63 +12,76 @@ import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.DefaultBlockParameter
 import io.horizontalsystems.ethereumkit.models.RpcSource
 import io.horizontalsystems.ethereumkit.spv.core.toBigInteger
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import io.reactivex.Single
 
 class Eip20Provider(private val provider: IRpcApiProvider) {
 
     class TokenNotFoundException : Throwable()
 
-    suspend fun getTokenInfo(contractAddress: Address): TokenInfo = coroutineScope {
-        val name = async { getTokenName(contractAddress) }
-        val symbol = async { getTokenSymbol(contractAddress) }
-        val decimals = async { getDecimals(contractAddress) }
+    fun getTokenInfo(contractAddress: Address): Single<TokenInfo> {
+        val nameSingle = getTokenName(contractAddress)
+        val symbolSingle = getTokenSymbol(contractAddress)
+        val decimalsSingle = getDecimals(contractAddress)
 
-        TokenInfo(name.await(), symbol.await(), decimals.await())
+        return Single
+            .zip(nameSingle, symbolSingle, decimalsSingle) { name, symbol, decimals ->
+                TokenInfo(name, symbol, decimals)
+            }
     }
 
-    private suspend fun getDecimals(contractAddress: Address): Int {
+    private fun getDecimals(contractAddress: Address): Single<Int> {
         val callRpc = RpcBlockchain.callRpc(
             contractAddress,
             DecimalsMethod().encodedABI(),
             DefaultBlockParameter.Latest
         )
 
-        val result = provider.execute(callRpc)
-        if (result.isEmpty()) throw TokenNotFoundException()
+        return provider.single(callRpc)
+            .map {
+                if (it.isEmpty()) throw TokenNotFoundException()
 
-        return result.sliceArray(IntRange(0, 31)).toBigInteger().toInt()
+                it.sliceArray(IntRange(0, 31)).toBigInteger().toInt()
+            }
     }
 
-    private suspend fun getTokenSymbol(contractAddress: Address): String {
+    private fun getTokenSymbol(contractAddress: Address): Single<String> {
         val callRpc = RpcBlockchain.callRpc(
             contractAddress,
             SymbolMethod().encodedABI(),
             DefaultBlockParameter.Latest
         )
 
-        return decodeString(provider.execute(callRpc))
+        return provider.single(callRpc)
+            .map {
+                if (it.isEmpty()) throw TokenNotFoundException()
+
+                val argumentTypes = listOf(ByteArray::class)
+
+                val parsedArguments = ContractMethodHelper.decodeABI(it, argumentTypes)
+                val stringBytes = parsedArguments[0] as? ByteArray ?: throw TokenNotFoundException()
+
+                String(stringBytes)
+            }
     }
 
-    private suspend fun getTokenName(contractAddress: Address): String {
+    private fun getTokenName(contractAddress: Address): Single<String> {
         val callRpc = RpcBlockchain.callRpc(
             contractAddress,
             NameMethod().encodedABI(),
             DefaultBlockParameter.Latest
         )
 
-        return decodeString(provider.execute(callRpc))
-    }
+        return provider.single(callRpc)
+            .map {
+                if (it.isEmpty()) throw TokenNotFoundException()
 
-    private fun decodeString(result: ByteArray): String {
-        if (result.isEmpty()) throw TokenNotFoundException()
+                val argumentTypes = listOf(ByteArray::class)
 
-        val argumentTypes = listOf(ByteArray::class)
+                val parsedArguments = ContractMethodHelper.decodeABI(it, argumentTypes)
+                val stringBytes = parsedArguments[0] as? ByteArray ?: throw TokenNotFoundException()
 
-        val parsedArguments = ContractMethodHelper.decodeABI(result, argumentTypes)
-        val stringBytes = parsedArguments[0] as? ByteArray ?: throw TokenNotFoundException()
-
-        return String(stringBytes)
+                String(stringBytes)
+            }
     }
 
     companion object {

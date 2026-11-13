@@ -6,15 +6,23 @@ import io.horizontalsystems.ethereumkit.core.EthereumKit
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.Chain
 import io.horizontalsystems.ethereumkit.spv.core.toBigInteger
+import io.reactivex.Single
 import java.math.BigInteger
 
 class DataProvider(
         private val ethereumKit: EthereumKit
 ) : IDataProvider {
 
-    override suspend fun getBalance(contractAddress: Address, address: Address): BigInteger {
+    override fun getBalance(contractAddress: Address, address: Address): Single<BigInteger> {
         return ethereumKit.call(contractAddress, BalanceOfMethod(address).encodedABI())
-                .sliceArray(IntRange(0, 31)).toBigInteger()
+            .map { it.sliceArray(IntRange(0, 31)).toBigInteger() }
+        /*.map {
+            if (ethereumKit.chain.id == Chain.SafeFour.id ) {
+                it.toBigInteger()
+            } else {
+                it.sliceArray(IntRange(0, 31)).toBigInteger()
+            }
+        }*/
     }
 
 }

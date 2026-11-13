@@ -33,14 +33,9 @@ import io.horizontalsystems.ethereumkit.models.RpcSource
 import io.horizontalsystems.ethereumkit.models.Signature
 import io.horizontalsystems.ethereumkit.models.Transaction
 import io.horizontalsystems.ethereumkit.models.TransactionLog
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.cancelChildren
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
+import io.reactivex.Single
+import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.schedulers.Schedulers
 import java.math.BigInteger
 
 class RpcBlockchain(
@@ -50,7 +45,7 @@ class RpcBlockchain(
     private val transactionBuilder: TransactionBuilder
 ) : IBlockchain, IRpcSyncerListener, INonceProvider {
 
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val disposables = CompositeDisposable()
 
     private fun onUpdateLastBlockHeight(lastBlockHeight: Long) {
         storage.saveLastBlockHeight(lastBlockHeight)
@@ -63,31 +58,33 @@ class RpcBlockchain(
     }
 
     private fun syncLastBlockHeight() {
-        scope.launch {
-            try {
-                val lastBlockNumber = syncer.execute(BlockNumberJsonRpc())
+        syncer.single(BlockNumberJsonRpc())
+            .subscribeOn(Schedulers.io())
+            .observeOn(Schedulers.io())
+            .subscribe({ lastBlockNumber ->
                 onUpdateLastBlockHeight(lastBlockNumber)
-            } catch (error: Throwable) {
-                syncState = SyncState.NotSynced(error)
+            }, {
+                syncState = SyncState.NotSynced(it)
+            }).let {
+                disposables.add(it)
             }
-        }
     }
 
     override fun syncAccountState() {
-        scope.launch {
-            try {
-                val (balance, nonce) = coroutineScope {
-                    val balance = async { syncer.execute(GetBalanceJsonRpc(address, DefaultBlockParameter.Latest)) }
-                    val nonce = async { syncer.execute(GetTransactionCountJsonRpc(address, DefaultBlockParameter.Latest)) }
-                    Pair(balance.await(), nonce.await())
-                }
+        Single.zip(
+            syncer.single(GetBalanceJsonRpc(address, DefaultBlockParameter.Latest)),
+            syncer.single(GetTransactionCountJsonRpc(address, DefaultBlockParameter.Latest))
+        ) { t1, t2 -> Pair(t1, t2) }
+            .subscribeOn(Schedulers.io())
+            .subscribe({ (balance, nonce) ->
                 onUpdateAccountState(AccountState(balance, nonce))
                 syncState = SyncState.Synced()
-            } catch (error: Throwable) {
-                error.printStackTrace()
-                syncState = SyncState.NotSynced(error)
+            }, {
+                it?.printStackTrace()
+                syncState = SyncState.NotSynced(it)
+            }).let {
+                disposables.add(it)
             }
-        }
     }
 
 
@@ -144,42 +141,42 @@ class RpcBlockchain(
         syncer.resume()
     }
 
-    override suspend fun send(rawTransaction: RawTransaction, signature: Signature, privateKey: BigInteger, lockTime: Int?): Transaction {
+    override fun send(rawTransaction: RawTransaction, signature: Signature, privateKey: BigInteger, lockTime: Int?): Single<Transaction> {
         val transaction = transactionBuilder.transaction(rawTransaction, signature)
         val encoded = transactionBuilder.encode(rawTransaction, signature)
 
-        syncer.execute(SendRawTransactionJsonRpc(encoded))
-        return transaction
+        return syncer.single(SendRawTransactionJsonRpc(encoded))
+            .map { transaction }
     }
 
-    override suspend fun getNonce(defaultBlockParameter: DefaultBlockParameter): Long {
-        return syncer.execute(GetTransactionCountJsonRpc(address, defaultBlockParameter))
+    override fun getNonce(defaultBlockParameter: DefaultBlockParameter): Single<Long> {
+        return syncer.single(GetTransactionCountJsonRpc(address, defaultBlockParameter))
     }
 
-    override suspend fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice?, data: ByteArray?): Long {
-        return syncer.execute(EstimateGasJsonRpc(address, to, amount, gasLimit, gasPrice, data))
+    override fun estimateGas(to: Address?, amount: BigInteger?, gasLimit: Long?, gasPrice: GasPrice?, data: ByteArray?): Single<Long> {
+        return syncer.single(EstimateGasJsonRpc(address, to, amount, gasLimit, gasPrice, data))
     }
 
-    override suspend fun getTransactionReceipt(transactionHash: ByteArray): RpcTransactionReceipt {
-        return syncer.execute(GetTransactionReceiptJsonRpc(transactionHash))
+    override fun getTransactionReceipt(transactionHash: ByteArray): Single<RpcTransactionReceipt> {
+        return syncer.single(GetTransactionReceiptJsonRpc(transactionHash))
     }
 
-    override suspend fun getTransaction(transactionHash: ByteArray): RpcTransaction {
-        return syncer.execute(GetTransactionByHashJsonRpc(transactionHash))
+    override fun getTransaction(transactionHash: ByteArray): Single<RpcTransaction> {
+        return syncer.single(GetTransactionByHashJsonRpc(transactionHash))
     }
 
-    override suspend fun getBlock(blockNumber: Long): RpcBlock {
-        return syncer.execute(GetBlockByNumberJsonRpc(blockNumber))
+    override fun getBlock(blockNumber: Long): Single<RpcBlock> {
+        return syncer.single(GetBlockByNumberJsonRpc(blockNumber))
     }
 
-    override suspend fun getLogs(
+    override fun getLogs(
         address: Address?,
         topics: List<ByteArray?>,
         fromBlock: Long,
         toBlock: Long,
         pullTimestamps: Boolean
-    ): List<TransactionLog> {
-        val logs = syncer.execute(
+    ): Single<List<TransactionLog>> {
+        return syncer.single(
             GetLogsJsonRpc(
                 address,
                 DefaultBlockParameter.BlockNumber(fromBlock),
@@ -187,15 +184,16 @@ class RpcBlockchain(
                 topics
             )
         )
-
-        return if (pullTimestamps) {
-            pullTransactionTimestamps(logs)
-        } else {
-            logs
-        }
+            .flatMap { logs ->
+                if (pullTimestamps) {
+                    pullTransactionTimestamps(logs)
+                } else {
+                    Single.just(logs)
+                }
+            }
     }
 
-    private suspend fun pullTransactionTimestamps(logs: List<TransactionLog>): List<TransactionLog> {
+    private fun pullTransactionTimestamps(logs: List<TransactionLog>): Single<List<TransactionLog>> {
         val logsByBlockNumber: MutableMap<Long, MutableList<TransactionLog>> = mutableMapOf()
 
         for (log in logs) {
@@ -205,35 +203,37 @@ class RpcBlockchain(
             logsByBlockNumber[log.blockNumber] = logs
         }
 
-        val blocks = coroutineScope {
-            logsByBlockNumber.keys.map { blockNumber ->
-                async { syncer.execute(GetBlockByNumberJsonRpc(blockNumber)) }
-            }.awaitAll()
+        val requestSingles: MutableList<Single<RpcBlock>> = mutableListOf()
+
+        for ((blockNumber, _) in logsByBlockNumber) {
+            requestSingles.add(syncer.single(GetBlockByNumberJsonRpc(blockNumber)))
         }
 
-        val resultLogs: MutableList<TransactionLog> = mutableListOf()
+        return Single.merge(requestSingles).toList().map { blocks ->
+            val resultLogs: MutableList<TransactionLog> = mutableListOf()
 
-        for (block in blocks) {
-            val logsOfBlock = logsByBlockNumber[block.number] ?: continue
+            for (block in blocks) {
+                val logsOfBlock = logsByBlockNumber[block.number] ?: continue
 
-            for (log in logsOfBlock) {
-                log.timestamp = block.timestamp
-                resultLogs.add(log)
+                for (log in logsOfBlock) {
+                    log.timestamp = block.timestamp
+                    resultLogs.add(log)
+                }
             }
+            resultLogs
         }
-        return resultLogs
     }
 
-    override suspend fun getStorageAt(contractAddress: Address, position: ByteArray, defaultBlockParameter: DefaultBlockParameter): ByteArray {
-        return syncer.execute(GetStorageAtJsonRpc(contractAddress, position, defaultBlockParameter))
+    override fun getStorageAt(contractAddress: Address, position: ByteArray, defaultBlockParameter: DefaultBlockParameter): Single<ByteArray> {
+        return syncer.single(GetStorageAtJsonRpc(contractAddress, position, defaultBlockParameter))
     }
 
-    override suspend fun call(contractAddress: Address, data: ByteArray, defaultBlockParameter: DefaultBlockParameter): ByteArray {
-        return syncer.execute(callRpc(contractAddress, data, defaultBlockParameter))
+    override fun call(contractAddress: Address, data: ByteArray, defaultBlockParameter: DefaultBlockParameter): Single<ByteArray> {
+        return syncer.single(callRpc(contractAddress, data, defaultBlockParameter))
     }
 
-    override suspend fun <T: Any> rpc(rpc: JsonRpc<T>): T {
-        return syncer.execute(rpc)
+    override fun <T: Any> rpcSingle(rpc: JsonRpc<T>): Single<T> {
+        return syncer.single(rpc)
     }
 
     override fun getBalance(address: Address): Single<BigInteger> {
@@ -261,7 +261,7 @@ class RpcBlockchain(
 
             is SyncerState.NotReady -> {
                 syncState = SyncState.NotSynced(state.error)
-                scope.coroutineContext.cancelChildren()
+                disposables.clear()
             }
         }
     }
@@ -285,7 +285,7 @@ class RpcBlockchain(
         fun callRpc(contractAddress: Address, data: ByteArray, defaultBlockParameter: DefaultBlockParameter): DataJsonRpc =
             CallJsonRpc(contractAddress, data, defaultBlockParameter)
 
-        suspend fun estimateGas(
+        fun estimateGas(
             rpcSource: RpcSource,
             from: Address,
             to: Address?,
@@ -293,10 +293,10 @@ class RpcBlockchain(
             gasLimit: Long?,
             gasPrice: GasPrice,
             data: ByteArray?
-        ): Long {
+        ): Single<Long> {
             val rpcApiProvider = RpcApiProviderFactory.nodeApiProvider(rpcSource)
 
-            return rpcApiProvider.execute(EstimateGasJsonRpc(from, to, amount, gasLimit, gasPrice, data))
+            return rpcApiProvider.single(EstimateGasJsonRpc(from, to, amount, gasLimit, gasPrice, data))
         }
     }
 }

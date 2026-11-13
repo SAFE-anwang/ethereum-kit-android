@@ -2,7 +2,6 @@ package io.horizontalsystems.ethereumkit.api.core
 
 import com.google.gson.Gson
 import io.horizontalsystems.ethereumkit.api.jsonrpc.JsonRpc
-import kotlinx.coroutines.CancellationException
 import io.reactivex.Single
 import okhttp3.ConnectionPool
 import okhttp3.ConnectionSpec
@@ -11,6 +10,7 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import retrofit2.http.Body
@@ -64,6 +64,7 @@ class NodeApiProvider(
 
         val retrofit = Retrofit.Builder()
                 .baseUrl("${uris.first()}/")
+                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
                 .addConverterFactory(ScalarsConverterFactory.create())
                 .addConverterFactory(GsonConverterFactory.create(gson))
                 .client(httpClient.build())
@@ -74,31 +75,34 @@ class NodeApiProvider(
 
     override val source: String = uris.first().host
 
-    override suspend fun <T: Any> execute(rpc: JsonRpc<T>): T {
+    override fun <T: Any> single(rpc: JsonRpc<T>): Single<T> {
         rpc.id = currentRpcId.addAndGet(1)
 
-        var error: Throwable = ApiProviderError.ApiUrlNotFound
+        return Single.create { emitter ->
+            var error: Throwable = ApiProviderError.ApiUrlNotFound
 
-        for (uri in uris) {
-            try {
-                val rpcResponse = service.execute(uri, gson.toJson(rpc))
-                return rpc.parseResponse(rpcResponse, gson)
-            } catch (throwable: CancellationException) {
-                throw throwable
-            } catch (throwable: Throwable) {
-                error = throwable
-                if (throwable is JsonRpc.ResponseError.RpcError) {
-                    break
+            for (uri in uris) {
+                try {
+                    val rpcResponse = service.single(uri, gson.toJson(rpc)).blockingGet()
+                    val response = rpc.parseResponse(rpcResponse, gson)
+
+                    emitter.onSuccess(response)
+                    return@create
+                } catch (throwable: Throwable) {
+                    error = throwable
+                    if (throwable is JsonRpc.ResponseError.RpcError) {
+                        break
+                    }
                 }
             }
+            emitter.onError(error)
         }
-        throw error
     }
 
     private interface InfuraService {
         @POST
         @Headers("Content-Type: application/json", "Accept: application/json")
-        suspend fun execute(@Url uri: URI, @Body jsonRpc: String): RpcResponse
+        fun single(@Url uri: URI, @Body jsonRpc: String): Single<RpcResponse>
     }
 
     sealed class ApiProviderError : Throwable() {
