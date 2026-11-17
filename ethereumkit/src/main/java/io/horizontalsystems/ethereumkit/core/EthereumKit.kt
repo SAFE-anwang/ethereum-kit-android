@@ -821,11 +821,13 @@ class EthereumKit(
 
             blockchain.listener = ethereumKit
 
-            decorationManager.addTransactionDecorator(EthereumDecorator(address))
+            // SafeFourDecorator must run before EthereumDecorator so deposit/lock
+            // methods are not mis-classified as plain EmptyMethod transfers.
             if (chain == Chain.SafeFour || chain == Chain.SafeFourTestNet) {
                 decorationManager.addTransactionDecorator(SafeFourDecorator(address))
                 ethereumKit.addMethodDecorator(SafeFourMethodDecorator(SafeFourContractMethodFactories))
             }
+            decorationManager.addTransactionDecorator(EthereumDecorator(address))
             return ethereumKit
         }
 
