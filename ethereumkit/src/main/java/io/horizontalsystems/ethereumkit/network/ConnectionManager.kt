@@ -15,10 +15,10 @@ class ConnectionManager(context: Context) {
     private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
     var listener: Listener? = null
-    var isConnected = getInitialConnectionStatus()
     private var hasValidInternet = false
     private var hasConnection = false
-    private var callback = ConnectionStatusCallback()
+    private val callback = ConnectionStatusCallback()
+    var isConnected = getInitialConnectionStatus()
 
     init {
         connectivityManager.registerNetworkCallback(NetworkRequest.Builder().build(), callback)
@@ -27,6 +27,10 @@ class ConnectionManager(context: Context) {
     private fun getInitialConnectionStatus(): Boolean {
         val network = connectivityManager.activeNetwork ?: return false
 
+        // Seed activeNetworks so a later onLost cannot clear hasConnection while the
+        // network is still up — otherwise a freshly created Safe4 kit after testnet
+        // switch can stick in NoNetworkConnection / 同步错误.
+        callback.seedNetwork(network)
         hasConnection = true
         val capabilities = connectivityManager.getNetworkCapabilities(network)
         hasValidInternet = capabilities?.let {
@@ -40,10 +44,16 @@ class ConnectionManager(context: Context) {
 
         private val activeNetworks: MutableList<Network> = mutableListOf()
 
+        fun seedNetwork(network: Network) {
+            if (activeNetworks.none { it == network }) {
+                activeNetworks.add(network)
+            }
+        }
+
         override fun onLost(network: Network) {
             super.onLost(network)
             activeNetworks.removeAll { activeNetwork -> activeNetwork == network }
-            hasConnection = activeNetworks.isNotEmpty()
+            hasConnection = activeNetworks.isNotEmpty() || connectivityManager.activeNetwork != null
             updatedConnectionState()
         }
 

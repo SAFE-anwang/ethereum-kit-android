@@ -143,16 +143,20 @@ class RpcBlockchainSafe4(
 
     override fun syncAccountState() {
         Single.create { emitter ->
-            var error: Throwable
             try {
                 val balance = web3j.ethGetBalance(address.hex, DefaultBlockParameterName.LATEST).send().balance
                 val transactionCount = web3j.ethGetTransactionCount(address.hex, DefaultBlockParameterName.LATEST).send().transactionCount
-                val safe4Account = web3jSafe4.account.getTotalAmount(org.web3j.abi.datatypes.Address(address.hex)).amount
+                // Lock-balance is best-effort: a testnet/mainnet contract mismatch must not
+                // block the whole Safe4 wallet from leaving "同步错误".
+                val safe4Account = try {
+                    web3jSafe4.account.getTotalAmount(org.web3j.abi.datatypes.Address(address.hex)).amount
+                } catch (e: Throwable) {
+                    Log.w("RpcBlockchainSafe4", "getTotalAmount failed (chainId=${transactionBuilder.chainId}): ${e.message}")
+                    BigInteger.ZERO
+                }
                 emitter.onSuccess(BalanceInfo(balance, transactionCount, safe4Account))
-//                return@create
             } catch (throwable: Throwable) {
-                error = throwable
-                emitter.onError(error)
+                emitter.onError(throwable)
             }
         }.subscribeOn(Schedulers.io())
                 .subscribe({ (balance, transactionCount, lockBalance) ->

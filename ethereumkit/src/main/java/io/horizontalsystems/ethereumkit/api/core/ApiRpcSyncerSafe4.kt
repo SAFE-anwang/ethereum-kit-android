@@ -80,6 +80,8 @@ class ApiRpcSyncerSafe4(
     }
 
     private fun startTimer() {
+        // Match ApiRpcSyncer: do not stack timers on repeated Ready transitions.
+        if (timer != null) return
         timer = Timer().apply {
             schedule(0, syncInterval * 1000) {
                 onFireTimer()
@@ -106,9 +108,16 @@ class ApiRpcSyncerSafe4(
         }.subscribeOn(Schedulers.io())
                 .observeOn(Schedulers.io())
                 .subscribe({ lastBlockNumber ->
+                    // Recover from a previous poll failure so balance sync can resume.
+                    if (state !is SyncerState.Ready && isStarted && connectionManager.isConnected) {
+                        state = SyncerState.Ready
+                    }
                     listener?.didUpdateLastBlockHeight(lastBlockNumber.toLong())
                 }, {
-                    state = SyncerState.NotReady(it)
+                    // Do NOT flip to NotReady on a single poll failure — that permanently
+                    // sticks Safe4 wallets in "同步错误" until the kit is rebuilt.
+                    // ApiRpcSyncer ignores poll errors the same way.
+                    Log.w("ApiRpcSyncerSafe4", "ethBlockNumber poll failed: ${it.message}")
                 }).let {
                     disposables.add(it)
                 }
