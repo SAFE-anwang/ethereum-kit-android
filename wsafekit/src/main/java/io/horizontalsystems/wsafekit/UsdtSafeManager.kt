@@ -56,7 +56,8 @@ class UsdtSafeManager(
     fun transactionDataSafe4ToUsdt(amount: BigInteger,
                                    to: String,
                                    network: String): TransactionData {
-        return TransactionData(to = getContractAddress(Chain.SafeFour), value = amount,
+        val safe4Chain = if (Chain.SafeFour.isSafe4TestNetId) Chain.SafeFourTestNet else Chain.SafeFour
+        return TransactionData(to = getContractAddress(safe4Chain), value = amount,
             Web3jUtils.safe4ToUsdt(amount, to, network).toByteArray(),
             isSafeUsdt = true)
     }
@@ -73,7 +74,7 @@ class UsdtSafeManager(
     private fun getContractAddress(chain: Chain): Address {
         val wethAddressHex =
             when (chain) {
-                Chain.SafeFourTestNet,
+                Chain.SafeFourTestNet -> "0x5a9187804AE46C9809696A9c64c7D3D42307Fef3"
                 Chain.SafeFour -> "0x9C1246a4BB3c57303587e594a82632c3171662C9"
                 Chain.Ethereum -> "0xdAC17F958D2ee523a2206206994597C13D831ec7"
 //            Chain.EthereumRopsten -> "0x32885f2faf83aeee39e2cfe7f302e3bb884869f4"
