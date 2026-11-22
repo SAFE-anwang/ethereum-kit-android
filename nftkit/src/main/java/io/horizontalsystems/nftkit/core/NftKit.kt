@@ -80,6 +80,7 @@ class NftKit(
         eip1155Syncer.listener = this
 
         evmKit.addTransactionSyncer(eip1155Syncer)
+        evmKit.onChainstackEip1155 = { transactions -> eip1155Syncer.ingest(transactions) }
     }
 
     fun addEip721TransactionSyncer() {
@@ -87,6 +88,7 @@ class NftKit(
         eip721Syncer.listener = this
 
         evmKit.addTransactionSyncer(eip721Syncer)
+        evmKit.onChainstackEip721 = { transactions -> eip721Syncer.ingest(transactions) }
     }
 
     fun addEip721Decorators() {

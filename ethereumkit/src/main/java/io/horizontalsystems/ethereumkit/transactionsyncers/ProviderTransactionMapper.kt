@@ -1,5 +1,8 @@
 package io.horizontalsystems.ethereumkit.transactionsyncers
 
+import io.horizontalsystems.ethereumkit.models.ProviderEip1155Transaction
+import io.horizontalsystems.ethereumkit.models.ProviderEip721Transaction
+import io.horizontalsystems.ethereumkit.models.ProviderTokenTransaction
 import io.horizontalsystems.ethereumkit.models.ProviderTransaction
 import io.horizontalsystems.ethereumkit.models.Transaction
 
@@ -40,3 +43,42 @@ fun ProviderTransaction.toTransaction(): Transaction {
         gasUsed = gasUsed
     )
 }
+
+fun ProviderTokenTransaction.toShellTransaction(): Transaction =
+    Transaction(
+        hash = hash,
+        timestamp = timestamp,
+        isFailed = false,
+        blockNumber = blockNumber,
+        transactionIndex = transactionIndex,
+        nonce = nonce,
+        gasPrice = gasPrice,
+        gasLimit = gasLimit,
+        gasUsed = gasUsed,
+    )
+
+fun ProviderEip721Transaction.toShellTransaction(): Transaction =
+    Transaction(
+        hash = hash,
+        timestamp = timestamp,
+        isFailed = false,
+        blockNumber = blockNumber,
+        transactionIndex = transactionIndex,
+        nonce = nonce,
+        gasPrice = gasPrice,
+        gasLimit = gasLimit,
+        gasUsed = gasUsed,
+    )
+
+fun ProviderEip1155Transaction.toShellTransaction(): Transaction =
+    Transaction(
+        hash = hash,
+        timestamp = timestamp,
+        isFailed = false,
+        blockNumber = blockNumber,
+        transactionIndex = transactionIndex,
+        nonce = nonce,
+        gasPrice = gasPrice,
+        gasLimit = gasLimit,
+        gasUsed = gasUsed,
+    )

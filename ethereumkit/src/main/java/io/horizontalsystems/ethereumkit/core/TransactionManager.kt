@@ -1,11 +1,13 @@
 package io.horizontalsystems.ethereumkit.core
 
 import android.util.Log
+import io.horizontalsystems.ethereumkit.core.toHexString
 import io.horizontalsystems.ethereumkit.decorations.DecorationManager
 import io.horizontalsystems.ethereumkit.models.Address
 import io.horizontalsystems.ethereumkit.models.FullRpcTransaction
 import io.horizontalsystems.ethereumkit.models.FullTransaction
 import io.horizontalsystems.ethereumkit.models.Transaction
+import io.horizontalsystems.ethereumkit.models.ProviderInternalTransaction
 import io.horizontalsystems.ethereumkit.models.TransactionData
 import io.horizontalsystems.ethereumkit.models.TransactionTag
 import io.reactivex.BackpressureStrategy
@@ -109,6 +111,33 @@ class TransactionManager(
         }
 
         storage.save(mergedTransactions)
+    }
+
+    fun ingestInternalTransactions(transactions: List<ProviderInternalTransaction>) {
+        if (transactions.isEmpty()) return
+        val existing = transactions.map { it.hash }
+            .distinctBy { it.toHexString() }
+            .chunked(80)
+            .flatMap { batch -> storage.getInternalTransactionsByHashes(batch) }
+            .map { "${it.hashString}|${it.from.hex}|${it.to.hex}|${it.value}" }
+            .toSet()
+        val fresh = transactions.distinctBy {
+            "${it.hash.toHexString()}|${it.from.hex}|${it.to.hex}|${it.value}"
+        }.filter {
+            "${it.hash.toHexString()}|${it.from.hex}|${it.to.hex}|${it.value}" !in existing
+        }
+        if (fresh.isEmpty()) return
+        storage.saveInternalTransactions(fresh.map { it.internalTransaction() })
+        handle(
+            fresh.map {
+                Transaction(
+                    hash = it.hash,
+                    timestamp = it.timestamp,
+                    isFailed = false,
+                    blockNumber = it.blockNumber,
+                )
+            },
+        )
     }
 
     fun handle(transactions: List<Transaction>, initial: Boolean = false): List<FullTransaction> {

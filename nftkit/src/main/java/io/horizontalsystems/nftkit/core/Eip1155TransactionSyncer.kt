@@ -16,6 +16,10 @@ class Eip1155TransactionSyncer(
 
     var listener: ITransactionSyncerListener? = null
 
+    fun ingest(transactions: List<ProviderEip1155Transaction>) {
+        handle(transactions)
+    }
+
     private fun handle(transactions: List<ProviderEip1155Transaction>) {
         if (transactions.isEmpty()) return
 

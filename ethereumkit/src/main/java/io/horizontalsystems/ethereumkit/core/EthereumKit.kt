@@ -44,7 +44,13 @@ import io.horizontalsystems.ethereumkit.models.RpcSource
 import io.horizontalsystems.ethereumkit.models.Signature
 import io.horizontalsystems.ethereumkit.models.TransactionData
 import io.horizontalsystems.ethereumkit.models.TransactionLog
+import io.horizontalsystems.ethereumkit.models.Eip20Event
+import io.horizontalsystems.ethereumkit.models.ProviderEip1155Transaction
+import io.horizontalsystems.ethereumkit.models.ProviderEip721Transaction
+import io.horizontalsystems.ethereumkit.models.ProviderInternalTransaction
+import io.horizontalsystems.ethereumkit.models.ProviderTokenTransaction
 import io.horizontalsystems.ethereumkit.models.TransactionSource
+import io.horizontalsystems.ethereumkit.transactionsyncers.toShellTransaction
 import io.horizontalsystems.ethereumkit.network.AddressTypeAdapter
 import io.horizontalsystems.ethereumkit.network.BigIntegerTypeAdapter
 import io.horizontalsystems.ethereumkit.network.ByteArrayTypeAdapter
@@ -96,6 +102,34 @@ class EthereumKit(
     /** Chainstack 数据源的 websocket 实时监听（新区块/日志出现时立即触发同步） */
     private val realtimeSync: ChainstackRealtimeSync? = null
 ) : IBlockchainListener {
+
+    /** Chainstack 历史补页：NFT 事件需先由 NftKit 写入后再刷新交易外壳 */
+    var onChainstackEip721: ((List<ProviderEip721Transaction>) -> Unit)? = null
+    var onChainstackEip1155: ((List<ProviderEip1155Transaction>) -> Unit)? = null
+
+    private val chainstackHistoryListener = object : ChainstackTransactionProvider.HistoryPageListener {
+        override fun onTransactions(transactions: List<io.horizontalsystems.ethereumkit.models.ProviderTransaction>) {
+            transactionManager.handle(transactions.map { it.toTransaction() })
+        }
+
+        override fun onInternalTransactions(transactions: List<ProviderInternalTransaction>) {
+            transactionManager.ingestInternalTransactions(transactions)
+        }
+
+        override fun onTokenTransactions(transactions: List<ProviderTokenTransaction>) {
+            ingestTokenTransactions(transactions)
+        }
+
+        override fun onEip721Transactions(transactions: List<ProviderEip721Transaction>) {
+            onChainstackEip721?.invoke(transactions)
+            transactionManager.handle(transactions.map { it.toShellTransaction() })
+        }
+
+        override fun onEip1155Transactions(transactions: List<ProviderEip1155Transaction>) {
+            onChainstackEip1155?.invoke(transactions)
+            transactionManager.handle(transactions.map { it.toShellTransaction() })
+        }
+    }
 
     private val logger = Logger.getLogger("EthereumKit")
     private val disposables = CompositeDisposable()
@@ -164,11 +198,13 @@ class EthereumKit(
 
         blockchain.start()
         transactionSyncManager.sync()
+        startChainstackHistoryBackfill()
         realtimeSync?.start()
     }
 
     fun stop() {
         started = false
+        stopChainstackHistoryBackfill()
         realtimeSync?.stop()
         blockchain.stop()
         state.clear()
@@ -210,12 +246,54 @@ class EthereumKit(
     fun onEnterForeground() {
         blockchain.resume()
         realtimeSync?.start()
+        if (started) {
+            startChainstackHistoryBackfill()
+        }
     }
 
     fun onEnterBackground() {
         blockchain.pause()
         // 退到后台断开 websocket，避免常驻连接耗电
         realtimeSync?.stop()
+        stopChainstackHistoryBackfill()
+    }
+
+    private fun startChainstackHistoryBackfill() {
+        val provider = transactionProvider as? ChainstackTransactionProvider ?: return
+        provider.startHistoryBackfill(chainstackHistoryListener)
+    }
+
+    private fun stopChainstackHistoryBackfill() {
+        val provider = transactionProvider as? ChainstackTransactionProvider ?: return
+        provider.stopHistoryBackfill()
+    }
+
+    private fun ingestTokenTransactions(transactions: List<ProviderTokenTransaction>) {
+        if (transactions.isEmpty()) return
+        val existing = transactions.map { it.hash }
+            .distinctBy { it.toHexString() }
+            .chunked(80)
+            .flatMap { batch -> eip20Storage.getEventsByHashes(batch) }
+            .map { it.hashString }
+            .toSet()
+        val fresh = transactions.filter { it.hash.toHexString() !in existing }
+        if (fresh.isEmpty()) return
+        eip20Storage.save(
+            fresh.map { tx ->
+                Eip20Event(
+                    tx.hash,
+                    tx.blockNumber,
+                    tx.contractAddress,
+                    tx.from,
+                    tx.to,
+                    tx.value,
+                    tx.tokenName,
+                    tx.tokenSymbol,
+                    tx.tokenDecimal,
+                )
+            },
+        )
+        transactionManager.handle(fresh.map { it.toShellTransaction() })
     }
 
     fun getAnBaoAllAddressInfo(seed: ByteArray) {

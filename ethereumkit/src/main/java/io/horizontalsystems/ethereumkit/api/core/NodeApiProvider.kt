@@ -3,6 +3,7 @@ package io.horizontalsystems.ethereumkit.api.core
 import com.google.gson.Gson
 import io.horizontalsystems.ethereumkit.api.jsonrpc.JsonRpc
 import io.reactivex.Single
+import io.reactivex.schedulers.Schedulers
 import okhttp3.ConnectionPool
 import okhttp3.ConnectionSpec
 import okhttp3.Credentials
@@ -77,26 +78,24 @@ class NodeApiProvider(
 
     override fun <T: Any> single(rpc: JsonRpc<T>): Single<T> {
         rpc.id = currentRpcId.addAndGet(1)
+        val jsonRpc = gson.toJson(rpc)
 
-        return Single.create { emitter ->
-            var error: Throwable = ApiProviderError.ApiUrlNotFound
-
-            for (uri in uris) {
-                try {
-                    val rpcResponse = service.single(uri, gson.toJson(rpc)).blockingGet()
-                    val response = rpc.parseResponse(rpcResponse, gson)
-
-                    emitter.onSuccess(response)
-                    return@create
-                } catch (throwable: Throwable) {
-                    error = throwable
-                    if (throwable is JsonRpc.ResponseError.RpcError) {
-                        break
+        return uris
+            .map { uri ->
+                service.single(uri, jsonRpc).map { rpcResponse ->
+                    rpc.parseResponse(rpcResponse, gson)
+                }
+            }
+            .foldRight(Single.error<T>(ApiProviderError.ApiUrlNotFound)) { attempt, chain ->
+                attempt.onErrorResumeNext { error ->
+                    if (error is JsonRpc.ResponseError.RpcError) {
+                        Single.error(error)
+                    } else {
+                        chain
                     }
                 }
             }
-            emitter.onError(error)
-        }
+            .subscribeOn(Schedulers.io())
     }
 
     private interface InfuraService {

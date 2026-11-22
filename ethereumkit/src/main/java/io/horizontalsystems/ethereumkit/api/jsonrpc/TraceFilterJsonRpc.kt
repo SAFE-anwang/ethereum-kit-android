@@ -1,5 +1,6 @@
 package io.horizontalsystems.ethereumkit.api.jsonrpc
 
+import com.google.gson.JsonPrimitive
 import com.google.gson.reflect.TypeToken
 import io.horizontalsystems.ethereumkit.api.jsonrpc.models.RpcTrace
 import io.horizontalsystems.ethereumkit.core.toHexString
@@ -30,8 +31,8 @@ class TraceFilterJsonRpc(
             "fromBlock" to fromBlock.toHexString(),
             "toBlock" to toBlock.toHexString(),
             (if (filterByFrom) "fromAddress" else "toAddress") to listOf(addressHex),
-            "after" to after,
-            "count" to count
+            "after" to JsonPrimitive(after),
+            "count" to JsonPrimitive(count)
         )
     )
 ) {
